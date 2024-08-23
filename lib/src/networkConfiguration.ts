@@ -1,0 +1,26 @@
+import { GitHubToken } from './auth/types';
+import { type Context } from './context';
+
+export abstract class NetworkConfiguration {
+  abstract getTokenUrl(githubToken: GitHubToken): string;
+  abstract getCAPIUrl(ctx: Context, path?: string): string; // url
+  abstract getCompletionsUrl(ctx: Context, path: string): string;
+  abstract getTelemetryUrl(): string;
+  abstract getNotificationUrl(githubToken: GitHubToken): string;
+  abstract getLoginReachabilityUrl(): string;
+  abstract getAPIReachabilityUrl(): string;
+  // ./auth/authPersistence.ts
+  abstract getAuthAuthority(): string;
+  abstract getEmbeddingsUrl(ctx: Context): string;
+  abstract getBlackbirdIndexingStatusUrl(): string;
+  abstract getBlackbirdCodeSearchUrl(ctx: Context): string;
+  abstract getBlackbirdDocsSearchUrl(ctx: Context): string;
+  abstract getDeviceFlowStartUrl(): string;
+  abstract getDeviceFlowCompletionUrl(): string;
+  abstract getUserInfoUrl(): string;
+  abstract getOriginTrackingUrl(ctx: Context, path: string /* '/_ping' */): string;
+  abstract getContentRestrictionsUrl(session: GitHubToken): string;
+  // ../../agent/src/methods/setEditorInfo.ts
+  abstract updateBaseUrl(ctx: Context, authUrl?: string): void;
+}
+export * from '@microsoft/applicationinsights-common';

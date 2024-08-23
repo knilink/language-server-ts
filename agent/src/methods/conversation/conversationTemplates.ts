@@ -1,0 +1,31 @@
+import { Type, type Static } from '@sinclair/typebox';
+import { type CancellationToken } from '../../cancellation';
+import { Context } from '../../../../lib/src/context';
+import { getUserFacingPromptTemplates, IPromptTemplate } from '../../../../lib/src/conversation/promptTemplates';
+import { TestingOptions } from '../testingOptions';
+import { ensureAuthenticated } from '../../auth/authDecorator';
+import { addMethodHandlerValidation } from '../../schemaValidation';
+
+const Params = Type.Object({ options: Type.Optional(TestingOptions) });
+
+async function handleConversationTemplatesChecked(
+  ctx: Context,
+  token: CancellationToken,
+  params: Static<typeof Params>
+): Promise<[Pick<IPromptTemplate, 'id' | 'description' | 'shortDescription' | 'scopes'>[], null]> {
+  return [
+    getUserFacingPromptTemplates(ctx).map((t) => ({
+      id: t.id,
+      description: t.description,
+      shortDescription: t.shortDescription,
+      scopes: t.scopes,
+    })),
+    null,
+  ];
+}
+
+const handleConversationTemplates = ensureAuthenticated(
+  addMethodHandlerValidation(Params, handleConversationTemplatesChecked)
+);
+
+export { handleConversationTemplates };
