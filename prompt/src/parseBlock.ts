@@ -5,7 +5,7 @@ import {
   isSupportedLanguageId,
   parseTreeSitter,
   queryPythonIsDocstring,
-} from './parse';
+} from "./parse.ts";
 
 interface IPosition {
   column: number;

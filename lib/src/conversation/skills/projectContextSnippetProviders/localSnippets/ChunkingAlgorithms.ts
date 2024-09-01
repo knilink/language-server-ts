@@ -1,5 +1,5 @@
-import { FixedSizeChunking } from './FixedSizeChunking';
-import { IChunking } from './IndexingTypes';
+import { FixedSizeChunking } from "./FixedSizeChunking.ts";
+import { IChunking } from "./IndexingTypes.ts";
 
 type ChunkingAlgorithmType = string;
 

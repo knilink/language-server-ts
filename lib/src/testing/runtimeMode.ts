@@ -1,4 +1,4 @@
-import { Context } from '../context';
+import { Context } from "../context.ts";
 
 class RuntimeMode {
   constructor(public flags: Flags) { }

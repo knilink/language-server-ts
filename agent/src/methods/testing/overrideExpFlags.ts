@@ -1,11 +1,11 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation';
+import { type CancellationToken } from "../../cancellation.ts";
 
-import { Context } from '../../../../lib/src/context';
-import { Fetcher } from '../../../../lib/src/networking';
-import { ExpConfigMaker, ExpConfigFromTAS } from '../../../../lib/src/experiments/fetchExperiments';
-import { addMethodHandlerValidation } from '../../schemaValidation';
-import { ExpConfigFetcherWithDelegate } from '../../../../lib/src/testing/expServerFake';
+import { Context } from "../../../../lib/src/context.ts";
+import { Fetcher } from "../../../../lib/src/networking.ts";
+import { ExpConfigMaker, ExpConfigFromTAS } from "../../../../lib/src/experiments/fetchExperiments.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { ExpConfigFetcherWithDelegate } from "../../../../lib/src/testing/expServerFake.ts";
 
 const Params = Type.Object({
   expFlags: Type.Record(Type.String(), Type.Union([Type.String(), Type.Number(), Type.Boolean()])),

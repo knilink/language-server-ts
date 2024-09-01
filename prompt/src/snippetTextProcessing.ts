@@ -1,6 +1,6 @@
-import { ITokenizer } from './tokenization';
-import { truncateFirstLinesFirst } from './textProcessing/truncateFirstLinesFirst';
-import { Element } from './types';
+import { ITokenizer } from './tokenization/index.ts';
+import { truncateFirstLinesFirst } from './textProcessing/truncateFirstLinesFirst.ts';
+import { Element } from './types.ts';
 // import { } from './wishlist'; // circular deps, TODO
 
 class SnippetTextProcessor {

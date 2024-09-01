@@ -9,15 +9,15 @@ import {
 import { TextDocument as LSPTextDocument, Range } from 'vscode-languageserver-textdocument';
 // import { Disposable } from 'vscode-jsonrpc';
 
-import { Context } from '../../lib/src/context';
-import { LanguageDetection } from '../../lib/src/language/languageDetection';
-import { TextDocument } from '../../lib/src/textDocument';
-import { Service } from './service';
-import { FileSystem } from '../../lib/src/fileSystem';
+import { Context } from "../../lib/src/context.ts";
+import { LanguageDetection } from "../../lib/src/language/languageDetection.ts";
+import { TextDocument } from "../../lib/src/textDocument.ts";
+import { Service } from "./service.ts";
+import { FileSystem } from "../../lib/src/fileSystem.ts";
 import { EventEmitter } from 'events';
-import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager';
+import { INotebook, TextDocumentManager } from "../../lib/src/textDocumentManager.ts";
 // import { Document } from '../../prompt/src/types';
-import { WorkspaceFolder } from '../../lib/src/types';
+import { WorkspaceFolder } from "../../lib/src/types.ts";
 
 function wrapDoc(ctx: Context, doc: TextDocument): TextDocument {
   const languageDetection = ctx.get<LanguageDetection>(LanguageDetection);

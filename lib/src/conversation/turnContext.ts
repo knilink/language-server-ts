@@ -1,19 +1,19 @@
 import { Range, DocumentUri } from 'vscode-languageserver-types';
 
-import { type TextDocumentResultStatus } from '../fileReader';
-import { type CancellationToken } from '../../../agent/src/cancellation';
+import { type TextDocumentResultStatus } from "../fileReader.ts";
+import { type CancellationToken } from "../../../agent/src/cancellation.ts";
 
-import { Skill, SkillId } from '../types';
-import { Context } from '../context';
-import { Conversation, Turn } from './conversation';
+import { Skill, SkillId } from "../types.ts";
+import { Context } from "../context.ts";
+import { Conversation, Turn } from "./conversation.ts";
 
-import { conversationLogger } from './logger';
-import { ConversationSkillRegistry } from './prompt/conversationSkill';
-import { Conversations } from './conversations';
-import { ConversationProgress } from './conversationProgress';
-import { ConversationDumper } from './dump';
-import { Steps } from './steps';
-import { SkillMap } from './skills/skillMap';
+import { conversationLogger } from "./logger.ts";
+import { ConversationSkillRegistry } from "./prompt/conversationSkill.ts";
+import { Conversations } from "./conversations.ts";
+import { ConversationProgress } from "./conversationProgress.ts";
+import { ConversationDumper } from "./dump.ts";
+import { Steps } from "./steps.ts";
+import { SkillMap } from "./skills/skillMap.ts";
 
 type Collectible =
   | {

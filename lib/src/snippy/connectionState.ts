@@ -1,7 +1,7 @@
-import { type Context } from '../context';
-import { codeReferenceLogger } from './logger';
-import { Fetcher } from '../networking';
-import { NetworkConfiguration } from '../networkConfiguration';
+import { type Context } from "../context.ts";
+import { codeReferenceLogger } from "./logger.ts";
+import { Fetcher } from "../networking.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
 
 const InitialTimeout = 3_000;
 const BaseRetryTime = 2;

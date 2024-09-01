@@ -1,24 +1,24 @@
 import { Type, type Static } from '@sinclair/typebox';
 import type { Position, Range } from 'vscode-languageserver-types';
 
-import { Context } from '../../../lib/src/context';
-import { getOpenTextDocumentChecked } from '../textDocument';
-import { verifyAuthenticated } from '../auth/authDecorator';
-import { TelemetryData, telemetry } from '../../../lib/src/telemetry';
-import { getTestCompletions } from './testing/setCompletionDocuments';
+import { Context } from "../../../lib/src/context.ts";
+import { getOpenTextDocumentChecked } from "../textDocument.ts";
+import { verifyAuthenticated } from "../auth/authDecorator.ts";
+import { TelemetryData, telemetry } from "../../../lib/src/telemetry.ts";
+import { getTestCompletions } from "./testing/setCompletionDocuments.ts";
 import { v4 as uuidv4 } from 'uuid';
-import { StatusReporter } from '../../../lib/src/progress';
-import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from '../../../lib/src/ghostText/telemetry';
-import { setLastShown } from '../../../lib/src/ghostText/last';
-import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion';
-import { CopilotCompletionCache } from '../copilotCompletionCache';
-import { LocationFactory, TextDocument } from '../../../lib/src/textDocument';
-import { getGhostText } from '../../../lib/src/ghostText/ghostText';
-import { isAbortError } from '../../../lib/src/networking';
-import { TestingOptions } from './testingOptions';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation';
-import { Logger, LogLevel } from '../../../lib/src/logger';
+import { StatusReporter } from "../../../lib/src/progress.ts";
+import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from "../../../lib/src/ghostText/telemetry.ts";
+import { setLastShown } from "../../../lib/src/ghostText/last.ts";
+import { completionsFromGhostTextResults } from "../../../lib/src/ghostText/copilotCompletion.ts";
+import { CopilotCompletionCache } from "../copilotCompletionCache.ts";
+import { LocationFactory, TextDocument } from "../../../lib/src/textDocument.ts";
+import { getGhostText } from "../../../lib/src/ghostText/ghostText.ts";
+import { isAbortError } from "../../../lib/src/networking.ts";
+import { TestingOptions } from "./testingOptions.ts";
+import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { type CancellationToken, CancellationTokenSource, MergedToken } from "../cancellation.ts";
+import { Logger, LogLevel } from "../../../lib/src/logger.ts";
 
 type _Completion = {
   uuid: string;

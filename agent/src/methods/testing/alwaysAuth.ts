@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type Context } from '../../../../lib/src/context';
+import { type Context } from "../../../../lib/src/context.ts";
 
-import { AuthManager } from '../../../../lib/src/auth/manager';
-import { addMethodHandlerValidation } from '../../schemaValidation';
-import { AlwaysAuthManager } from '../../../../lib/src/testing/auth';
+import { AuthManager } from "../../../../lib/src/auth/manager.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { AlwaysAuthManager } from "../../../../lib/src/testing/auth.ts";
 import { CancellationToken } from 'vscode-languageserver';
 
 const Params = Type.Object({ options: Type.Optional(Type.Object({})) });

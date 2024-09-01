@@ -1,12 +1,12 @@
-import { Context } from '../../context';
+import { Context } from "../../context.ts";
 
-import { NetworkConfiguration } from '../../networkConfiguration';
-import { logger } from '../../logger';
-import { CopilotTokenManager } from '../../auth/copilotTokenManager';
-import { Fetcher, Response } from '../../networking';
-import { RemoteAgentTurnProcessor } from './remoteAgentTurnProcessor';
-import { TurnContext } from '../turnContext';
-import { SkillId } from '../../types';
+import { NetworkConfiguration } from "../../networkConfiguration.ts";
+import { logger } from "../../logger.ts";
+import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
+import { Fetcher, Response } from "../../networking.ts";
+import { RemoteAgentTurnProcessor } from "./remoteAgentTurnProcessor.ts";
+import { TurnContext } from "../turnContext.ts";
+import { SkillId } from "../../types.ts";
 
 const GITHUB_PLATFORM_AGENT_ID = 'github';
 

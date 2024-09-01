@@ -1,9 +1,9 @@
 import { URI } from 'vscode-uri';
-import { type DocumentValidationResult } from '../../lib/src/util/documentEvaluation';
+import { type DocumentValidationResult } from "../../lib/src/util/documentEvaluation.ts";
 
-import { Context } from '../../lib/src/context';
-import { TextDocument } from '../../lib/src/textDocument';
-import { TextDocumentManager } from '../../lib/src/textDocumentManager';
+import { Context } from "../../lib/src/context.ts";
+import { TextDocument } from "../../lib/src/textDocument.ts";
+import { TextDocumentManager } from "../../lib/src/textDocumentManager.ts";
 
 function parseUri(uri: string): URI {
   try {

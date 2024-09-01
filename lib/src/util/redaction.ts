@@ -1,8 +1,13 @@
-import path from 'path';
-import os from 'os';
+import { fileURLToPath } from 'node:url';
+import * as path from 'node:path';
+import * as os from 'node:os';
+// @ts-ignore
 import { SystemError, FetchError } from '@adobe/helix-fetch';
 
-import { Replacement } from '../types';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import { Replacement } from '../types.ts';
 
 type AdobeError = SystemError | FetchError;
 

@@ -1,6 +1,6 @@
-import { Context } from '../context';
-import { NetworkConfiguration } from '../networkConfiguration';
-import { EditorAndPluginInfo } from '../config';
+import { Context } from "../context.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { EditorAndPluginInfo } from "../config.ts";
 
 class CapiVersionHeaderContributor {
   constructor(readonly ctx: Context) { }

@@ -1,11 +1,11 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { Payload } from '../../../lib/src/telemetry/failbot';
-import { Context } from '../../../lib/src/context';
-import { BuildInfo, EditorAndPluginInfo } from '../../../lib/src/config';
-import { buildContext } from '../../../lib/src/telemetry/failbot';
-import { telemetryException } from '../../../lib/src/telemetry';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { CancellationToken } from '../cancellation';
+import { Payload } from "../../../lib/src/telemetry/failbot.ts";
+import { Context } from "../../../lib/src/context.ts";
+import { BuildInfo, EditorAndPluginInfo } from "../../../lib/src/config.ts";
+import { buildContext } from "../../../lib/src/telemetry/failbot.ts";
+import { telemetryException } from "../../../lib/src/telemetry.ts";
+import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { CancellationToken } from "../cancellation.ts";
 
 const Params = Type.Object({
   transaction: Type.Optional(Type.String()),

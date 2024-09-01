@@ -1,5 +1,5 @@
-import { CancellationToken, CancellationTokenSource, MergedToken } from './cancellation';
-import { LRUCacheMap } from '../../lib/src/common/cache';
+import { CancellationToken, CancellationTokenSource, MergedToken } from "./cancellation.ts";
+import { LRUCacheMap } from "../../lib/src/common/cache.ts";
 
 class WorkDoneProgressTokens {
   private tokens: LRUCacheMap<string, CancellationTokenSource>;

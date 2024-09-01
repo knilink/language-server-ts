@@ -1,19 +1,19 @@
-import type { Skill, LanguageId, Unknown, SkillId } from '../../types';
+import type { Skill, LanguageId, Unknown, SkillId } from "../../types.ts";
 
-import { ProjectLabelsSkillId } from '../skills/ProjectLabelsSkill';
-import { ProjectMetadataSkillId } from '../skills/ProjectMetadataSkill';
-import { weighElidableList } from './elidableList';
-import { mandatorySkills } from './conversationContextCollector';
-import { ConversationSkillRegistry } from './conversationSkill';
-import { conversationLogger } from '../logger';
-import { ModelConfigurationProvider } from '../modelConfigurations';
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata';
-import { ConversationDumper } from '../dump';
-import { Features } from '../../experiments/features';
-import { ElidableText } from '../../../../prompt/src/elidableText';
-import { TurnContext, ConversationAbortError } from '../turnContext';
+import { ProjectLabelsSkillId } from "../skills/ProjectLabelsSkill.ts";
+import { ProjectMetadataSkillId } from "../skills/ProjectMetadataSkill.ts";
+import { weighElidableList } from "./elidableList.ts";
+import { mandatorySkills } from "./conversationContextCollector.ts";
+import { ConversationSkillRegistry } from "./conversationSkill.ts";
+import { conversationLogger } from "../logger.ts";
+import { ModelConfigurationProvider } from "../modelConfigurations.ts";
+import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
+import { ConversationDumper } from "../dump.ts";
+import { Features } from "../../experiments/features.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/index.ts";
+import { TurnContext, ConversationAbortError } from "../turnContext.ts";
 
-import { getTokenizer } from '../../../../prompt/src/lib';
+import { getTokenizer } from "../../../../prompt/src/lib.ts";
 
 type SkillPromptOptions = { languageId?: LanguageId };
 

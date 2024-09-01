@@ -1,5 +1,5 @@
-import { Unknown } from '../types';
-import { Turn, Conversation } from '../conversation/conversation';
+import { Unknown } from "../types.ts";
+import { Turn, Conversation } from "../conversation/conversation.ts";
 
 // might be implementation of a lsp type
 abstract class ConversationProgress {

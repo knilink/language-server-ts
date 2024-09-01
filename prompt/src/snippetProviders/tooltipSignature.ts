@@ -1,8 +1,8 @@
-import { Document, Snippet } from '../types';
-import { normalizeLanguageId } from '../prompt';
-import { newLineEnded } from '../languageMarker';
-import { announceTooltipSignatureSnippet, endsWithAttributesOrMethod } from '../tooltipSignature';
-import { SnippetProvider } from './snippetProvider';
+import { Document, Snippet } from "../types.ts";
+import { normalizeLanguageId } from "../prompt.ts";
+import { newLineEnded } from "../languageMarker.ts";
+import { announceTooltipSignatureSnippet, endsWithAttributesOrMethod } from "../tooltipSignature.ts";
+import { SnippetProvider } from "./snippetProvider.ts";
 // import { } from '../snippetInclusion/snippets'; // circular // TODO unused
 
 class TooltipSignatureSnippetProvider extends SnippetProvider {

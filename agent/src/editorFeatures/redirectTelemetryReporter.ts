@@ -1,10 +1,10 @@
-import { NotificationType } from 'vscode-languageserver/node';
+import { NotificationType } from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { TelemetryReporters } from '../../../lib/src/telemetry';
-import { TelemetryMeasurements, TelemetryProperties } from '../../../lib/src/types';
-import { Service } from '../service';
-import { setupRedirectingTelemetryReporters as setupRedirectingTelemetryReportersModule } from './redirectTelemetryReporter';
+import { Context } from '../../../lib/src/context.ts';
+import { TelemetryReporters } from '../../../lib/src/telemetry.ts';
+import { TelemetryMeasurements, TelemetryProperties } from '../../../lib/src/types.ts';
+import { Service } from '../service.ts';
+import { setupRedirectingTelemetryReporters as setupRedirectingTelemetryReportersModule } from './redirectTelemetryReporter.ts';
 
 export async function setupRedirectingTelemetryReporters(ctx: Context): Promise<void> {
   const container = ctx.get(TelemetryReporters);

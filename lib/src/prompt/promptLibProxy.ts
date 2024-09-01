@@ -5,7 +5,7 @@ import {
   isSupportedLanguageId,
   getBlockCloseToken,
   getPrompt,
-} from '../../../prompt/src/lib';
+} from "../../../prompt/src/lib.ts";
 
 ('use strict');
 

@@ -1,4 +1,4 @@
-import { Response, Fetcher } from '../networking';
+import { Response, Fetcher } from "../networking.ts";
 
 function createFakeResponse(statusCode: number, response?: string, headers: Record<string, string> = {}): Response {
   const fakeHeaders = new FakeHeaders();

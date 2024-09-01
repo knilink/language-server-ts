@@ -1,18 +1,18 @@
-import { Unknown, Chat, Model } from '../../types';
-import { Context } from '../../context';
+import { Unknown, Chat, Model } from "../../types.ts";
+import { Context } from "../../context.ts";
 
-import { TurnContext } from '../turnContext';
+import { TurnContext } from "../turnContext.ts";
 
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata';
-import { ModelConfigurationProvider } from '../modelConfigurations';
-import { ConversationInspector } from '../conversationInspector';
-import { ConversationDumper } from '../dump';
-import { countMessagesTokens } from '../openai/chatTokens';
-import { AuthManager } from '../../auth/manager';
-import { EditorAndPluginInfo } from '../../config';
-import { chatBasePrompt } from './basePrompt';
-import { DefaultPromptStrategyFactory } from './strategies/promptStrategyFactory';
-import type { PromptOptions } from './strategies/types';
+import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
+import { ModelConfigurationProvider } from "../modelConfigurations.ts";
+import { ConversationInspector } from "../conversationInspector.ts";
+import { ConversationDumper } from "../dump.ts";
+import { countMessagesTokens } from "../openai/chatTokens.ts";
+import { AuthManager } from "../../auth/manager.ts";
+import { EditorAndPluginInfo } from "../../config.ts";
+import { chatBasePrompt } from "./basePrompt.ts";
+import { DefaultPromptStrategyFactory } from "./strategies/promptStrategyFactory.ts";
+import type { PromptOptions } from "./strategies/types.ts";
 
 function processResultOfElidableText(elidedText: string): string {
   return elidedText.trimStart().replace(/^\[\.\.\.\]\n?/, '');

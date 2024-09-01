@@ -1,16 +1,16 @@
 import assert from 'assert';
 
-import { Context } from './context';
-import { NetworkConfiguration } from './networkConfiguration';
+import { Context } from "./context.ts";
+import { NetworkConfiguration } from "./networkConfiguration.ts";
 
-import { CopilotTokenNotifier } from './auth/copilotTokenNotifier';
-import { isProduction, getConfig, ConfigKey, type ConfigKeysByType } from './config';
-import { NotificationSender } from './notificationSender';
-import { CopilotTokenManager } from './auth/copilotTokenManager';
-import { TelemetryInitialization } from './telemetry/setupTelemetryReporters';
-import { isRunningInTest } from './testing/runtimeMode';
-import { GitHubToken } from './auth/types';
-import { CopilotToken } from './auth/copilotToken';
+import { CopilotTokenNotifier } from "./auth/copilotTokenNotifier.ts";
+import { isProduction, getConfig, ConfigKey, type ConfigKeysByType } from "./config.ts";
+import { NotificationSender } from "./notificationSender.ts";
+import { CopilotTokenManager } from "./auth/copilotTokenManager.ts";
+import { TelemetryInitialization } from "./telemetry/setupTelemetryReporters.ts";
+import { isRunningInTest } from "./testing/runtimeMode.ts";
+import { GitHubToken } from "./auth/types.ts";
+import { CopilotToken } from "./auth/copilotToken.ts";
 
 const DotComAuthority = 'github.com';
 const DotComUrl = `https://${DotComAuthority}`;

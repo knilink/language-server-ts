@@ -1,8 +1,8 @@
 import { type TSchema, type Static } from '@sinclair/typebox';
 import { TypeCompiler, ValueError, ValueErrorIterator } from '@sinclair/typebox/compiler';
 
-import { Context } from '../../lib/src/context';
-import { CancellationToken } from './cancellation';
+import { Context } from "../../lib/src/context.ts";
+import { CancellationToken } from "./cancellation.ts";
 // import { } from './rpc';
 
 type ValidationError = { code: number; message: string };

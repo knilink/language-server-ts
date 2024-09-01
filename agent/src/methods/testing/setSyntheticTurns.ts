@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation';
-import { type Context } from '../../../../lib/src/context';
-import { SyntheticTurns } from '../../conversation/syntheticTurnProcessor';
-import { ReferenceSchema } from '../../../../lib/src/conversation/schema';
-import { addMethodHandlerValidation } from '../../schemaValidation';
+import { type CancellationToken } from "../../cancellation.ts";
+import { type Context } from "../../../../lib/src/context.ts";
+import { SyntheticTurns } from "../../conversation/syntheticTurnProcessor.ts";
+import { ReferenceSchema } from "../../../../lib/src/conversation/schema.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
 
 const Params = Type.Object({
   workDoneToken: Type.Union([Type.String(), Type.Number()]),

@@ -1,9 +1,9 @@
-import { GitHubToken, AuthStatus, AuthRecord } from './types';
-import { getBuildType } from '../config';
+import { GitHubToken, AuthStatus, AuthRecord } from "./types.ts";
+import { getBuildType } from "../config.ts";
 
-import { Context } from '../context'; // replace with actual import path if exists
-import { AuthPersistence } from './authPersistence'; // replace with actual import path if exists
-import { CopilotTokenManager } from './copilotTokenManager'; // replace with actual import path if exists
+import { Context } from "../context.ts"; // replace with actual import path if exists
+import { AuthPersistence } from "./authPersistence.ts"; // replace with actual import path if exists
+import { CopilotTokenManager } from "./copilotTokenManager.ts"; // replace with actual import path if exists
 
 class AuthManager {
   private _copilotTokenManager: CopilotTokenManager;

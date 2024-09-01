@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Model } from '../../../../types';
+import type { Model } from "../../../../types.ts";
 
-import { Context } from '../../../../context';
-import { CancellationToken } from '../../../../../../agent/src/cancellation';
-import { getTokenizer } from '../../../../../../prompt/src/tokenization/tokenizer';
-import { NetworkConfiguration } from '../../../../networkConfiguration';
-import { CopilotTokenManager } from '../../../../auth/copilotTokenManager';
-import { postRequest, Response } from '../../../../networking';
+import { Context } from "../../../../context.ts";
+import { CancellationToken } from "../../../../../../agent/src/cancellation.ts";
+import { getTokenizer } from "../../../../../../prompt/src/tokenization/tokenizer.ts";
+import { NetworkConfiguration } from "../../../../networkConfiguration.ts";
+import { CopilotTokenManager } from "../../../../auth/copilotTokenManager.ts";
+import { postRequest, Response } from "../../../../networking.ts";
 
 type Input = {
   id: string;

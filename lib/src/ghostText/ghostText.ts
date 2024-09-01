@@ -1,43 +1,43 @@
-import { SHA256 } from 'crypto-js';
+import SHA256 from "crypto-js/sha256.js";
 import { v4 as uuidv4 } from 'uuid';
 import { Position } from 'vscode-languageserver-types';
 
-import type { LanguageId, Prompt } from '../../../prompt/src/types';
-import type { BlockMode, RepoInfo, TelemetryProperties, TelemetryMeasurements, Completion } from '../types';
-import { CompletionResultType } from '../types';
+import type { LanguageId, Prompt } from '../../../prompt/src/types.ts';
+import type { BlockMode, RepoInfo, TelemetryProperties, TelemetryMeasurements, Completion } from '../types.ts';
+import { CompletionResultType } from '../types.ts';
 
-import { type Context } from '../context';
-import { SSEProcessor } from '../openai/stream';
+import { type Context } from '../context.ts';
+import { SSEProcessor } from '../openai/stream.ts';
 
-import { CancellationToken } from '../../../agent/src/cancellation';
-import { APIChoice, getTemperatureForSamples } from '../openai/openai';
-import { shouldDoServerTrimming, shouldDoParsingTrimming, BlockModeConfig } from '../config';
-import { telemetrizePromptLength, telemetry, TelemetryData, TelemetryWithExp } from '../telemetry';
-import { OpenAIFetcher, extractEngineName } from '../openai/fetch';
-import { mkBasicResultTelemetry, mkCanceledResultTelemetry } from './telemetry';
-import { isAbortError } from '../networking';
-import { UserErrorNotifier } from '../error/userErrorNotifier';
-import { shouldFailForDebugPurposes, isRunningInTest } from '../testing/runtimeMode';
-import { Features } from '../experiments/features';
-import { LocationFactory, TextDocument } from '../textDocument';
-import { parsingBlockFinished, contextIndentation, isEmptyBlockStart } from '../prompt/parseBlock';
-import { extractPrompt, trimLastLine, type ExtractedPrompt } from '../prompt/prompt';
-import { StatusReporter } from '../progress';
-import { extractRepoInfoInBackground } from '../prompt/repository';
-import { getEngineRequestInfo } from '../openai/config';
-import { getDebounceLimit } from './debounce';
-import { asyncIterableMapFilter, asyncIterableFromArray } from '../common/iterableHelpers';
-import { postProcessChoice, checkSuffix } from '../suggestions/suggestions';
-import { requestMultilineScore } from './multilineModel';
-import { isSupportedLanguageId } from '../../../prompt/src/parse';
-import { keyForPrompt } from '../common/cache';
-import { CompletionsCache } from './completionsCache';
-import { ghostTextScoreConfidence, ghostTextScoreQuantile } from '../suggestions/restraint';
-import { contextualFilterScore } from './contextualFilter';
-import { Logger, LogLevel } from '../logger';
-import { Debouncer } from '../common/debounce';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
+import { APIChoice, getTemperatureForSamples } from '../openai/openai.ts';
+import { shouldDoServerTrimming, shouldDoParsingTrimming, BlockModeConfig } from '../config.ts';
+import { telemetrizePromptLength, telemetry, TelemetryData, TelemetryWithExp } from '../telemetry.ts';
+import { OpenAIFetcher, extractEngineName } from '../openai/fetch.ts';
+import { mkBasicResultTelemetry, mkCanceledResultTelemetry } from './telemetry.ts';
+import { isAbortError } from '../networking.ts';
+import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
+import { shouldFailForDebugPurposes, isRunningInTest } from '../testing/runtimeMode.ts';
+import { Features } from '../experiments/features.ts';
+import { LocationFactory, TextDocument } from '../textDocument.ts';
+import { parsingBlockFinished, contextIndentation, isEmptyBlockStart } from '../prompt/parseBlock.ts';
+import { extractPrompt, trimLastLine, type ExtractedPrompt } from '../prompt/prompt.ts';
+import { StatusReporter } from '../progress.ts';
+import { extractRepoInfoInBackground } from '../prompt/repository.ts';
+import { getEngineRequestInfo } from '../openai/config.ts';
+import { getDebounceLimit } from './debounce.ts';
+import { asyncIterableMapFilter, asyncIterableFromArray } from '../common/iterableHelpers.ts';
+import { postProcessChoice, checkSuffix } from '../suggestions/suggestions.ts';
+import { requestMultilineScore } from './multilineModel.ts';
+import { isSupportedLanguageId } from '../../../prompt/src/parse.ts';
+import { keyForPrompt } from '../common/cache.ts';
+import { CompletionsCache } from './completionsCache.ts';
+import { ghostTextScoreConfidence, ghostTextScoreQuantile } from '../suggestions/restraint.ts';
+import { contextualFilterScore } from './contextualFilter.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { Debouncer } from '../common/debounce.ts';
 
-import { ParamsType } from '../../../agent/src/methods/getCompletions';
+import { ParamsType } from '../../../agent/src/methods/getCompletions.ts';
 type IfInserted = ParamsType['doc']['ifInserted'];
 
 type RequestContext = {

@@ -4,7 +4,7 @@ import {
   asyncIterableFilter,
   asyncIterableMapFilter,
   asyncIterableFromArray,
-} from './iterableHelpers';
+} from "./iterableHelpers.ts";
 
 describe('asyncIterableMap', () => {
   it('maps values correctly', async () => {

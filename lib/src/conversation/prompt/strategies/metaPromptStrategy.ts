@@ -1,13 +1,13 @@
 import { Type, type TSchema } from '@sinclair/typebox';
-import { Unknown, Skill, ToolCall, Chat } from '../../../types';
-import type { MetaPromptOptions, PromptOptions, IPromptStrategy } from './types';
-import { Context } from '../../../context';
-import { Features } from '../../../experiments/features';
-import { fromHistory } from '../fromHistory';
-import { StringEnum } from '../../openai/openai';
-import { ElidableText } from '../../../../../prompt/src/elidableText/elidableText';
-import { Conversation } from '../../conversation';
-import { TurnContext } from '../../turnContext';
+import { Unknown, Skill, ToolCall, Chat } from "../../../types.ts";
+import type { MetaPromptOptions, PromptOptions, IPromptStrategy } from "./types.ts";
+import { Context } from "../../../context.ts";
+import { Features } from "../../../experiments/features.ts";
+import { fromHistory } from "../fromHistory.ts";
+import { StringEnum } from "../../openai/openai.ts";
+import { ElidableText } from "../../../../../prompt/src/elidableText/elidableText.ts";
+import { Conversation } from "../../conversation.ts";
+import { TurnContext } from "../../turnContext.ts";
 
 async function pickMetaPromptStrategy(ctx: Context): Promise<MetaPromptStrategy> {
   const features = ctx.get(Features);

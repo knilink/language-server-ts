@@ -1,9 +1,9 @@
-import type { AuthRecord } from './auth/types';
+import type { AuthRecord } from './auth/types.ts';
 
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import * as process from 'process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as process from 'node:process';
 
 interface IPersistenceManager {
   read(setting: string, key: string): Promise<unknown>;

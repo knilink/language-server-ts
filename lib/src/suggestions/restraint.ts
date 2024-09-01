@@ -1,4 +1,4 @@
-import { Context } from '../context';
+import { Context } from "../context.ts";
 import {
   ghostTextDisplayLanguageParameters,
   ghostTextDisplayInterceptParameter,
@@ -6,9 +6,9 @@ import {
   ghostTextDisplayLog1pcompCharLenParameter,
   ghostTextDisplayMeanLogProbParameter,
   ghostTextDisplayMeanAlternativeLogProbParameter,
-} from './mlConstants';
-import { Logger, LogLevel } from '../logger';
-import { type TelemetryData } from '../telemetry';
+} from "./mlConstants.ts";
+import { Logger, LogLevel } from "../logger.ts";
+import { type TelemetryData } from "../telemetry.ts";
 
 function linearInterpolation(x0: number, points: Map<number, number>): number {
   const x_after = Math.min(...Array.from(points.keys()).filter((x) => x >= x0));

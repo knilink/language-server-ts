@@ -1,5 +1,5 @@
-import { ElidableText } from './elidableText'; // circular deps
-import { Node, Label, mapLabels, visitTree, isBlank, deparseLine, foldTree } from '../indentation';
+import { ElidableText } from "./elidableText.ts"; // circular deps
+import { Node, Label, mapLabels, visitTree, isBlank, deparseLine, foldTree } from "../indentation/index.ts";
 
 const DEFAULT_TREE_TRAVERSAL_CONFIG = {
   worthUp: 0.9,

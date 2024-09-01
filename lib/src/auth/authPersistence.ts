@@ -1,9 +1,9 @@
-import type { AuthRecord } from './types';
-import { type Context } from '../context';
+import type { AuthRecord } from "./types.ts";
+import { type Context } from "../context.ts";
 
-import { GitHubAppInfo } from '../config';
-import { NetworkConfiguration } from '../networkConfiguration';
-import { PersistenceManager } from '../persist';
+import { GitHubAppInfo } from "../config.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { PersistenceManager } from "../persist.ts";
 
 const AUTH_FILE = 'apps';
 const LEGACY_AUTH_FILE = 'hosts';

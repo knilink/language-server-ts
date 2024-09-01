@@ -1,8 +1,8 @@
-import { SkillId, Skill } from '../../types';
-import { Context } from '../../context';
-import { Conversation } from '../conversation';
-import { TurnContext } from '../turnContext';
-import { SkillMap } from '../skills/skillMap';
+import { SkillId, Skill } from "../../types.ts";
+import { Context } from "../../context.ts";
+import { Conversation } from "../conversation.ts";
+import { TurnContext } from "../turnContext.ts";
+import { SkillMap } from "../skills/skillMap.ts";
 
 class ConversationSkillRegistry<T extends Record<keyof T & SkillId, any> = SkillMap> {
   private skills: Partial<{

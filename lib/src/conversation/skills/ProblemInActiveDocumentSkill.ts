@@ -1,20 +1,20 @@
 import { Range } from 'vscode-languageserver-types';
 import { type Static, Type } from '@sinclair/typebox';
 
-import type { Skill } from '../../types';
+import type { Skill } from "../../types.ts";
 
-import { } from '../modelMetadata';
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { RangeSchema } from '../schema';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader';
-import { weighElidableList } from '../prompt/elidableList';
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode';
-import { ModelConfigurationProvider } from '../modelConfigurations';
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
+import { } from "../modelMetadata.ts";
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { RangeSchema } from "../schema.ts";
+import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
+import { weighElidableList } from "../prompt/elidableList.ts";
+import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
+import { ModelConfigurationProvider } from "../modelConfigurations.ts";
+import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
 
-import { TurnContext } from '../turnContext';
-import { ValidDocumentResult } from '../../util/documentEvaluation';
+import { TurnContext } from "../turnContext.ts";
+import { ValidDocumentResult } from "../../util/documentEvaluation.ts";
 
 const ProblemsInActiveDocumentSchema = Type.Object({
   uri: Type.String(),

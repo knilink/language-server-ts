@@ -6,7 +6,7 @@ import {
   getLanguageMarker,
   getPathMarker,
   newLineEnded,
-} from './languageMarker'; // Update this with the actual path to your file
+} from "./languageMarker.ts"; // Update this with the actual path to your file
 
 describe('commentFunctions', () => {
   describe('hasLanguageMarker', () => {

@@ -1,7 +1,7 @@
-import { Snippet } from '../types';
-import { normalizeLanguageId } from '../prompt';
-import { newLineEnded, getPathMarker } from '../languageMarker';
-import { SnippetProvider, SnippetContext } from './snippetProvider';
+import { Snippet } from "../types.ts";
+import { normalizeLanguageId } from "../prompt.ts";
+import { newLineEnded, getPathMarker } from "../languageMarker.ts";
+import { SnippetProvider, SnippetContext } from "./snippetProvider.ts";
 // import { } from '../snippetInclusion/snippets'; // TODO
 
 class PathSnippetProvider extends SnippetProvider {

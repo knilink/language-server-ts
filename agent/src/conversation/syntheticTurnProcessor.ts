@@ -1,15 +1,15 @@
 import { Type } from '@sinclair/typebox';
 import { v4 as uuidv4 } from 'uuid';
-import { type CancellationToken } from '../cancellation';
+import { type CancellationToken } from "../cancellation.ts";
 
-import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress';
-import { conversationLogger } from '../../../lib/src/conversation/logger';
-import { Conversations } from '../../../lib/src/conversation/conversations';
-import { AgentSkillResolver } from './skillResolver';
-import { TurnContext } from '../../../lib/src/conversation/turnContext';
-import { SkillId, Unknown } from '../../../lib/src/types';
+import { ConversationProgress } from "../../../lib/src/conversation/conversationProgress.ts";
+import { conversationLogger } from "../../../lib/src/conversation/logger.ts";
+import { Conversations } from "../../../lib/src/conversation/conversations.ts";
+import { AgentSkillResolver } from "./skillResolver.ts";
+import { TurnContext } from "../../../lib/src/conversation/turnContext.ts";
+import { SkillId, Unknown } from "../../../lib/src/types.ts";
 
-import { Reference } from '../../../lib/src/conversation/schema';
+import { Reference } from "../../../lib/src/conversation/schema.ts";
 
 class SyntheticTurn {
   constructor(

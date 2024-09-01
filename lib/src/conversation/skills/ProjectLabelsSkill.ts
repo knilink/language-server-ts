@@ -1,8 +1,8 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { Skill } from '../../types';
-import { TurnContext } from '../turnContext';
+import { Skill } from "../../types.ts";
+import { TurnContext } from "../turnContext.ts";
 
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
 
 const ProjectLabelsSkillId: 'project-labels' = 'project-labels';
 

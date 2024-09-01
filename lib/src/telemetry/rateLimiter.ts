@@ -1,4 +1,4 @@
-import { LRUCacheMap } from '../common/cache';
+import { LRUCacheMap } from "../common/cache.ts";
 
 class ExceptionRateLimiter {
   perMinute: number;

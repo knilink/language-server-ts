@@ -1,19 +1,17 @@
-import { type InitializeParams } from 'vscode-languageserver/node';
-
-import { Context } from '../../../lib/src/context';
-import { InitializedNotifier } from '../editorFeatures/initializedNotifier';
-import { AgentConfigProvider } from '../config';
-import { getConfig, ConfigKey, ConfigValueType } from '../../../lib/src/config';
-import { Logger, LogLevel } from '../../../lib/src/logger';
-import { HelixFetcher } from '../../../lib/src/network/helix';
-import { EditorFetcher } from '../editorFeatures/fetcher';
-import { FallbackFetcher } from './fallbackFetcher';
-import { Fetcher, Request } from '../../../lib/src/networking';
+import { Context } from "../../../lib/src/context.ts";
+import { InitializedNotifier } from "../editorFeatures/initializedNotifier.ts";
+import { AgentConfigProvider } from "../config.ts";
+import { getConfig, ConfigKey, ConfigValueType } from "../../../lib/src/config.ts";
+import { Logger, LogLevel } from "../../../lib/src/logger.ts";
+import { HelixFetcher } from "../../../lib/src/network/helix.ts";
+import { EditorFetcher } from "../editorFeatures/fetcher.ts";
+import { FallbackFetcher } from "./fallbackFetcher.ts";
+import { Fetcher, Request } from "../../../lib/src/networking.ts";
 
 const logger = new Logger(LogLevel.INFO, 'fetcher');
 
 class AgentDelegatingFetcher extends Fetcher {
-  currentFetcher: Fetcher = this.helixFetcher;
+  currentFetcher: Fetcher;
   fallbackFetcher: FallbackFetcher;
   fetchStrategy: ConfigValueType[ConfigKey.FetchStrategy];
   editorFetcherCapability = false;
@@ -24,6 +22,7 @@ class AgentDelegatingFetcher extends Fetcher {
     readonly editorFetcher = new EditorFetcher(ctx)
   ) {
     super();
+    this.currentFetcher = this.helixFetcher;
     this.fallbackFetcher = new FallbackFetcher(ctx, helixFetcher, editorFetcher, () => {
       logger.info(this.ctx, 'Fallback fetch succeeded, switching to editor fetcher.');
       this.currentFetcher = this.editorFetcher;

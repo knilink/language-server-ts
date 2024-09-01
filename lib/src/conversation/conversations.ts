@@ -1,12 +1,12 @@
-import { type SkillId, Skill } from '../types';
-import { type Context } from '../context';
-import { type Reference } from './schema';
+import { type SkillId, Skill } from "../types.ts";
+import { type Context } from "../context.ts";
+import { type Reference } from "./schema.ts";
 
-import { getPromptTemplates } from './promptTemplates';
-import { LRUCacheMap } from '../common/cache';
-import { ConversationSkillRegistry } from './prompt/conversationSkill';
-import { Conversation, Turn } from './conversation';
-import { getAgents } from './agents/agents';
+import { getPromptTemplates } from "./promptTemplates.ts";
+import { LRUCacheMap } from "../common/cache.ts";
+import { ConversationSkillRegistry } from "./prompt/conversationSkill.ts";
+import { Conversation, Turn } from "./conversation.ts";
+import { getAgents } from "./agents/agents.ts";
 
 // ../../../agent/src/methods/conversation/conversationCreate.ts
 type Capabilities = {

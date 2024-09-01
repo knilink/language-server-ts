@@ -1,13 +1,13 @@
-import { BlockMode, TelemetryProperties } from './types';
-import { Context } from './context';
-import { LogLevel } from './logger';
+import { BlockMode, TelemetryProperties } from "./types.ts";
+import { Context } from "./context.ts";
+import { LogLevel } from "./logger.ts";
 
-import { LanguageId } from '../../prompt/src/types';
-import { TelemetryWithExp } from './telemetry';
+import { LanguageId } from "../../prompt/src/types.ts";
+import { TelemetryWithExp } from "./telemetry.ts";
 
-import { isSupportedLanguageId } from '../../prompt/src/parse';
-import { CopilotConfigPrefix } from './constants';
-import { Features } from './experiments/features';
+import { isSupportedLanguageId } from "../../prompt/src/parse.ts";
+import { CopilotConfigPrefix } from "./constants.ts";
+import { Features } from "./experiments/features.ts";
 import EventEmitter from 'events';
 
 function shouldDoParsingTrimming(blockMode: BlockMode) {

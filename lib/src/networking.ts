@@ -1,13 +1,14 @@
 import * as util from 'node:util';
 import * as http from 'node:http';
 import { Readable } from 'node:stream';
-import { Context } from './context';
-import { CancellationToken } from '../../agent/src/cancellation'; // MARK
+import { Context } from './context.ts';
+import { CancellationToken } from '../../agent/src/cancellation.ts'; // MARK
 
-import { telemetry, TelemetryData } from './telemetry';
+import { telemetry, TelemetryData } from './telemetry.ts';
+// @ts-ignore
 import { FetchError, AbortError } from '@adobe/helix-fetch';
-import { HeaderContributors } from './headerContributors';
-import { editorVersionHeaders, EditorSession } from './config';
+import { HeaderContributors } from './headerContributors.ts';
+import { editorVersionHeaders, EditorSession } from './config.ts';
 
 type Request = {
   headers?: Record<string, string>;
@@ -61,13 +62,13 @@ function isNetworkError(e: any, checkCause = true) {
     e = e.cause;
   }
   return (
-    e instanceof FetchError ||
+    // (e instanceof Error && networkErrorCodes_fDe.has(e.code))
+    (e instanceof FetchError ||
     (e instanceof Error && e.name === 'EditorFetcherError') ||
     (e instanceof Error && e.name === 'FetchError') ||
     e instanceof JsonParseError ||
     e instanceof FetchResponseError ||
-    e?.message?.startsWith('net::') ||
-    (e instanceof Error && networkErrorCodes.has((e as any).code)) // (e instanceof Error && networkErrorCodes_fDe.has(e.code))
+    e?.message?.startsWith('net::') || (e instanceof Error && networkErrorCodes.has((e as any).code)))
   );
 }
 

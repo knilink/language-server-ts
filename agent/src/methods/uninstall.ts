@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation';
+import { type CancellationToken } from "../cancellation.ts";
 
-import { Context } from '../../../lib/src/context';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { AgentInstallationManager } from '../installationManager';
+import { Context } from "../../../lib/src/context.ts";
+import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { AgentInstallationManager } from "../installationManager.ts";
 
 const Params = Type.Object({});
 

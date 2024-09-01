@@ -1,6 +1,6 @@
-import { LanguageId } from '../types';
-import { contextualFilterCharacterMap } from './contextualFilterConstants';
-import { multilineModelPredict } from './multilineModelWeights';
+import { LanguageId } from "../types.ts";
+import { contextualFilterCharacterMap } from "./contextualFilterConstants.ts";
+import { multilineModelPredict } from "./multilineModelWeights.js";
 
 const commentMap: { [key: string]: string[] } = {
   javascript: ['//'],

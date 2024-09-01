@@ -9,17 +9,17 @@ import {
   Chat,
   ToolCall,
   Tool,
-} from '../types';
-import { Prompt } from '../../../prompt/src/types';
-import { CancellationToken } from '../../../agent/src/cancellation';
+} from "../types.ts";
+import { Prompt } from "../../../prompt/src/types.ts";
+import { CancellationToken } from "../../../agent/src/cancellation.ts";
 
-import { Context } from '../context';
+import { Context } from "../context.ts";
 
-import { RepoInfo, tryGetGitHubNWO } from '../prompt/repository';
-import { getMaxSolutionTokens, getTemperatureForSamples, getTopP, getStops, APIChoice } from './openai';
-import { type ChatCompletion } from '../conversation/openai/openai';
-import { asyncIterableFilter, asyncIterableMap } from '../common/iterableHelpers';
-import { logger } from '../logger';
+import { RepoInfo, tryGetGitHubNWO } from "../prompt/repository.ts";
+import { getMaxSolutionTokens, getTemperatureForSamples, getTopP, getStops, APIChoice } from "./openai.ts";
+import { type ChatCompletion } from "../conversation/openai/openai.ts";
+import { asyncIterableFilter, asyncIterableMap } from "../common/iterableHelpers.ts";
+import { logger } from "../logger.ts";
 import {
   TelemetryData,
   telemetrizePromptLength,
@@ -27,12 +27,12 @@ import {
   now,
   logEnginePrompt,
   TelemetryWithExp,
-} from '../telemetry';
-import { CopilotTokenManager } from '../auth/copilotTokenManager';
-import { Request, Response, postRequest, isAbortError } from '../networking';
-import { Features } from '../experiments/features';
-import { SSEProcessor, prepareSolutionForReturn } from './stream';
-import { StatusReporter } from '../progress';
+} from "../telemetry.ts";
+import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { Request, Response, postRequest, isAbortError } from "../networking.ts";
+import { Features } from "../experiments/features.ts";
+import { SSEProcessor, prepareSolutionForReturn } from "./stream.ts";
+import { StatusReporter } from "../progress.ts";
 
 function getRequestId(response: Response, json?: JsonData): OpenAIRequestId {
   return {

@@ -1,5 +1,5 @@
-import { Element, Snippet } from '../types';
-import { ITokenizer } from '../tokenization';
+import { Element, Snippet } from "../types.ts";
+import { ITokenizer } from "../tokenization/index.ts";
 
 function truncateFirstLinesFirst(
   tokenizer: ITokenizer,

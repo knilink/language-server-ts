@@ -1,6 +1,6 @@
-import { Chat, Model } from '../../types';
+import { Chat, Model } from '../../types.ts';
 
-import { getTokenizer } from '../../../../prompt/src/tokenization';
+import { getTokenizer } from '../../../../prompt/src/tokenization/index.ts';
 
 function countMessagesTokens(
   // ../prompt/conversationPromptEngine.ts

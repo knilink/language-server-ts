@@ -1,14 +1,14 @@
 import { EventEmitter } from 'events';
 import { extname } from 'path';
-import { type Connection, ProtocolRequestType } from 'vscode-languageserver/node';
+import { type Connection, ProtocolRequestType } from "vscode-languageserver/node.js";
 import { URI } from 'vscode-uri';
 
-import { Context } from '../../lib/src/context';
-import { Service } from './service';
-import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities';
-import { knownFileExtensions } from '../../lib/src/language/languages';
-import { getFsPath } from '../../lib/src/util/uri';
-import { FileReader } from '../../lib/src/fileReader';
+import { Context } from '../../lib/src/context.ts';
+import { Service } from './service.ts';
+import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
+import { knownFileExtensions } from '../../lib/src/language/languages.ts';
+import { getFsPath } from '../../lib/src/util/uri.ts';
+import { FileReader } from '../../lib/src/fileReader.ts';
 
 const didChangeWatchedFilesEvent = 'didChangeWatchedFiles';
 

@@ -1,16 +1,16 @@
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Connection } from 'vscode-languageserver/node';
+import { Connection } from "vscode-languageserver/node.js";
 
-import { type Context } from '../../../lib/src/context';
-import { purgeNulls, logger } from '../service';
-import { SchemaValidationError } from '../schemaValidation';
+import { type Context } from '../../../lib/src/context.ts';
+import { purgeNulls, logger } from '../service.ts';
+import { SchemaValidationError } from '../schemaValidation.ts';
 
-import { } from '../schemaValidation';
-import { WorkDoneProgressCancelNotification } from './workDoneProgressCancel';
-import { githubNotifications } from './github';
-import { } from '../service';
-import { textDocumentNotifications } from './textDocument';
-import { type AbstractNotification } from './abstract';
+import { } from '../schemaValidation.ts';
+import { WorkDoneProgressCancelNotification } from './workDoneProgressCancel.ts';
+import { githubNotifications } from './github.ts';
+import { } from '../service.ts';
+import { textDocumentNotifications } from './textDocument.ts';
+import { type AbstractNotification } from './abstract.ts';
 
 function registerNotifications(ctx: Context, connection: Connection): void {
   for (const notificationClass of notifications) {

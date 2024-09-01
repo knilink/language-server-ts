@@ -1,5 +1,5 @@
-import '../indentation/parsing'; // TODO
-import '../indentation/manipulation'; // TODO
+import "../indentation/parsing.ts"; // TODO
+import "../indentation/manipulation.ts"; // TODO
 
 function getBasicWindowDelineations(windowLength: number, lines: string[]): [number, number][] {
   const windows: [number, number][] = [];

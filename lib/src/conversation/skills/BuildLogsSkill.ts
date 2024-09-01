@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { Skill } from '../../types';
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { type TurnContext } from '../turnContext';
+import { Skill } from "../../types.ts";
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { type TurnContext } from "../turnContext.ts";
 
 const BuildLogsSchema = Type.String();
 

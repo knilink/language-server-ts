@@ -1,7 +1,7 @@
-import { Context } from '../context';
+import { Context } from "../context.ts";
 
-import { TelemetryData, telemetry, telemetryError } from '../telemetry';
-import { codeReferenceLogger } from './logger';
+import { TelemetryData, telemetry, telemetryError } from "../telemetry.ts";
+import { codeReferenceLogger } from "./logger.ts";
 
 const statusCodeRe = /^[1-6][0-9][0-9]$/;
 const capitalsRe = /([A-Z][a-z]+)/;

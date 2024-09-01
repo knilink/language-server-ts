@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation';
+import { type CancellationToken } from "../../cancellation.ts";
 
-import { Context } from '../../../../lib/src/context';
-import { TelemetryReporters } from '../../../../lib/src/telemetry';
-import { PromiseQueue } from '../../../../lib/src/util/promiseQueue';
-import { TestPromiseQueue } from '../../../../lib/src/testing/telemetry';
-import { addMethodHandlerValidation, type ValidationError } from '../../schemaValidation';
-import { TelemetrySpy, Event, ErrorEvent } from '../../../../lib/src/testing/telemetrySpy';
+import { Context } from "../../../../lib/src/context.ts";
+import { TelemetryReporters } from "../../../../lib/src/telemetry.ts";
+import { PromiseQueue } from "../../../../lib/src/util/promiseQueue.ts";
+import { TestPromiseQueue } from "../../../../lib/src/testing/telemetry.ts";
+import { addMethodHandlerValidation, type ValidationError } from "../../schemaValidation.ts";
+import { TelemetrySpy, Event, ErrorEvent } from "../../../../lib/src/testing/telemetrySpy.ts";
 // import { } from '../../rpc';
 
 const Params = Type.Object({});

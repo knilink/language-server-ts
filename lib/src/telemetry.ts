@@ -1,7 +1,8 @@
 import { Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { v4 as uuidv4 } from 'uuid';
-import { SHA256, enc } from 'crypto-js';
+import SHA256 from "crypto-js/sha256.js";
+import Utf16 from "crypto-js/enc-utf16.js";
 import { ConnectionError, ResponseError } from 'vscode-languageserver-protocol';
 
 import {
@@ -13,18 +14,18 @@ import {
   OpenAIRequestId,
   JsonData,
   TelemetryRawProperties,
-} from './types';
-import { Prompt } from '../../prompt/src/types';
+} from './types.ts';
+import { Prompt } from '../../prompt/src/types.ts';
 
-import { Context } from './context';
+import { Context } from './context.ts';
 
-import { buildPayload, Payload } from './telemetry/failbot';
-import { ExceptionRateLimiter } from './telemetry/rateLimiter';
-import { FilterSettings } from './experiments/filters';
-import { TelemetryUserConfig } from './telemetry/userConfig';
-import { CopilotAuthError } from './auth/error';
-import { FailingTelemetryReporter } from './testing/telemetry';
-import { PromiseQueue } from './util/promiseQueue';
+import { buildPayload, Payload } from './telemetry/failbot.ts';
+import { ExceptionRateLimiter } from './telemetry/rateLimiter.ts';
+import { FilterSettings } from './experiments/filters.ts';
+import { TelemetryUserConfig } from './telemetry/userConfig.ts';
+import { CopilotAuthError } from './auth/error.ts';
+import { FailingTelemetryReporter } from './testing/telemetry.ts';
+import { PromiseQueue } from './util/promiseQueue.ts';
 // import { } from './experiments/telemetryNames';
 import {
   EditorAndPluginInfo,
@@ -34,14 +35,14 @@ import {
   dumpForTelemetry,
   getBuild,
   getBuildType,
-} from './config';
-import { redactMessage, redactError, prepareErrorForRestrictedTelemetry } from './util/redaction';
-import { shouldFailForDebugPurposes } from './testing/runtimeMode';
-import { isNetworkError, Fetcher } from './networking';
-import { Features } from './experiments/features';
-import { ExpConfig } from './experiments/expConfig';
+} from './config.ts';
+import { redactMessage, redactError, prepareErrorForRestrictedTelemetry } from './util/redaction.ts';
+import { shouldFailForDebugPurposes } from './testing/runtimeMode.ts';
+import { isNetworkError, Fetcher } from './networking.ts';
+import { Features } from './experiments/features.ts';
+import { ExpConfig } from './experiments/expConfig.ts';
 
-import { AppInsightsReporter } from './telemetry/appInsightsReporter';
+import { AppInsightsReporter } from './telemetry/appInsightsReporter.ts';
 
 type IncludeExp = 'SkipExp' | 'IncludeExp';
 
@@ -672,7 +673,7 @@ class CopilotNonError extends Error {
     }
     super(message);
     this.name = 'CopilotNonError';
-    this.code = SHA256(enc.Utf16.parse(this.message)).toString().slice(0, 16);
+    this.code = SHA256(Utf16.parse(this.message)).toString().slice(0, 16);
   }
 }
 export {

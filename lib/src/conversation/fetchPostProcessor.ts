@@ -1,21 +1,21 @@
-import { TelemetryProperties, Unknown, UiKind, FetchResult } from '../types';
+import { TelemetryProperties, Unknown, UiKind, FetchResult } from "../types.ts";
 import { v4 as uuidv4 } from 'uuid';
-import { TurnContext } from './turnContext';
-import { TextDocument } from '../textDocument';
-import { CancellationToken } from '../../../agent/src/cancellation';
-import { TelemetryData } from '../telemetry';
-import { createOffTopicMessageTelemetryData } from './telemetry';
+import { TurnContext } from "./turnContext.ts";
+import { TextDocument } from "../textDocument.ts";
+import { CancellationToken } from "../../../agent/src/cancellation.ts";
+import { TelemetryData } from "../telemetry.ts";
+import { createOffTopicMessageTelemetryData } from "./telemetry.ts";
 
-import { ConversationInspector } from './conversationInspector';
+import { ConversationInspector } from "./conversationInspector.ts";
 import {
   createSuggestionShownTelemetryData,
   createTelemetryWithId,
   createUserMessageTelemetryData,
   createModelMessageTelemetryData,
-} from './telemetry';
-import { conversationLogger } from './logger';
-import { TurnSuggestions } from './turnSuggestions';
-import { ChatMLFetcher } from './chatMLFetcher';
+} from "./telemetry.ts";
+import { conversationLogger } from "./logger.ts";
+import { TurnSuggestions } from "./turnSuggestions.ts";
+import { ChatMLFetcher } from "./chatMLFetcher.ts";
 
 namespace ChatFetchResultPostProcessor {
   // ./extensibility/remoteAgentTurnProcessor.ts

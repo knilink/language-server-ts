@@ -1,9 +1,9 @@
-import { IReporter, TelemetryProperties, TelemetryMeasurements } from '../types';
+import { IReporter, TelemetryProperties, TelemetryMeasurements } from "../types.ts";
 // import { } from '../telemetry/setupTelemetryReporters';
 // import { } from '../networkConfiguration';
 // import { } from './telemetrySpy';
 // import { } from '../telemetry';
-import { PromiseQueue } from '../util/promiseQueue';
+import { PromiseQueue } from "../util/promiseQueue.ts";
 
 class TestPromiseQueue extends PromiseQueue {
   async awaitPromises(): Promise<void> {

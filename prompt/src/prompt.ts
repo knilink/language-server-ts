@@ -1,10 +1,10 @@
-import { LanguageId, Document, Snippet, PromptInfo, IPromptOptions } from './types';
-import { SnippetTextProcessor } from './snippetTextProcessing';
-import { processSnippetsForWishlist } from './snippetInclusion/snippets';
-import { transferLastLineToTooltipSignature } from './tooltipSignature';
-import { getTokenizer } from './tokenization';
-import { kindForSnippetProviderType, PromptWishlist, PromptOrderList, PromptPriorityList } from './wishlist';
-import { } from './snippetInclusion/similarFiles'; // TODO
+import { LanguageId, Document, Snippet, PromptInfo, IPromptOptions } from './types.ts';
+import { SnippetTextProcessor } from './snippetTextProcessing.ts';
+import { processSnippetsForWishlist } from './snippetInclusion/snippets.ts';
+import { transferLastLineToTooltipSignature } from './tooltipSignature.ts';
+import { getTokenizer } from './tokenization/index.ts';
+import { kindForSnippetProviderType, PromptWishlist, PromptOrderList, PromptPriorityList } from './wishlist.ts';
+// import { } from "./snippetInclusion/similarFiles"; // TODO
 
 let cachedSuffix: { text: string; tokens: number[] } = { text: '', tokens: [] };
 const DEFAULT_MAX_COMPLETION_LENGTH = 500;

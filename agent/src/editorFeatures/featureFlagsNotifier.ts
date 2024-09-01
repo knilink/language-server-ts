@@ -1,7 +1,7 @@
 import { NotificationType } from 'vscode-languageserver';
-import { type Context } from '../../../lib/src/context';
-import { CopilotTokenNotifier } from '../../../lib/src/auth/copilotTokenNotifier';
-import { Service } from '../service';
+import { type Context } from "../../../lib/src/context.ts";
+import { CopilotTokenNotifier } from "../../../lib/src/auth/copilotTokenNotifier.ts";
+import { Service } from "../service.ts";
 
 type FeatureFlagsNotification = {
   rt: boolean;

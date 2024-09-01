@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { URI } from 'vscode-uri';
-import { Context } from './context';
-import { TextDocumentManager } from './textDocumentManager';
-import { CopilotContentExclusionManager } from './contentExclusion/contentExclusionManager';
-import { TextDocument } from './textDocument';
-import { LanguageDetection } from './language/languageDetection';
-import { FileSystem } from './fileSystem';
-import { DocumentValidationResult } from './util/documentEvaluation';
+import { Context } from "./context.ts";
+import { TextDocumentManager } from "./textDocumentManager.ts";
+import { CopilotContentExclusionManager } from "./contentExclusion/contentExclusionManager.ts";
+import { TextDocument } from "./textDocument.ts";
+import { LanguageDetection } from "./language/languageDetection.ts";
+import { FileSystem } from "./fileSystem.ts";
+import { DocumentValidationResult } from "./util/documentEvaluation.ts";
 
 type TextDocumentResultStatus = 'empty' | 'included' | 'blocked' | 'notfound';
 

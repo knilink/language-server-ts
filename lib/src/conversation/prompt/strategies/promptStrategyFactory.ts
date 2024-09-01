@@ -1,12 +1,12 @@
-import type { IPromptStrategy } from './types';
-import type { PromptType } from '../../../types';
-import { Context } from '../../../context';
+import type { IPromptStrategy } from "./types.ts";
+import type { PromptType } from "../../../types.ts";
+import { Context } from "../../../context.ts";
 
-import { ChatModelFamily } from '../../modelMetadata';
-import { PanelUserPromptStrategy } from './userPromptStrategy';
-import { pickMetaPromptStrategy } from './metaPromptStrategy';
-import { SuggestionsPromptStrategy } from './suggestionsPromptStrategy';
-import { InlineUserPromptStrategy } from './inlineUserPromptStrategy';
+import { ChatModelFamily } from "../../modelMetadata.ts";
+import { PanelUserPromptStrategy } from "./userPromptStrategy.ts";
+import { pickMetaPromptStrategy } from "./metaPromptStrategy.ts";
+import { SuggestionsPromptStrategy } from "./suggestionsPromptStrategy.ts";
+import { InlineUserPromptStrategy } from "./inlineUserPromptStrategy.ts";
 
 class PromptStrategyDescriptor {
   constructor(

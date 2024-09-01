@@ -1,8 +1,8 @@
 import { type SecureContext, type SecureContextOptions, createSecureContext } from 'node:tls';
 
-import { Context } from '../context';
-import { RootCertificateReader } from './certificateReaders';
-import { Fetcher } from '../networking';
+import { Context } from "../context.ts";
+import { RootCertificateReader } from "./certificateReaders.ts";
+import { Fetcher } from "../networking.ts";
 
 type RequestOptions = {
   secureContext: SecureContext;

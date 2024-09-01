@@ -1,10 +1,11 @@
 import os from 'os';
 
-import { SHA256, enc } from 'crypto-js';
+import SHA256 from "crypto-js/sha256.js";
+import Utf16 from "crypto-js/enc-utf16.js";
 
-import { Context } from '../context';
-import { TelemetryUserConfig } from './userConfig';
-import { EditorAndPluginInfo, BuildInfo, EditorSession, formatNameAndVersion } from '../config';
+import { Context } from '../context.ts';
+import { TelemetryUserConfig } from './userConfig.ts';
+import { EditorAndPluginInfo, BuildInfo, EditorSession, formatNameAndVersion } from '../config.ts';
 
 // Params from ../../../agent/src/methods/telemetryTrack.ts
 type ExceptionDetail = {
@@ -155,7 +156,7 @@ function buildPayload(ctx: Context, redactedError: unknown) {
   }
 
   if (payload.exception_detail.length > 0) {
-    payload.rollup_id = SHA256(enc.Utf16.parse(rollup.join('\n'))).toString();
+    payload.rollup_id = SHA256(Utf16.parse(rollup.join('\n'))).toString();
   }
 
   return payload;

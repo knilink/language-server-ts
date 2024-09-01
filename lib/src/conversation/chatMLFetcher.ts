@@ -1,20 +1,20 @@
-import { type Context } from '../context';
-import { Chat, Model, TelemetryMeasurements, TelemetryProperties, TelemetryStore, ToolCall, UiKind } from '../types';
+import { type Context } from "../context.ts";
+import { Chat, Model, TelemetryMeasurements, TelemetryProperties, TelemetryStore, ToolCall, UiKind } from "../types.ts";
 
-import { type CancellationToken } from '../../../agent/src/cancellation';
+import { type CancellationToken } from "../../../agent/src/cancellation.ts";
 
 import { v4 as uuidv4 } from 'uuid';
-import { getChatURL } from './openai/config';
-import { CopilotTokenManager } from '../auth/copilotTokenManager';
-import { TelemetryData, telemetry } from '../telemetry';
-import { asyncIterableMapFilter } from '../common/iterableHelpers';
-import { conversationLogger } from './logger';
-import { isRepetitive } from '../suggestions/anomalyDetection';
-import { isAbortError } from '../networking';
-import { OpenAIChatMLFetcher } from './openai/fetch';
-import { SSEProcessor } from '../openai/stream';
-import { OpenAIFetcher } from '../openai/fetch';
-import { ChatCompletion } from './openai/openai';
+import { getChatURL } from "./openai/config.ts";
+import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { TelemetryData, telemetry } from "../telemetry.ts";
+import { asyncIterableMapFilter } from "../common/iterableHelpers.ts";
+import { conversationLogger } from "./logger.ts";
+import { isRepetitive } from "../suggestions/anomalyDetection.ts";
+import { isAbortError } from "../networking.ts";
+import { OpenAIChatMLFetcher } from "./openai/fetch.ts";
+import { SSEProcessor } from "../openai/stream.ts";
+import { OpenAIFetcher } from "../openai/fetch.ts";
+import { ChatCompletion } from "./openai/openai.ts";
 
 namespace ChatMLFetcher {
   export type SuccessfulResponse =

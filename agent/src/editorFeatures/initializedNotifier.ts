@@ -1,4 +1,4 @@
-import { InitializeParams as LSPInitializeParams } from 'vscode-languageserver/node';
+import { InitializeParams as LSPInitializeParams } from "vscode-languageserver/node.js";
 import { EventEmitter } from 'events';
 
 namespace InitializedNotifier {

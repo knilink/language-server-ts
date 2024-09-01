@@ -1,4 +1,4 @@
-import { type Context } from '../../context';
+import { type Context } from "../../context.ts";
 
 async function chatBasePrompt(
   ctx: Context,

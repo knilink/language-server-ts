@@ -1,5 +1,5 @@
-import { Document } from '../types';
-import { getTokenizer } from '../tokenization';
+import { Document } from "../types.ts";
+import { getTokenizer } from "../tokenization/index.ts";
 
 export function getCursorContext(
   doc: Document,

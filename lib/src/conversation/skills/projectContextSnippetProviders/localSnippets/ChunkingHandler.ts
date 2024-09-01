@@ -1,15 +1,15 @@
 import assert from 'node:assert';
 import { URI } from 'vscode-uri';
 
-import type { Model } from '../../../../types';
-import type { Chunk, ChunkId, IChunking } from './IndexingTypes';
+import type { Model } from "../../../../types.ts";
+import type { Chunk, ChunkId, IChunking } from "./IndexingTypes.ts";
 
-import { Context } from '../../../../context';
-import { WorkspaceWatcherProvider } from '../../../../workspaceWatcherProvider';
-import { FileReader } from '../../../../fileReader';
-import { ModelConfigurationProvider } from '../../../modelConfigurations';
-import { getSupportedModelFamiliesForPrompt } from '../../../modelMetadata';
-import { WorkspaceChunks } from './WorkspaceChunks';
+import { Context } from "../../../../context.ts";
+import { WorkspaceWatcherProvider } from "../../../../workspaceWatcherProvider.ts";
+import { FileReader } from "../../../../fileReader.ts";
+import { ModelConfigurationProvider } from "../../../modelConfigurations.ts";
+import { getSupportedModelFamiliesForPrompt } from "../../../modelMetadata.ts";
+import { WorkspaceChunks } from "./WorkspaceChunks.ts";
 
 class ChunkingHandler {
   status: 'notStarted' | 'started' | 'cancelled' | 'completed' = 'notStarted';

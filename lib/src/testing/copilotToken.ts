@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 
-import { type CopilotTokenManager } from '../auth/copilotTokenManager';
+import { type CopilotTokenManager } from "../auth/copilotTokenManager.ts";
 
-import { FakeCopilotTokenManagerFromGitHubToken, FixedCopilotTokenManager } from './tokenManager';
+import { FakeCopilotTokenManagerFromGitHubToken, FixedCopilotTokenManager } from "./tokenManager.ts";
 
 const tokenFileName = `${process.env.HOME}/.copilot-testing-gh-token`;
 let tokenManager: CopilotTokenManager;

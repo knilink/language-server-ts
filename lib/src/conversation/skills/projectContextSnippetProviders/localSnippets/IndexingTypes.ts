@@ -1,4 +1,4 @@
-import { Model } from '../../../../types';
+import { Model } from "../../../../types.ts";
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 interface IScoring {

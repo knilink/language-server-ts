@@ -1,27 +1,27 @@
-import { CancellationToken } from '../../../agent/src/cancellation';
-import { ConversationProgress } from './conversationProgress';
-import { conversationLogger } from './logger';
+import { CancellationToken } from "../../../agent/src/cancellation.ts";
+import { ConversationProgress } from "./conversationProgress.ts";
+import { conversationLogger } from "./logger.ts";
 import {
   createTelemetryWithId,
   uiKindToMessageSource,
   createSuggestionMessageTelemetryData,
   extendUserMessageTelemetryData,
-} from './telemetry';
-import { getPromptTemplates, IPromptTemplate } from './promptTemplates';
-import { getAgents } from './agents/agents';
-import { markdownCommentRegexp } from './codeEdits';
-import { ModelConfigurationProvider } from './modelConfigurations';
-import { getSupportedModelFamiliesForPrompt } from './modelMetadata';
-import { Features } from '../experiments/features';
-import { ChatMLFetcher } from './chatMLFetcher';
-import { ChatFetchResultPostProcessor } from './fetchPostProcessor';
-import { ConversationContextCollector } from './prompt/conversationContextCollector';
-import { ConversationFinishCallback } from './conversationFinishCallback';
-import { TurnContext } from './turnContext';
-import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind, Unknown } from '../types';
-import { TextDocument } from '../textDocument';
-import { type ITurnProcessorStrategy } from './turnProcessorStrategy';
-import { TelemetryData } from '../telemetry';
+} from "./telemetry.ts";
+import { getPromptTemplates, IPromptTemplate } from "./promptTemplates.ts";
+import { getAgents } from "./agents/agents.ts";
+import { markdownCommentRegexp } from "./codeEdits.ts";
+import { ModelConfigurationProvider } from "./modelConfigurations.ts";
+import { getSupportedModelFamiliesForPrompt } from "./modelMetadata.ts";
+import { Features } from "../experiments/features.ts";
+import { ChatMLFetcher } from "./chatMLFetcher.ts";
+import { ChatFetchResultPostProcessor } from "./fetchPostProcessor.ts";
+import { ConversationContextCollector } from "./prompt/conversationContextCollector.ts";
+import { ConversationFinishCallback } from "./conversationFinishCallback.ts";
+import { TurnContext } from "./turnContext.ts";
+import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind, Unknown } from "../types.ts";
+import { TextDocument } from "../textDocument.ts";
+import { type ITurnProcessorStrategy } from "./turnProcessorStrategy.ts";
+import { TelemetryData } from "../telemetry.ts";
 
 export const COLLECT_CONTEXT_STEP = 'collect-context';
 export const GENERATE_RESPONSE_STEP = 'generate-response';

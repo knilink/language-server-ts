@@ -1,5 +1,5 @@
 // import { TextDocument } from 'vscode-languageserver-types'; // TODO
-import { LanguageId, Document } from './types';
+import { LanguageId, Document } from "./types.ts";
 
 type CommentMarker = {
   start: string;

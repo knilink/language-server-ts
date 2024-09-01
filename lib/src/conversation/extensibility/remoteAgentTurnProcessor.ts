@@ -1,28 +1,28 @@
 import { URI, Utils } from 'vscode-uri';
 
-import { Unknown, TelemetryProperties, Model, Chat } from '../../types';
-import { CancellationToken } from '../../../../agent/src/cancellation';
-import { TextDocument } from '../../textDocument';
-import { Turn, Conversation } from '../conversation';
-import { TurnContext } from '../turnContext';
-import { Response } from '../../networking';
-import { TelemetryData } from '../../telemetry';
+import { Unknown, TelemetryProperties, Model, Chat } from "../../types.ts";
+import { CancellationToken } from "../../../../agent/src/cancellation.ts";
+import { TextDocument } from "../../textDocument.ts";
+import { Turn, Conversation } from "../conversation.ts";
+import { TurnContext } from "../turnContext.ts";
+import { Response } from "../../networking.ts";
+import { TelemetryData } from "../../telemetry.ts";
 
-import { ConversationProgress } from '../conversationProgress';
-import { } from '../openai/openai';
-import { ConversationFinishCallback } from '../conversationFinishCallback';
-import { } from '../../../../prompt/src/tokenization/index';
-import { createTelemetryWithId, uiKindToMessageSource, extendUserMessageTelemetryData } from '../telemetry';
-import { ChatModelFamily } from '../modelMetadata';
-import { ChatFetchResultPostProcessor } from '../fetchPostProcessor';
-import { conversationLogger } from '../logger';
-import { ChatMLFetcher } from '../chatMLFetcher';
-import { CopilotTokenManager } from '../../auth/copilotTokenManager';
-import { countMessagesTokens } from '../openai/chatTokens';
-import { } from '../../openai/fetch';
-import { NetworkConfiguration } from '../../networkConfiguration';
-import { StreamCopilotAnnotations } from '../../openai/stream';
-import { IPromptTemplate } from '../promptTemplates';
+import { ConversationProgress } from "../conversationProgress.ts";
+import { } from "../openai/openai.ts";
+import { ConversationFinishCallback } from "../conversationFinishCallback.ts";
+import { } from "../../../../prompt/src/tokenization/index.ts";
+import { createTelemetryWithId, uiKindToMessageSource, extendUserMessageTelemetryData } from "../telemetry.ts";
+import { ChatModelFamily } from "../modelMetadata.ts";
+import { ChatFetchResultPostProcessor } from "../fetchPostProcessor.ts";
+import { conversationLogger } from "../logger.ts";
+import { ChatMLFetcher } from "../chatMLFetcher.ts";
+import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
+import { countMessagesTokens } from "../openai/chatTokens.ts";
+import { } from "../../openai/fetch.ts";
+import { NetworkConfiguration } from "../../networkConfiguration.ts";
+import { StreamCopilotAnnotations } from "../../openai/stream.ts";
+import { IPromptTemplate } from "../promptTemplates.ts";
 
 const GENERATE_RESPONSE_STEP = 'generate-response';
 

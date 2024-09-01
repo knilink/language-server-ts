@@ -1,8 +1,8 @@
 import { Readable } from 'stream';
 
-import { Context } from '../context';
-import { Response } from '../networking';
-import { CancellationToken } from '../../../agent/src/cancellation';
+import { Context } from "../context.ts";
+import { Response } from "../networking.ts";
+import { CancellationToken } from "../../../agent/src/cancellation.ts";
 import {
   AnnotationsMap,
   OpenAIRequestId,
@@ -14,13 +14,13 @@ import {
   Token,
   ToolCall,
   Unknown,
-} from '../types';
+} from "../types.ts";
 
-import { Logger, LogLevel } from '../logger';
-import { telemetry, TelemetryData, TelemetryWithExp } from '../telemetry';
-import { Features } from '../experiments/features';
-import { convertToAPIChoice } from './openai';
-import { getRequestId } from './fetch';
+import { Logger, LogLevel } from "../logger.ts";
+import { telemetry, TelemetryData, TelemetryWithExp } from "../telemetry.ts";
+import { Features } from "../experiments/features.ts";
+import { convertToAPIChoice } from "./openai.ts";
+import { getRequestId } from "./fetch.ts";
 
 interface IStreamingToolCall {
   name?: string;
@@ -209,8 +209,8 @@ namespace SSEProcessor {
 }
 
 class SSEProcessor {
-  requestId = getRequestId(this.response);
-  stats = new ChunkStats(this.expectedNumChoices);
+  requestId: OpenAIRequestId;
+  stats: ChunkStats;
   solutions: Record<string, APIJsonDataStreaming | null> = {};
 
   constructor(
@@ -224,6 +224,7 @@ class SSEProcessor {
     public cancellationToken?: CancellationToken
   ) {
     this.requestId = getRequestId(this.response);
+    this.stats = new ChunkStats(this.expectedNumChoices);
   }
 
   static async create(

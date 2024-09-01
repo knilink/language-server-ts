@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { Skill } from '../../types';
-import { TurnContext } from '../turnContext';
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { Skill } from "../../types.ts";
+import { TurnContext } from "../turnContext.ts";
 
 const RemoteSchema = Type.Object({
   name: Type.String(),

@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation';
-import { Context } from '../../../../lib/src/context';
-import { ModelConfigurationProvider } from '../../../../lib/src/conversation/modelConfigurations';
-import { TestingOptions } from '../testingOptions';
-import { ChatRole } from '../../../../lib/src/conversation/openai/openai';
-import { ChatModelFamily } from '../../../../lib/src/conversation/modelMetadata';
-import { ensureAuthenticated } from '../../auth/authDecorator';
-import { addMethodHandlerValidation } from '../../schemaValidation';
-import { ChatMLFetcher } from '../../../../lib/src/conversation/chatMLFetcher';
+import { type CancellationToken } from "../../cancellation.ts";
+import { Context } from "../../../../lib/src/context.ts";
+import { ModelConfigurationProvider } from "../../../../lib/src/conversation/modelConfigurations.ts";
+import { TestingOptions } from "../testingOptions.ts";
+import { ChatRole } from "../../../../lib/src/conversation/openai/openai.ts";
+import { ChatModelFamily } from "../../../../lib/src/conversation/modelMetadata.ts";
+import { ensureAuthenticated } from "../../auth/authDecorator.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { ChatMLFetcher } from "../../../../lib/src/conversation/chatMLFetcher.ts";
 
 const Params = Type.Object({
   options: Type.Optional(TestingOptions),

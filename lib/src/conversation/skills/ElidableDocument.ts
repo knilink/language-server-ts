@@ -1,9 +1,9 @@
 import { dedent } from 'ts-dedent';
 import { Range, Position } from 'vscode-languageserver-types';
 
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { TextDocument } from '../../textDocument';
+import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { TextDocument } from "../../textDocument.ts";
 
 function isEmptyRange(range: Range) {
   return range.start.line == range.end.line && range.start.character == range.end.character;

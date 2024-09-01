@@ -1,4 +1,4 @@
-import { clearLabelsIf, visitTree, rebuildTree } from './manipulation';
+import { clearLabelsIf, visitTree, rebuildTree } from "./manipulation.ts";
 import {
   Node,
   Label,
@@ -11,7 +11,7 @@ import {
   isLine,
   isVirtual,
   isBlank,
-} from './classes';
+} from "./classes.ts";
 
 type Matches = (sourceLine: string) => boolean;
 type LabelRule = { matches: Matches; label: Label };

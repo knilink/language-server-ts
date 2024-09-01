@@ -1,12 +1,12 @@
 import * as os from 'node:os';
 import * as tls from 'node:tls';
 
-import { type Context } from './context';
+import { type Context } from "./context.ts";
 
-import { getVersion, getBuildType, editorVersionHeaders } from './config';
-import { CopilotTokenManager } from './auth/copilotTokenManager';
-import { Fetcher } from './networking';
-import { checkReachability } from './reachability';
+import { getVersion, getBuildType, editorVersionHeaders } from "./config.ts";
+import { CopilotTokenManager } from "./auth/copilotTokenManager.ts";
+import { Fetcher } from "./networking.ts";
+import { checkReachability } from "./reachability.ts";
 
 type DiagnosticData = {
   sections: DiagnosticSection[];

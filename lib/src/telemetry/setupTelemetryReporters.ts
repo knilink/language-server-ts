@@ -1,6 +1,6 @@
-import { Context } from '../context';
-import { AppInsightsReporter } from './appInsightsReporter';
-import { TelemetryReporters } from '../telemetry';
+import { Context } from "../context.ts";
+import { AppInsightsReporter } from "./appInsightsReporter.ts";
+import { TelemetryReporters } from "../telemetry.ts";
 
 function setupTelemetryReporters(ctx: Context, telemetryNamespace: string, telemetryEnabled: boolean): Promise<void> {
   return ctx.get(TelemetryInitialization).initialize(ctx, telemetryNamespace, telemetryEnabled);

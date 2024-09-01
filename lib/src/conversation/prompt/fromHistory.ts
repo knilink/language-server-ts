@@ -1,8 +1,8 @@
-import { Turn } from '../../conversation/conversation';
+import { Turn } from "../../conversation/conversation.ts";
 
-import { fromMessage } from './fromMessage';
-import { weighElidableList } from './elidableList';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
+import { fromMessage } from "./fromMessage.ts";
+import { weighElidableList } from "./elidableList.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
 
 const MAX_TURNS_IN_HISTORY = 5;
 

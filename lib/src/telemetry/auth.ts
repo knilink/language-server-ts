@@ -1,5 +1,5 @@
-import { Context } from '../context';
-import { TelemetryData, telemetry, telemetryError } from '../telemetry';
+import { Context } from "../context.ts";
+import { TelemetryData, telemetry, telemetryError } from "../telemetry.ts";
 
 async function telemetryAuthNotifyShown(ctx: Context, authSource: string): Promise<void> {
   const data = TelemetryData.createAndMarkAsIssued({ authSource });

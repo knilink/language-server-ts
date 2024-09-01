@@ -1,6 +1,6 @@
 import { type URI } from 'vscode-uri';
-import { Context } from './context';
-import { TextDocumentManager } from './textDocumentManager';
+import { Context } from "./context.ts";
+import { TextDocumentManager } from "./textDocumentManager.ts";
 
 class ChangeTracker {
   private _referenceCount = 0;

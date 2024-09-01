@@ -1,12 +1,12 @@
 import { Position, Range } from 'vscode-languageserver-types';
 import { URI } from 'vscode-uri';
-import { Context } from './context';
-import { TelemetryData, TelemetryWithExp } from './telemetry';
-import { TurnContext } from './conversation/turnContext';
-import { ElidableText } from '../../prompt/src/elidableText/elidableText';
-import { ChatRole } from './conversation/openai/openai';
+import { Context } from "./context.ts";
+import { TelemetryData, TelemetryWithExp } from "./telemetry.ts";
+import { TurnContext } from "./conversation/turnContext.ts";
+import { ElidableText } from "../../prompt/src/elidableText/elidableText.ts";
+import { ChatRole } from "./conversation/openai/openai.ts";
 import { TSchema } from '@sinclair/typebox';
-import { ChatModelFamily } from './conversation/modelMetadata';
+import { ChatModelFamily } from "./conversation/modelMetadata.ts";
 
 // export { WorkspaceFolder } from 'vscode-languageserver-types';
 

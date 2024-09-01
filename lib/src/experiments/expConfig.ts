@@ -1,7 +1,7 @@
-import { CopilotNeighboringTabs, BlockMode } from '../types';
+import { CopilotNeighboringTabs, BlockMode } from "../types.ts";
 import type { ChatModelFamily } from '../conversation/modelMetadata.ts';
-import { Context } from '../context';
-import { telemetryExpProblem, TelemetryData } from '../telemetry';
+import { Context } from "../context.ts";
+import { telemetryExpProblem, TelemetryData } from "../telemetry.ts";
 
 class ExpConfig {
   constructor(

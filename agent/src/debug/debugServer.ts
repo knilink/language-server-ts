@@ -1,7 +1,11 @@
+import { fileURLToPath } from 'node:url';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 import { EventEmitter } from 'events';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class DebugServer {
   private server: http.Server;

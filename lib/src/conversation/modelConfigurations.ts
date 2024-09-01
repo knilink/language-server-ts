@@ -1,10 +1,10 @@
-import { Model } from '../types';
+import { Model } from "../types.ts";
 
-import { Context } from '../context';
-import { Features } from '../experiments/features';
-import { CopilotTokenManager } from '../auth/copilotTokenManager';
-import { conversationLogger } from './logger';
-import { ChatModelFamily, ModelMetadataProvider } from './modelMetadata';
+import { Context } from "../context.ts";
+import { Features } from "../experiments/features.ts";
+import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { conversationLogger } from "./logger.ts";
+import { ChatModelFamily, ModelMetadataProvider } from "./modelMetadata.ts";
 
 async function getGpt4TokenConfig(ctx: Context): Promise<Model.TokenConfiguration> {
   const features = ctx.get(Features);

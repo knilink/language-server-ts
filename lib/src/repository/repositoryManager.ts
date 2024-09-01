@@ -1,11 +1,11 @@
 import { URI, Utils } from 'vscode-uri';
-import { type Context } from '../context';
-import { type GitRemoteUrl } from './gitRemoteUrl';
+import { type Context } from "../context.ts";
+import { type GitRemoteUrl } from "./gitRemoteUrl.ts";
 
-import { dirname, resolveFilePath } from '../util/uri';
-import { FileSystem } from '../fileSystem';
-import { GitRemoteResolver } from './gitRemoteResolver';
-import { LRUCacheMap } from '../common/cache';
+import { dirname, resolveFilePath } from "../util/uri.ts";
+import { FileSystem } from "../fileSystem.ts";
+import { GitRemoteResolver } from "./gitRemoteResolver.ts";
+import { LRUCacheMap } from "../common/cache.ts";
 import assert from 'assert';
 
 const maxRepoCacheSize: number = 100;

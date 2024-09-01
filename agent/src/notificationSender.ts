@@ -1,9 +1,9 @@
-import { MessageActionItem } from 'vscode-languageserver/node';
+import { MessageActionItem } from "vscode-languageserver/node.js";
 
-import { Context } from '../../lib/src/context';
-import { Service } from './service';
+import { Context } from '../../lib/src/context.ts';
+import { Service } from './service.ts';
 
-import { NotificationSender } from '../../lib/src/notificationSender';
+import { NotificationSender } from '../../lib/src/notificationSender.ts';
 
 class ConnectionNotificationSender extends NotificationSender {
   constructor(readonly ctx: Context) {

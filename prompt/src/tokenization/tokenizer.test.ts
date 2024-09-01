@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ITokenizer, getTokenizer } from './tokenizer';
+import { ITokenizer, getTokenizer } from "./tokenizer.ts";
 
 describe('TTokenizer', () => {
   let tokenizer: ITokenizer;

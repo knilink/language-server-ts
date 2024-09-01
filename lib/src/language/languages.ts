@@ -1,4 +1,4 @@
-import { knownLanguages } from './generatedLanguages';
+import { knownLanguages } from "./generatedLanguages.ts";
 const knownTemplateLanguageExtensions: string[] = [
   '.ejs',
   '.erb',

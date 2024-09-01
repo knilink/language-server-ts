@@ -1,5 +1,5 @@
-import { Document, LanguageId, Snippet } from '../types';
-import { } from './snippets';
+import { Document, LanguageId, Snippet } from "../types.ts";
+import { } from "./snippets.ts";
 
 function splitIntoWords(a: string) {
   return a.split(/[^a-zA-Z0-9]/).filter((x) => x.length > 0);

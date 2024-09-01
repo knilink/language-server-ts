@@ -1,5 +1,5 @@
 import { TSchema } from '@sinclair/typebox';
-import { Context } from '../../../lib/src/context';
+import { Context } from "../../../lib/src/context.ts";
 import { NotificationType } from 'vscode-languageserver';
 
 abstract class AbstractNotification {

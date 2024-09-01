@@ -1,13 +1,13 @@
 import path from 'path';
 import { URI } from 'vscode-uri';
 import { Range } from 'vscode-languageserver-types';
-import { Disposable, NotificationHandler } from 'vscode-languageserver/node';
-import { WorkspaceFolder } from './types';
+import { Disposable, NotificationHandler } from "vscode-languageserver/node.js";
+import { WorkspaceFolder } from './types.ts';
 
-import { Context } from './context';
-import { TextDocument } from './textDocument';
+import { Context } from './context.ts';
+import { TextDocument } from './textDocument.ts';
 
-import { isDocumentValid, DocumentValidationResult } from './util/documentEvaluation';
+import { isDocumentValid, DocumentValidationResult } from './util/documentEvaluation.ts';
 
 type NotebookCell = {
   index: number; // ? cell.index < activeCell.index

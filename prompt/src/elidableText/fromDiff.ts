@@ -1,3 +1,3 @@
-export * from './fromIndentationTrees';
-export * from '../indentation';
+export * from './fromIndentationTrees.ts';
+export * from '../indentation/index.ts';
 export * from 'diff';

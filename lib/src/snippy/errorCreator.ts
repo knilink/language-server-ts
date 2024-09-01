@@ -1,4 +1,4 @@
-import { CopilotAuthStatus } from '../auth/types';
+import { CopilotAuthStatus } from "../auth/types.ts";
 
 enum ErrorReasons {
   BadArguments = 'BadArgumentsError',

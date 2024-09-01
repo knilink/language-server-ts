@@ -1,10 +1,10 @@
-import { Chat, Unknown } from '../../../types';
-import { SkillPromptOptions, IPromptStrategy } from './types';
-import { TurnContext } from '../../turnContext';
+import { Chat, Unknown } from "../../../types.ts";
+import { SkillPromptOptions, IPromptStrategy } from "./types.ts";
+import { TurnContext } from "../../turnContext.ts";
 
-import { fromSkills } from '../fromSkills';
-import { ElidableText } from '../../../../../prompt/src/elidableText/elidableText';
-import { fromHistory } from '../fromHistory';
+import { fromSkills } from "../fromSkills.ts";
+import { ElidableText } from "../../../../../prompt/src/elidableText/elidableText.ts";
+import { fromHistory } from "../fromHistory.ts";
 
 abstract class AbstractUserPromptStrategy implements IPromptStrategy {
   async elidableContent(

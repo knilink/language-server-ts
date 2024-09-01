@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { URI, Utils } from 'vscode-uri';
 
-import { Context } from '../../context';
-import { logger } from '../../logger';
+import { Context } from "../../context.ts";
+import { logger } from "../../logger.ts";
 
 const TestSuffixTypes: string[] = ['.test', '.spec', '_test', 'Test', '_spec', '_test', 'Tests', '.Tests', 'Spec'];
 const TestPrefixTypes: string = 'test_';

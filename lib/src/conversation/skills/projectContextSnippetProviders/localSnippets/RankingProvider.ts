@@ -1,7 +1,7 @@
-import { LRUCacheMap } from '../../../../common/cache';
-import { Context } from '../../../../context';
-import { IRanking, Chunk, ChunkId } from './IndexingTypes';
-import { getRankingAlgorithm } from './RankingAlgorithms';
+import { LRUCacheMap } from "../../../../common/cache.ts";
+import { Context } from "../../../../context.ts";
+import { IRanking, Chunk, ChunkId } from "./IndexingTypes.ts";
+import { getRankingAlgorithm } from "./RankingAlgorithms.ts";
 
 class RankingProvider {
   private workspaceRankingProviders = new LRUCacheMap<string, IRanking>(25);

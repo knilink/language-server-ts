@@ -1,16 +1,16 @@
-import { type CancellationToken } from '../../../../agent/src/cancellation';
-import { Context } from '../../context';
-import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } from '../../types';
+import { type CancellationToken } from "../../../../agent/src/cancellation.ts";
+import { Context } from "../../context.ts";
+import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } from "../../types.ts";
 
-import { conversationLogger } from '../logger';
-import { ConversationPromptEngine } from './conversationPromptEngine';
-import { telemetry, TelemetryData } from '../../telemetry';
-import { ModelConfigurationProvider } from '../modelConfigurations';
-import { ConversationInspector } from '../conversationInspector';
-import { telemetryPrefixForUiKind } from '../telemetry';
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata';
-import { TurnContext } from '../turnContext';
-import { ChatMLFetcher } from '../chatMLFetcher';
+import { conversationLogger } from "../logger.ts";
+import { ConversationPromptEngine } from "./conversationPromptEngine.ts";
+import { telemetry, TelemetryData } from "../../telemetry.ts";
+import { ModelConfigurationProvider } from "../modelConfigurations.ts";
+import { ConversationInspector } from "../conversationInspector.ts";
+import { telemetryPrefixForUiKind } from "../telemetry.ts";
+import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
+import { TurnContext } from "../turnContext.ts";
+import { ChatMLFetcher } from "../chatMLFetcher.ts";
 
 const MAX_SKILLS = 4;
 const DEFAULT_PROMPT_CONTEXT: { skillIds: SkillId[] } = { skillIds: [] };

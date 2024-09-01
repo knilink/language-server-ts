@@ -1,13 +1,13 @@
-import { type CancellationToken } from '../../../agent/src/cancellation';
-import { FetchResult, Unknown, UiKind, TelemetryProperties } from '../types';
-import { Context } from '../context';
-import { TurnContext } from './turnContext';
+import { type CancellationToken } from "../../../agent/src/cancellation.ts";
+import { FetchResult, Unknown, UiKind, TelemetryProperties } from "../types.ts";
+import { Context } from "../context.ts";
+import { TurnContext } from "./turnContext.ts";
 
-import { ConversationPromptEngine } from './prompt/conversationPromptEngine';
-import { getSupportedModelFamiliesForPrompt } from './modelMetadata';
-import { conversationLogger } from './logger';
-import { ModelConfigurationProvider } from './modelConfigurations';
-import { ChatMLFetcher } from './chatMLFetcher';
+import { ConversationPromptEngine } from "./prompt/conversationPromptEngine.ts";
+import { getSupportedModelFamiliesForPrompt } from "./modelMetadata.ts";
+import { conversationLogger } from "./logger.ts";
+import { ModelConfigurationProvider } from "./modelConfigurations.ts";
+import { ChatMLFetcher } from "./chatMLFetcher.ts";
 
 class TurnSuggestions {
   constructor(

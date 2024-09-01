@@ -1,5 +1,5 @@
-import { Context } from '../context';
-import { Logger, LogLevel } from '../logger';
+import { Context } from "../context.ts";
+import { Logger, LogLevel } from "../logger.ts";
 import { execFile } from 'child_process';
 
 const logger = new Logger(LogLevel.INFO, 'repository');

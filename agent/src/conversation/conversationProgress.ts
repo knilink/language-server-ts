@@ -1,12 +1,12 @@
-import { ProgressType } from 'vscode-languageserver/node';
+import { ProgressType } from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { Service } from '../service';
-import { conversationLogger } from '../../../lib/src/conversation/logger';
-import { LRUCacheMap } from '../../../lib/src/common/cache';
-import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress';
+import { Context } from '../../../lib/src/context.ts';
+import { Service } from '../service.ts';
+import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
+import { LRUCacheMap } from '../../../lib/src/common/cache.ts';
+import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
 
-import { Turn, Conversation } from '../../../lib/src/conversation/conversation';
+import { Turn, Conversation } from '../../../lib/src/conversation/conversation.ts';
 
 const ConversationProgressType = new ProgressType();
 

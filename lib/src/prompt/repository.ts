@@ -2,13 +2,13 @@ import path from 'node:path';
 import { Utils, URI } from 'vscode-uri';
 import gitUrlParse from 'git-url-parse';
 
-import { RepoInfo, RepoUrlInfo } from '../types';
+import type { RepoInfo, RepoUrlInfo } from "../types.ts";
 
-import { Context } from '../context';
-import { isSupportedUriScheme } from '../util/uri';
-import { CopilotTokenManager } from '../auth/copilotTokenManager';
-import { FileSystem } from '../fileSystem';
-import { LRUCacheMap } from '../common/cache';
+import { Context } from "../context.ts";
+import { isSupportedUriScheme } from "../util/uri.ts";
+import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { FileSystem } from "../fileSystem.ts";
+import { LRUCacheMap } from "../common/cache.ts";
 
 function isRepoInfo(info: RepoInfo | 0 | undefined): info is RepoInfo {
   return info !== undefined && info !== 0;

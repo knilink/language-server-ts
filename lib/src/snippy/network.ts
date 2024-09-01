@@ -1,14 +1,14 @@
-import { CopilotAuthStatus } from '../auth/types';
-import { type Context } from '../context';
+import { CopilotAuthStatus } from "../auth/types.ts";
+import { type Context } from "../context.ts";
 
-import { CopilotTokenManager } from '../auth/copilotTokenManager';
-import { ConnectionState } from './connectionState';
-import { createErrorResponse, getErrorType, ErrorReasons, ErrorMessages } from './errorCreator';
-import { codeReferenceLogger } from './logger';
-import { Fetcher, Request, Response } from '../networking';
-import { NetworkConfiguration } from '../networkConfiguration';
-import { editorVersionHeaders } from '../config';
-import { snippyTelemetry } from './telemetryHandlers';
+import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { ConnectionState } from "./connectionState.ts";
+import { createErrorResponse, getErrorType, ErrorReasons, ErrorMessages } from "./errorCreator.ts";
+import { codeReferenceLogger } from "./logger.ts";
+import { Fetcher, Request, Response } from "../networking.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { editorVersionHeaders } from "../config.ts";
+import { snippyTelemetry } from "./telemetryHandlers.ts";
 
 const TWIRP_URL = 'twirp/github.snippy.v1.SnippyAPI';
 

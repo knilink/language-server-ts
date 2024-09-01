@@ -1,7 +1,7 @@
-import { Context } from './context';
-import { isAbortError } from './networking';
-import { StatusReporter } from './progress';
-import { logger } from './logger';
+import { Context } from "./context.ts";
+import { isAbortError } from "./networking.ts";
+import { StatusReporter } from "./progress.ts";
+import { logger } from "./logger.ts";
 
 const oomCodes = new Set(['ERR_WORKER_OUT_OF_MEMORY', 'ENOMEM']);
 

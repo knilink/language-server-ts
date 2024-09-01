@@ -1,14 +1,14 @@
 import { type Static } from '@sinclair/typebox';
-import { type ConversationSourceSchema } from './schema';
+import { type ConversationSourceSchema } from "./schema.ts";
 
-import { Context } from '../context';
-import { UiKind, TelemetryProperties, TelemetryMeasurements, TelemetryStore, Unknown } from '../types';
-import { Turn, Conversation } from '../conversation/conversation';
-import { TextDocument } from '../textDocument';
+import { Context } from "../context.ts";
+import { UiKind, TelemetryProperties, TelemetryMeasurements, TelemetryStore, Unknown } from "../types.ts";
+import { Turn, Conversation } from "../conversation/conversation.ts";
+import { TextDocument } from "../textDocument.ts";
 
 import { v4 as uuidv4 } from 'uuid';
-import { } from '../openai/fetch';
-import { TelemetryData, telemetry } from '../telemetry';
+import { } from "../openai/fetch.ts";
+import { TelemetryData, telemetry } from "../telemetry.ts";
 
 function createTelemetryWithId(messageId: string, conversationId: string) {
   return TelemetryData.createAndMarkAsIssued({ messageId, conversationId });

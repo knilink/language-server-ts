@@ -10,33 +10,33 @@ import {
   InitializeParams,
   ClientCapabilities,
   TextDocumentSyncKind,
-} from 'vscode-languageserver/node';
+} from "vscode-languageserver/node.js";
 
 import { Type, type Static } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { URI } from 'vscode-uri';
 
-import { Context } from '../../lib/src/context';
-import { rejectLastShown } from '../../lib/src/ghostText/last';
-import { PromiseQueue } from '../../lib/src/util/promiseQueue';
-import { TelemetryReporters } from '../../lib/src/telemetry';
-import { CopilotCapabilitiesParam, CopilotCapabilitiesProvider } from './editorFeatures/capabilities';
-import { LogTarget, Logger, LogLevel } from '../../lib/src/logger';
-import { registerNotifications } from './notifications/index';
-import { BuildInfo, EditorAndPluginInfo, GitHubAppInfo } from '../../lib/src/config';
-import { notifyChangeConfiguration } from './methods/notifyChangeConfiguration';
-import { AgentTextDocumentManager } from './textDocumentManager';
-import { WorkspaceNotifier } from '../../lib/src/workspaceNotifier';
-import { registerDocumentTracker } from '../../lib/src/documentTracker';
-import { InitializedNotifier } from './editorFeatures/initializedNotifier';
-import { LspFileWatcher } from './lspFileWatcher';
-import { AuthManager } from '../../lib/src/auth/manager';
-import { setupRedirectingTelemetryReporters } from './editorFeatures/redirectTelemetryReporter';
-import { setupTelemetryReporters } from '../../lib/src/telemetry/setupTelemetryReporters';
-import { registerCommands } from './commands';
-import { MethodHandlers } from './methods/methods';
-import { SchemaValidationError } from './schemaValidation';
-import { NotificationLogger } from './editorFeatures/logTarget';
+import { Context } from '../../lib/src/context.ts';
+import { rejectLastShown } from '../../lib/src/ghostText/last.ts';
+import { PromiseQueue } from '../../lib/src/util/promiseQueue.ts';
+import { TelemetryReporters } from '../../lib/src/telemetry.ts';
+import { CopilotCapabilitiesParam, CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
+import { LogTarget, Logger, LogLevel } from '../../lib/src/logger.ts';
+import { registerNotifications } from './notifications/index.ts';
+import { BuildInfo, EditorAndPluginInfo, GitHubAppInfo } from '../../lib/src/config.ts';
+import { notifyChangeConfiguration } from './methods/notifyChangeConfiguration.ts';
+import { AgentTextDocumentManager } from './textDocumentManager.ts';
+import { WorkspaceNotifier } from '../../lib/src/workspaceNotifier.ts';
+import { registerDocumentTracker } from '../../lib/src/documentTracker.ts';
+import { InitializedNotifier } from './editorFeatures/initializedNotifier.ts';
+import { LspFileWatcher } from './lspFileWatcher.ts';
+import { AuthManager } from '../../lib/src/auth/manager.ts';
+import { setupRedirectingTelemetryReporters } from './editorFeatures/redirectTelemetryReporter.ts';
+import { setupTelemetryReporters } from '../../lib/src/telemetry/setupTelemetryReporters.ts';
+import { registerCommands } from './commands/index.ts';
+import { MethodHandlers } from './methods/methods.ts';
+import { SchemaValidationError } from './schemaValidation.ts';
+import { NotificationLogger } from './editorFeatures/logTarget.ts';
 
 const NameAndVersionParam = Type.Object({
   name: Type.String(),

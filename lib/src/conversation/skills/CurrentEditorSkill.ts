@@ -1,12 +1,12 @@
 import { type Static } from '@sinclair/typebox';
-import { Skill } from '../../types';
-import { type TurnContext } from '../turnContext';
+import { Skill } from "../../types.ts";
+import { type TurnContext } from "../turnContext.ts";
 
-import { DocumentSchema } from '../schema';
+import { DocumentSchema } from "../schema.ts";
 
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader';
-import { isEmptyRange, ElidableDocument } from './ElidableDocument';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
+import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
+import { isEmptyRange, ElidableDocument } from "./ElidableDocument.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
 
 type Document = Static<typeof DocumentSchema>;
 

@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { AbstractNotification } from './abstract';
-import { AuthManager } from '../../../lib/src/auth/manager';
+import { AbstractNotification } from "./abstract.ts";
+import { AuthManager } from "../../../lib/src/auth/manager.ts";
 
 export class DidChangeAuthNotification extends AbstractNotification {
   readonly name = 'github/didChangeAuth';

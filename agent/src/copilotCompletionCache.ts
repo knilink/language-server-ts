@@ -1,6 +1,6 @@
-import type { Completion } from '../../lib/src/types';
+import type { Completion } from "../../lib/src/types.ts";
 
-import { LRUCacheMap } from '../../lib/src/common/cache';
+import { LRUCacheMap } from "../../lib/src/common/cache.ts";
 
 // ./commands/panel.ts
 // <uuid, completion>

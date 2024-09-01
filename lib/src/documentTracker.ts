@@ -1,9 +1,9 @@
 import { type URI } from 'vscode-uri';
 
-import { type Context } from './context';
-import { TextDocumentManager } from './textDocumentManager';
-import { LRUCacheMap } from './common/cache';
-import { TextDocument } from './textDocument';
+import { type Context } from "./context.ts";
+import { TextDocumentManager } from "./textDocumentManager.ts";
+import { LRUCacheMap } from "./common/cache.ts";
+import { TextDocument } from "./textDocument.ts";
 
 const accessTimes = new LRUCacheMap<string, number>();
 

@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as WorkerThread from 'node:worker_threads';
 // import { install as registerSourceMapSupport } from 'source-map-support';
-import { getSimilarSnippets } from './snippetInclusion/similarFiles';
+import { getSimilarSnippets } from "./snippetInclusion/similarFiles.ts";
 
 function sleep(delay: number): Promise<string> {
   return new Promise((resolve) => {
@@ -20,8 +20,8 @@ const methods: Methods & { [key: string]: (...args: any[]) => Promise<any> } = {
   getSimilarSnippets,
 };
 
-const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
-const __dirname = path.dirname(__filename); // get the name of the directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class WorkerProxy {
   private nextHandlerId = 0;

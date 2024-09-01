@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { URI, isSupportedUriScheme, getFsPath } from './util/uri';
+import { URI, isSupportedUriScheme, getFsPath } from "./util/uri.ts";
 
 type FileStat = {
   ctime: number;

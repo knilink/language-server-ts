@@ -1,7 +1,7 @@
-import { Context } from '../context';
-import { TelemetryWithExp } from '../telemetry';
+import { Context } from "../context.ts";
+import { TelemetryWithExp } from "../telemetry.ts";
 
-import { Features } from '../experiments/features';
+import { Features } from "../experiments/features.ts";
 
 async function getDebounceLimit(ctx: Context, telemetryData: TelemetryWithExp): Promise<number> {
   let expDebounce: number;

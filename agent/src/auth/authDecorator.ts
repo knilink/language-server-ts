@@ -1,8 +1,8 @@
 import { ResponseError } from 'vscode-languageserver';
 
-import { Context } from '../../../lib/src/context';
-import { AuthManager } from '../../../lib/src/auth/manager';
-import { CancellationToken } from '../cancellation';
+import { Context } from "../../../lib/src/context.ts";
+import { AuthManager } from "../../../lib/src/auth/manager.ts";
+import { CancellationToken } from "../cancellation.ts";
 
 type HandleFn<P, R> = (ctx: Context, token: CancellationToken, params: P) => Promise<R>;
 

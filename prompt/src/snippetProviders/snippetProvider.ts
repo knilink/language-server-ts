@@ -1,9 +1,10 @@
 import { performance } from 'perf_hooks';
-import { SnippetContext, Snippet, SnippetsResult, SnippetsError } from '../types';
+import type { SnippetContext, Snippet, SnippetsResult, SnippetsError } from '../types.ts';
 
-import { Methods, WorkerProxy } from '../workerProxy';
+import { Methods, WorkerProxy } from '../workerProxy.ts';
 
-import { TIMEOUT_MS } from '../orchestrator';
+// import { TIMEOUT_MS } from "../orchestrator.ts";
+const TIMEOUT_MS = 300; // MARK breaking circular deps, `TIMEOUT_MS` here is for generating message only
 
 class ProviderTimeoutError extends Error {
   constructor(message: string) {

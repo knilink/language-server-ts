@@ -1,8 +1,8 @@
-import { Context } from '../context';
-import { telemetry, TelemetryData, telemetryRaw } from '../telemetry';
-import { type TelemetryProperties, CompletionResultType } from '../types';
-import { ContextualFilterManager } from './contextualFilter';
-import { GhostTextResult, Result } from './ghostText';
+import { Context } from "../context.ts";
+import { telemetry, TelemetryData, telemetryRaw } from "../telemetry.ts";
+import { type TelemetryProperties, CompletionResultType } from "../types.ts";
+import { ContextualFilterManager } from "./contextualFilter.ts";
+import { GhostTextResult, Result } from "./ghostText.ts";
 
 function telemetryShown(
   ctx: Context,

@@ -1,17 +1,17 @@
-import type { Skill } from '../../types';
+import type { Skill } from "../../types.ts";
 import { Type, type Static } from '@sinclair/typebox';
-import { type TurnContext } from '../turnContext';
+import { type TurnContext } from "../turnContext.ts";
 
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
 
-import { DocumentSchema } from '../schema';
-import { weighElidableList } from '../prompt/elidableList';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader';
-import { ModelConfigurationProvider } from '../modelConfigurations';
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata';
-import { ElidableDocument } from './ElidableDocument';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { TextDocument } from '../../textDocument';
+import { DocumentSchema } from "../schema.ts";
+import { weighElidableList } from "../prompt/elidableList.ts";
+import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
+import { ModelConfigurationProvider } from "../modelConfigurations.ts";
+import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
+import { ElidableDocument } from "./ElidableDocument.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { TextDocument } from "../../textDocument.ts";
 
 const RecentFilesSchema = Type.Object({ files: Type.Array(DocumentSchema) });
 type RecentFiles = Static<typeof RecentFilesSchema>;

@@ -1,7 +1,7 @@
-import { type Context } from '../context';
-import { call } from './network';
-import { assertShape } from '../util/typebox';
-import { MatchRequest, MatchResponse, FileMatchRequest, FileMatchResponse } from './snippy.proto';
+import { type Context } from '../context.ts';
+import { call } from './network.ts';
+import { assertShape } from '../util/typebox.ts';
+import { MatchRequest, MatchResponse, FileMatchRequest, FileMatchResponse } from './snippy.proto.ts';
 
 async function Match(ctx: Context, { source }: MatchRequest, signal?: AbortSignal): Promise<MatchResponse> {
   const result = await call(ctx, 'Match', { method: 'POST', body: assertShape(MatchRequest, { source }) }, signal);

@@ -1,16 +1,16 @@
-import { Snippet } from './types';
-import { TooltipSignatureSnippetProvider } from './snippetProviders/tooltipSignature';
-import { SnippetProvider } from './snippetProviders/snippetProvider';
-import { PathSnippetProvider } from './snippetProviders/path';
-import { WorkerProxy, workerProxy } from './workerProxy';
-import { LanguageSnippetProvider } from './snippetProviders/language';
+import { Snippet } from './types.ts';
+import { TooltipSignatureSnippetProvider } from './snippetProviders/tooltipSignature.ts';
+import { SnippetProvider } from './snippetProviders/snippetProvider.ts';
+import { PathSnippetProvider } from './snippetProviders/path.ts';
+import { WorkerProxy, workerProxy } from './workerProxy.ts';
+import { LanguageSnippetProvider } from './snippetProviders/language.ts';
 import {
   ProviderTimeoutError,
   SnippetContext,
   SnippetsResult,
   SnippetsError,
-} from './snippetProviders/snippetProvider';
-import { SimilarFilesProvider } from './snippetProviders/similarFiles';
+} from './snippetProviders/snippetProvider.ts';
+import { SimilarFilesProvider } from './snippetProviders/similarFiles.ts';
 
 type ResolvedResult = { status: 'fulfilled'; value: SnippetsResult };
 type RejectedResult = { status: 'rejected'; reason: SnippetsError };

@@ -1,5 +1,5 @@
-import { Document, Snippet } from '../types';
-import { FixedWindowSizeJaccardMatcher } from './jaccardMatching';
+import { Document, Snippet } from "../types.ts";
+import { FixedWindowSizeJaccardMatcher } from "./jaccardMatching.ts";
 
 type Selection = {
   snippetLength: number;

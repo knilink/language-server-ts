@@ -1,9 +1,9 @@
 import { Type } from '@sinclair/typebox';
 
-import { CancellationToken } from '../cancellation';
-import { Context } from '../../../lib/src/context';
-import { WorkDoneProgressTokens } from '../workDoneProgressTokens';
-import { AbstractNotification } from './abstract';
+import { CancellationToken } from "../cancellation.ts";
+import { Context } from "../../../lib/src/context.ts";
+import { WorkDoneProgressTokens } from "../workDoneProgressTokens.ts";
+import { AbstractNotification } from "./abstract.ts";
 
 class WorkDoneProgressCancelNotification extends AbstractNotification {
   public name = 'window/workDoneProgress/cancel';

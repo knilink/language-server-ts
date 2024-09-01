@@ -1,14 +1,14 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Position } from 'vscode-languageserver-types';
 
-import { type Context } from '../../../../lib/src/context';
-import { type CancellationToken } from '../../cancellation';
-import { SolutionHandler } from '../../../../lib/src/types';
+import { type Context } from "../../../../lib/src/context.ts";
+import { type CancellationToken } from "../../cancellation.ts";
+import { SolutionHandler } from "../../../../lib/src/types.ts";
 
 import { v4 as uuidv4 } from 'uuid';
-import { parseChallengeDoc } from '../../testing/challengeDoc';
-import { TelemetryWithExp } from '../../../../lib/src/telemetry';
-import { addMethodHandlerValidation } from '../../schemaValidation';
+import { parseChallengeDoc } from "../../testing/challengeDoc.ts";
+import { TelemetryWithExp } from "../../../../lib/src/telemetry.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
 
 function runTestSolutions(
   position: Position,

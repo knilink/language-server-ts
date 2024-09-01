@@ -1,20 +1,20 @@
-import { OpenAIFetcher } from '../../openai/fetch';
-import { type CancellationToken } from '../../../../agent/src/cancellation';
-import { type Context } from '../../context';
-import { StatusReporter } from '../../progress';
-import { TelemetryData, telemetry, now, TelemetryWithExp } from '../../telemetry';
-import { extractEngineName, getRequestId, getProcessingTime } from '../../openai/fetch';
-import { uiKindToIntent, logEngineMessages } from '../telemetry';
-import { postRequest, isAbortError, type Response } from '../../networking';
-import { Features } from '../../experiments/features';
-import { SSEProcessor } from '../../openai/stream';
-import { asyncIterableMap } from '../../common/iterableHelpers';
-import { prepareChatCompletionForReturn } from './stream';
-import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from '../../openai/openai';
-import { tryGetGitHubNWO } from '../../prompt/repository';
-import { CopilotTokenManager } from '../../auth/copilotTokenManager';
-import { Logger, LogLevel } from '../../logger';
-import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind } from '../../types';
+import { OpenAIFetcher } from "../../openai/fetch.ts";
+import { type CancellationToken } from "../../../../agent/src/cancellation.ts";
+import { type Context } from "../../context.ts";
+import { StatusReporter } from "../../progress.ts";
+import { TelemetryData, telemetry, now, TelemetryWithExp } from "../../telemetry.ts";
+import { extractEngineName, getRequestId, getProcessingTime } from "../../openai/fetch.ts";
+import { uiKindToIntent, logEngineMessages } from "../telemetry.ts";
+import { postRequest, isAbortError, type Response } from "../../networking.ts";
+import { Features } from "../../experiments/features.ts";
+import { SSEProcessor } from "../../openai/stream.ts";
+import { asyncIterableMap } from "../../common/iterableHelpers.ts";
+import { prepareChatCompletionForReturn } from "./stream.ts";
+import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from "../../openai/openai.ts";
+import { tryGetGitHubNWO } from "../../prompt/repository.ts";
+import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
+import { Logger, LogLevel } from "../../logger.ts";
+import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind } from "../../types.ts";
 
 const logger = new Logger(LogLevel.INFO, 'fetchChat');
 

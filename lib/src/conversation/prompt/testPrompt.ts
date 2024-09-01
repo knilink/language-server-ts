@@ -1,14 +1,14 @@
 import { URI } from 'vscode-uri';
 
-import { TextDocumentManager } from '../../textDocumentManager';
-import { isTestFile, TestFileFinder } from './testFiles';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader';
-import { TestContextSkillId } from '../skills/TestContextSkill';
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode';
-import { FileSystem } from '../../fileSystem';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { TurnContext } from '../turnContext';
-import { TextDocument } from '../../textDocument';
+import { TextDocumentManager } from "../../textDocumentManager.ts";
+import { isTestFile, TestFileFinder } from "./testFiles.ts";
+import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
+import { TestContextSkillId } from "../skills/TestContextSkill.ts";
+import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
+import { FileSystem } from "../../fileSystem.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { TurnContext } from "../turnContext.ts";
+import { TextDocument } from "../../textDocument.ts";
 
 const implPromptPrefix = 'Code excerpt from the implementation source file';
 const testPromptPrefix = 'Code excerpt from the test file';

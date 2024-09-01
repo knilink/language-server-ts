@@ -1,6 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import * as fs from 'fs';
 import * as path from 'path';
-import Parser, { SyntaxNode, QueryMatch, Query } from 'web-tree-sitter';
+import { SyntaxNode, QueryMatch, Query } from 'web-tree-sitter';
+import Parser from 'web-tree-sitter';
 
 const languageIdToWasmLanguageMapping: { [key: string]: string } = {
   python: 'python',
@@ -14,6 +16,9 @@ const languageIdToWasmLanguageMapping: { [key: string]: string } = {
 };
 
 const loadedLanguages = new Map<string, Parser.Language>();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function loadWasmLanguage(language: string): Promise<Parser.Language> {
   let treeSitterPath: string;

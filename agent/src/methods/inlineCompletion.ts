@@ -2,30 +2,30 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
-import { type CancellationToken } from '../cancellation';
+import { type CancellationToken } from '../cancellation.ts';
 import { Type, type Static } from '@sinclair/typebox';
 import type { Range } from 'vscode-languageserver-types';
-import { InlineCompletionRequest } from 'vscode-languageserver/node';
+import { InlineCompletionRequest } from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { getOpenTextDocumentChecked } from '../textDocument';
-import { verifyAuthenticated } from '../auth/authDecorator';
-import { TelemetryData } from '../../../lib/src/telemetry';
-import { getTestCompletions } from './testing/setCompletionDocuments';
+import { Context } from '../../../lib/src/context.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { verifyAuthenticated } from '../auth/authDecorator.ts';
+import { TelemetryData } from '../../../lib/src/telemetry.ts';
+import { getTestCompletions } from './testing/setCompletionDocuments.ts';
 import {
   raiseVersionMismatchIfNotCanceled,
   positionAndContentForCompleting,
   logCompletionLocation,
   getGhostTextWithAbortHandling,
   logger,
-} from './getCompletions';
-import { handleGhostTextResultTelemetry } from '../../../lib/src/ghostText/telemetry';
-import { setLastShown } from '../../../lib/src/ghostText/last';
-import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion';
-import { CopilotCompletionCache } from '../copilotCompletionCache';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { CancellationTokenSource, MergedToken } from '../cancellation';
-import { didAcceptCommand } from '../commands/completion';
+} from './getCompletions.ts';
+import { handleGhostTextResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
+import { setLastShown } from '../../../lib/src/ghostText/last.ts';
+import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
+import { didAcceptCommand } from '../commands/completion.ts';
 
 const type = InlineCompletionRequest.type;
 

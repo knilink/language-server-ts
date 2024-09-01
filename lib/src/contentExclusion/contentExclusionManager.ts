@@ -1,22 +1,23 @@
 import { URI } from 'vscode-uri';
 
-import { TelemetryMeasurements, TelemetryProperties, TelemetryStore, DocumentEvaluateResult } from '../types';
-import { Context } from '../context';
+import { TelemetryMeasurements, TelemetryProperties, TelemetryStore, DocumentEvaluateResult } from "../types.ts";
+import { Context } from "../context.ts";
 
-import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from './constants';
-import { TextDocumentManager } from '../textDocumentManager';
-import { CopilotContentExclusion } from './contentExclusions';
-import { StatusReporter } from '../progress';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier';
-import { isSupportedUriScheme } from '../util/uri';
-import { TelemetryData, telemetry } from '../telemetry';
+import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from "./constants.ts";
+import { TextDocumentManager } from "../textDocumentManager.ts";
+import { CopilotContentExclusion } from "./contentExclusions.ts";
+import { StatusReporter } from "../progress.ts";
+import { CopilotTokenNotifier } from "../auth/copilotTokenNotifier.ts";
+import { isSupportedUriScheme } from "../util/uri.ts";
+import { TelemetryData, telemetry } from "../telemetry.ts";
 
 class CopilotContentExclusionManager {
   private _featureEnabled = false;
-  private _contentExclusions = new CopilotContentExclusion(this.ctx);
+  private _contentExclusions: CopilotContentExclusion;
   private _evaluateResultCache = new Map<string, string>();
 
   constructor(private ctx: Context) {
+    this._contentExclusions = new CopilotContentExclusion(this.ctx);
     this.ctx.get(TextDocumentManager).onDidFocusTextDocument((e) => this.onDidChangeActiveTextEditor(e));
     this.ctx.get(CopilotTokenNotifier).on('onCopilotToken', (token) => {
       this._featureEnabled = token?.envelope?.copilotignore_enabled ?? false;

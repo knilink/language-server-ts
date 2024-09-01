@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { AbstractNotification } from './abstract';
+import { AbstractNotification } from "./abstract.ts";
 
-import { CopilotCompletionCache } from '../copilotCompletionCache';
+import { CopilotCompletionCache } from "../copilotCompletionCache.ts";
 import {
   handleGhostTextShown,
   handleGhostTextPostInsert,
   handlePartialGhostTextPostInsert,
-} from '../../../lib/src/ghostText/last';
+} from "../../../lib/src/ghostText/last.ts";
 
 const ItemParam = Type.Object({
   command: Type.Object({ arguments: Type.Tuple([Type.String({ minLength: 1 })]) }),

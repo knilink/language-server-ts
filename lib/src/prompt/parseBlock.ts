@@ -1,8 +1,8 @@
-import { Context } from '../context';
-import { promptLibProxy } from './promptLibProxy';
-import { LocationFactory, TextDocument } from '../textDocument';
+import { Context } from "../context.ts";
+import { promptLibProxy } from "./promptLibProxy.ts";
+import { LocationFactory, TextDocument } from "../textDocument.ts";
 import { Position } from 'vscode-languageserver-types';
-import { LanguageId } from '../../../prompt/src/types';
+import { LanguageId } from "../../../prompt/src/types.ts";
 
 type IndentationContext = {
   prev?: number;

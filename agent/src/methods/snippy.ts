@@ -1,10 +1,10 @@
-import { Context } from '../../../lib/src/context';
-import { CancellationToken } from '../cancellation';
+import { Context } from '../../../lib/src/context.ts';
+import { CancellationToken } from '../cancellation.ts';
 
-import { ensureAuthenticated } from '../auth/authDecorator';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { MatchRequest, FileMatchRequest } from '../../../lib/src/snippy/snippy.proto';
-import { Match, FilesForMatch } from '../../../lib/src/snippy/index';
+import { ensureAuthenticated } from '../auth/authDecorator.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { MatchRequest, FileMatchRequest } from '../../../lib/src/snippy/snippy.proto.ts';
+import { Match, FilesForMatch } from '../../../lib/src/snippy/index.ts';
 
 const handleMatch = ensureAuthenticated(
   addMethodHandlerValidation(MatchRequest, async (ctx: Context, signal: CancellationToken, params: MatchRequest) => [

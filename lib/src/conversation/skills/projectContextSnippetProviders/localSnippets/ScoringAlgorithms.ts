@@ -1,5 +1,5 @@
-import { IScoring } from './IndexingTypes';
-import { BM25Scoring } from './BM25Ranking';
+import { IScoring } from "./IndexingTypes.ts";
+import { BM25Scoring } from "./BM25Ranking.ts";
 
 const defaultScoring = 'cosine';
 const algorithms = new Map<string, new () => IScoring>([['cosine', BM25Scoring]]);

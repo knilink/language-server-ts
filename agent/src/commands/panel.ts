@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { type CancellationToken } from '../cancellation';
-import { AbstractCommand } from './abstract';
-import { CopilotCompletionCache } from '../copilotCompletionCache';
-import { postInsertionTasks } from '../../../lib/src/postInsertion';
+import { type CancellationToken } from "../cancellation.ts";
+import { AbstractCommand } from "./abstract.ts";
+import { CopilotCompletionCache } from "../copilotCompletionCache.ts";
+import { postInsertionTasks } from "../../../lib/src/postInsertion.ts";
 
 const didAcceptPanelCompletionItemCommand = 'github.copilot.didAcceptPanelCompletionItem';
 

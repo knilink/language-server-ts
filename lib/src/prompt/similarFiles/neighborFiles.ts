@@ -1,14 +1,14 @@
 import path from 'node:path';
-import { Context } from '../../../../lib/src/context';
+import { Context } from "../../../../lib/src/context.ts";
 import { URI } from 'vscode-uri';
 
-import { LanguageId } from '../../types';
+import { LanguageId } from "../../types.ts";
 
-import { normalizeLanguageId, Document } from '../../../../prompt/src/lib';
-import { OpenTabFiles } from './openTabFiles';
-import { TextDocumentManager } from '../../textDocumentManager';
-import { telemetry, TelemetryData } from '../../telemetry';
-import { relatedFilesLogger, getRelatedFilesList } from './relatedFiles';
+import { normalizeLanguageId, Document } from "../../../../prompt/src/lib.ts";
+import { OpenTabFiles } from "./openTabFiles.ts";
+import { TextDocumentManager } from "../../textDocumentManager.ts";
+import { telemetry, TelemetryData } from "../../telemetry.ts";
+import { relatedFilesLogger, getRelatedFilesList } from "./relatedFiles.ts";
 
 function considerNeighborFile(languageId: LanguageId, neighborLanguageId: LanguageId) {
   return normalizeLanguageId(languageId) === normalizeLanguageId(neighborLanguageId);

@@ -1,26 +1,26 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
-import { SHA256 } from 'crypto-js';
+import SHA256 from "crypto-js/sha256.js";
 import { Range } from 'vscode-languageserver-types';
 import { NotificationType } from 'vscode-languageserver';
 
-import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types';
-import { type CancellationToken } from '../cancellation';
-import { type Context } from '../../../lib/src/context';
+import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
+import { type CancellationToken } from '../cancellation.ts';
+import { type Context } from '../../../lib/src/context.ts';
 
-import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel';
-import { CopilotCompletionCache } from '../copilotCompletionCache';
-import { getOpenTextDocumentChecked } from '../textDocument';
-import { verifyAuthenticated } from '../auth/authDecorator';
-import { LocationFactory } from '../../../lib/src/textDocument';
-import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments';
+import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { verifyAuthenticated } from '../auth/authDecorator.ts';
+import { LocationFactory } from '../../../lib/src/textDocument.ts';
+import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
 
-import { completionContextForDocument, solutionCountTarget } from '../../../lib/src/copilotPanel/common';
-import { Service } from '../service';
-import { TestingOptions } from './testingOptions';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { CancellationTokenSource, MergedToken } from '../cancellation';
-import { Logger, LogLevel } from '../../../lib/src/logger';
+import { completionContextForDocument, solutionCountTarget } from '../../../lib/src/copilotPanel/common.ts';
+import { Service } from '../service.ts';
+import { TestingOptions } from './testingOptions.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
+import { Logger, LogLevel } from '../../../lib/src/logger.ts';
 
 const Params = Type.Object({
   doc: Type.Object({

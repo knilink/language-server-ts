@@ -1,26 +1,26 @@
 import { URI } from 'vscode-uri';
 
-import { FilterHeaders, RepoInfo, CopilotNeighboringTabs, FilterHeaderNames, BlockMode } from '../types';
-import { Context } from '../context';
+import { FilterHeaders, RepoInfo, CopilotNeighboringTabs, FilterHeaderNames, BlockMode } from "../types.ts";
+import { Context } from "../context.ts";
 
-import { ChatModelFamily } from '../conversation/modelMetadata';
-import { EditorSession } from '../config';
+import { ChatModelFamily } from "../conversation/modelMetadata.ts";
+import { EditorSession } from "../config.ts";
 import {
   DEFAULT_MAX_PROMPT_LENGTH,
   DEFAULT_MAX_COMPLETION_LENGTH,
   DEFAULT_SUFFIX_PERCENT,
   DEFAULT_SUFFIX_MATCH_THRESHOLD,
   DEFAULT_NUM_SNIPPETS,
-} from '../../../prompt/src/lib';
-import { Clock } from '../clock';
-import { ExpConfig } from './expConfig';
-import { TelemetryWithExp, TelemetryData } from '../telemetry';
+} from "../../../prompt/src/lib.ts";
+import { Clock } from "../clock.ts";
+import { ExpConfig } from "./expConfig.ts";
+import { TelemetryWithExp, TelemetryData } from "../telemetry.ts";
 // import { } from '../ghostText/contextualFilterConstants';
-import { extractRepoInfoInBackground, tryGetGitHubNWO, getDogFood, getUserKind, getFtFlag } from '../prompt/repository';
-import { LRUCacheMap } from '../common/cache';
-import { GranularityDirectory } from './granularityDirectory';
-import { FilterSettings } from './filters';
-import { ExpConfigMaker } from './fetchExperiments';
+import { extractRepoInfoInBackground, tryGetGitHubNWO, getDogFood, getUserKind, getFtFlag } from "../prompt/repository.ts";
+import { LRUCacheMap } from "../common/cache.ts";
+import { GranularityDirectory } from "./granularityDirectory.ts";
+import { FilterSettings } from "./filters.ts";
+import { ExpConfigMaker } from "./fetchExperiments.ts";
 
 function isCompletionsFiltersInfo(info: object) {
   return 'uri' in info;
@@ -94,10 +94,12 @@ class Features {
   staticFilters: FilterHeaders = {};
   dynamicFilters: Partial<Record<FilterHeaderNames, () => FilterHeaders[FilterHeaderNames]>> = {};
   upcomingDynamicFilters: Record<string, () => FilterValue> = {};
-  assignments = new FilterSettingsToExpConfigs(this.ctx);
+  assignments: FilterSettingsToExpConfigs;
   granularityDirectory?: GranularityDirectory;
 
-  constructor(private ctx: Context) { }
+  constructor(private ctx: Context) {
+    this.assignments = new FilterSettingsToExpConfigs(this.ctx);
+  }
 
   // ./defaultExpFilters.ts
   registerStaticFilters(filters: Record<string, string>) {

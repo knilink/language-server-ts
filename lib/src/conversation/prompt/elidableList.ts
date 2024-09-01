@@ -1,4 +1,4 @@
-import { ElidableText } from '../../../../prompt/src/elidableText/index';
+import { ElidableText } from "../../../../prompt/src/elidableText/index.ts";
 
 type WeightStrategy = 'linear' | 'inverseLinear' | 'positional' | 'inversePositional';
 

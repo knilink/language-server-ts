@@ -1,12 +1,12 @@
-import { type Context } from '../context';
+import { type Context } from "../context.ts";
 
-import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from '../telemetry/auth';
-import { editorVersionHeaders } from '../config';
-import { Fetcher, isNetworkError, type Request } from '../networking';
-import { NetworkConfiguration } from '../networkConfiguration';
-import { UserErrorNotifier } from '../error/userErrorNotifier';
-import { CopilotAuthError } from './error';
-import { AuthRecord } from './types';
+import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from "../telemetry/auth.ts";
+import { editorVersionHeaders } from "../config.ts";
+import { Fetcher, isNetworkError, type Request } from "../networking.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { UserErrorNotifier } from "../error/userErrorNotifier.ts";
+import { CopilotAuthError } from "./error.ts";
+import { AuthRecord } from "./types.ts";
 
 // ../../../../agent/src/methods/signInInitiate.ts
 type DeviceFlow = {

@@ -1,10 +1,10 @@
 import { Range } from 'vscode-languageserver-types';
-import { ITokenizer } from './tokenization';
+import { ITokenizer } from './tokenization/index.ts';
 // import { } from './lib'; // TODO: unused
-import { findEditDistanceScore } from './suffixMatchCriteria';
+import { findEditDistanceScore } from './suffixMatchCriteria.ts';
 // import { } from './prompt'; // TODO: unused
-import { Element, PromptInfo } from './types';
-import { SnippetTextProcessor } from './snippetTextProcessing';
+import { Element, PromptInfo } from './types.ts';
+import { SnippetTextProcessor } from './snippetTextProcessing.ts';
 
 const MAX_EDIT_DISTANCE_LENGTH = 50;
 const TOKENS_RESERVED_FOR_SUFFIX_ENCODING = 5;

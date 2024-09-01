@@ -1,13 +1,13 @@
 import { Readable } from 'node:stream';
-
+// @ts-ignore
 import { context, type RequestOptions as HelixOptions } from '@adobe/helix-fetch';
 
-import { type Context } from '../context';
+import { type Context } from '../context.ts';
 
-import { ProxySocketFactory } from './proxySockets';
-import { BuildInfo } from '../config';
-import { RootCertificateConfigurator, type RequestOptions } from './certificates';
-import { Fetcher, Request, Response } from '../networking';
+import { ProxySocketFactory } from './proxySockets.ts';
+import { BuildInfo } from '../config.ts';
+import { RootCertificateConfigurator, type RequestOptions } from './certificates.ts';
+import { Fetcher, Request, Response } from '../networking.ts';
 
 class HelixFetcher extends Fetcher {
   readonly name = 'HelixFetcher';

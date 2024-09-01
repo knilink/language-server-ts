@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
-import dedent from 'ts-dedent';
+import { dedent } from 'ts-dedent';
 
-import { fromHistory } from '../fromHistory';
-import { ElidableText } from '../../../../../prompt/src/elidableText/elidableText';
-import { Turn } from '../../conversation';
-import { TurnContext } from '../../turnContext';
-import { Chat, ToolCall, Unknown } from '../../../types';
-import { IPromptStrategy } from './types';
+import { fromHistory } from '../fromHistory.ts';
+import { ElidableText } from '../../../../../prompt/src/elidableText/elidableText.ts';
+import { Turn } from '../../conversation.ts';
+import { TurnContext } from '../../turnContext.ts';
+import { Chat, ToolCall, Unknown } from '../../../types.ts';
+import { IPromptStrategy } from './types.ts';
 
 class SuggestionsPromptStrategy implements IPromptStrategy {
   public toolConfig(): Unknown.ToolConfig {

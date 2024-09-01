@@ -1,9 +1,9 @@
-import { FilterHeaders } from '../types';
-import { Context } from '../context';
+import { FilterHeaders } from "../types.ts";
+import { Context } from "../context.ts";
 
-import { telemetryException } from '../telemetry';
-import { Fetcher, Response } from '../networking';
-import { ExpConfig } from './expConfig';
+import { telemetryException } from "../telemetry.ts";
+import { Fetcher, Response } from "../networking.ts";
+import { ExpConfig } from "./expConfig.ts";
 
 const ProdExpDomain = 'https://default.exp-tas.com';
 

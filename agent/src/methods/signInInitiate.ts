@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type Context } from '../../../lib/src/context';
-import { type CancellationToken } from '../cancellation';
-import { type AuthRecord } from '../../../lib/src/auth/types';
+import { type Context } from "../../../lib/src/context.ts";
+import { type CancellationToken } from "../cancellation.ts";
+import { type AuthRecord } from "../../../lib/src/auth/types.ts";
 
-import { AuthManager } from '../../../lib/src/auth/manager';
-import { GitHubAppInfo } from '../../../lib/src/config';
-import { GitHubDeviceFlow } from '../../../lib/src/auth/deviceFlow';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { CopilotAuthError } from '../../../lib/src/auth/error';
+import { AuthManager } from "../../../lib/src/auth/manager.ts";
+import { GitHubAppInfo } from "../../../lib/src/config.ts";
+import { GitHubDeviceFlow } from "../../../lib/src/auth/deviceFlow.ts";
+import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { CopilotAuthError } from "../../../lib/src/auth/error.ts";
 
 const Params = Type.Object({ options: Type.Optional(Type.Object({})) });
 

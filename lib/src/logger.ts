@@ -1,10 +1,10 @@
 import util from 'node:util';
-import { TelemetryStore } from './types';
+import { TelemetryStore } from "./types.ts";
 
-import { Context } from './context';
-import { telemetryError, telemetryException, TelemetryData } from './telemetry';
-import { isProduction, getConfig, ConfigKey } from './config';
-import { isVerboseLoggingEnabled } from './testing/runtimeMode';
+import { Context } from "./context.ts";
+import { telemetryError, telemetryException, TelemetryData } from "./telemetry.ts";
+import { isProduction, getConfig, ConfigKey } from "./config.ts";
+import { isVerboseLoggingEnabled } from "./testing/runtimeMode.ts";
 
 function verboseLogging(ctx: Context): boolean {
   return isVerboseLoggingEnabled(ctx);

@@ -1,5 +1,5 @@
-import { LineNode } from './classes';
-import './manipulation';
+import { LineNode } from "./classes.ts";
+import "./manipulation.ts";
 
 function deparseLine(node: LineNode): string {
   return ' '.repeat(node.indentation) + node.sourceLine + `\n`;

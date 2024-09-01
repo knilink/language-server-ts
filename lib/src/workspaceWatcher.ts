@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { URI } from 'vscode-uri';
-import { Context } from './context';
+import { Context } from "./context.ts";
 
 type WorkspaceWatcherFileEvent = {
   type: 'create' | 'update' | 'delete';

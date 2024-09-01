@@ -1,8 +1,8 @@
-import { NotificationType } from 'vscode-languageserver/node';
+import { NotificationType } from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { Service } from '../service';
-import { StatusReporter } from '../../../lib/src/progress';
+import { Context } from '../../../lib/src/context.ts';
+import { Service } from '../service.ts';
+import { StatusReporter } from '../../../lib/src/progress.ts';
 
 class NotificationStatusReporter extends StatusReporter {
   private notificationEndpoint = 'statusNotification';

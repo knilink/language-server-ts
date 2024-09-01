@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Position, Range } from 'vscode-languageserver-types';
-import { Context } from '../../../../lib/src/context';
-import { parseChallengeDoc } from '../../testing/challengeDoc';
-import { addMethodHandlerValidation } from '../../schemaValidation';
-import { CancellationToken } from '../../cancellation';
+import { Context } from "../../../../lib/src/context.ts";
+import { parseChallengeDoc } from "../../testing/challengeDoc.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { CancellationToken } from "../../cancellation.ts";
 
 const Params = Type.Object({
   documents: Type.Array(Type.String()),

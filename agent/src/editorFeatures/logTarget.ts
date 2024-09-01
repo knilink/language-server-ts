@@ -1,8 +1,8 @@
-import { MessageType, NotificationType, ConnectionError } from 'vscode-languageserver/node';
+import { MessageType, NotificationType, ConnectionError } from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { format, verboseLogging, LogLevel, LogTarget } from '../../../lib/src/logger';
-import { Service } from '../service';
+import { Context } from '../../../lib/src/context.ts';
+import { format, verboseLogging, LogLevel, LogTarget } from '../../../lib/src/logger.ts';
+import { Service } from '../service.ts';
 
 const LogLevelMessageType = new Map<LogLevel, MessageType>([
   [LogLevel.DEBUG, MessageType.Log],

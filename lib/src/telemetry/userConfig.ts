@@ -1,5 +1,5 @@
-import { Context } from '../context';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier';
+import { Context } from "../context.ts";
+import { CopilotTokenNotifier } from "../auth/copilotTokenNotifier.ts";
 
 class TelemetryUserConfig {
   organizationsList?: string;

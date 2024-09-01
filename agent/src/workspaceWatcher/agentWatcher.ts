@@ -1,5 +1,5 @@
-import { LspFileWatcher } from '../lspFileWatcher';
-import { WorkspaceWatcher } from '../../../lib/src/workspaceWatcher';
+import { LspFileWatcher } from "../lspFileWatcher.ts";
+import { WorkspaceWatcher } from "../../../lib/src/workspaceWatcher.ts";
 import { type URI } from 'vscode-uri';
 
 class AgentWorkspaceWatcher extends WorkspaceWatcher {

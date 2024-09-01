@@ -2,13 +2,13 @@ import type { Position, Range } from 'vscode-languageserver-types';
 import type { URI } from 'vscode-uri';
 import { v4 as uuidv4 } from 'uuid';
 
-import { type Context } from '../context';
-import { type Result } from './ghostText';
-import { LocationFactory, type TextDocument } from '../textDocument';
-import { normalizeIndentCharacter } from './normalizeIndent';
+import { type Context } from "../context.ts";
+import { type Result } from "./ghostText.ts";
+import { LocationFactory, type TextDocument } from "../textDocument.ts";
+import { normalizeIndentCharacter } from "./normalizeIndent.ts";
 // import { } from './normalizeIndent';
-import { TelemetryData } from '../telemetry';
-import { Completion, CompletionResultType } from '../types';
+import { TelemetryData } from "../telemetry.ts";
+import { Completion, CompletionResultType } from "../types.ts";
 
 // ../../../agent/src/methods/getCompletions.ts
 type RawCompletion = Omit<Completion, 'triggerCategory'>;

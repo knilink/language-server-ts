@@ -1,8 +1,8 @@
-import { WorkspaceWatcher, WorkspaceWatcherEventListener } from './workspaceWatcher';
-import { Context } from './context';
-import { getFsPath, URI } from './util/uri';
-import { conversationLogger } from './conversation/logger';
-import { LRUCacheMap } from './common/cache';
+import { WorkspaceWatcher, WorkspaceWatcherEventListener } from "./workspaceWatcher.ts";
+import { Context } from "./context.ts";
+import { getFsPath, URI } from "./util/uri.ts";
+import { conversationLogger } from "./conversation/logger.ts";
+import { LRUCacheMap } from "./common/cache.ts";
 
 // ./conversation/skills/ProjectContextSkill.ts
 

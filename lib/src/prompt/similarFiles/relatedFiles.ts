@@ -1,14 +1,14 @@
 import memoize from '@github/memoize';
 import { URI } from 'vscode-uri';
 
-import { type Context } from '../../context';
+import { type Context } from "../../context.ts";
 
-import { LRUCacheMap } from '../../common/cache';
-import { telemetry, TelemetryData } from '../../telemetry';
-import { FileSystem } from '../../fileSystem';
-import { CopilotContentExclusionManager } from '../../contentExclusion/contentExclusionManager';
-import { shortCircuit } from '../../util/shortCircuit';
-import { Logger, LogLevel } from '../../logger';
+import { LRUCacheMap } from "../../common/cache.ts";
+import { telemetry, TelemetryData } from "../../telemetry.ts";
+import { FileSystem } from "../../fileSystem.ts";
+import { CopilotContentExclusionManager } from "../../contentExclusion/contentExclusionManager.ts";
+import { shortCircuit } from "../../util/shortCircuit.ts";
+import { Logger, LogLevel } from "../../logger.ts";
 
 const relatedFilesLogger = new Logger(LogLevel.INFO, 'relatedFiles');
 

@@ -6,14 +6,15 @@ import {
   WorkDoneProgressBegin,
   WorkDoneProgressReport,
   WorkDoneProgressEnd,
-} from 'vscode-languageserver/node';
+} from "vscode-languageserver/node.js";
 
-import { Context } from '../../../lib/src/context';
-import { BuildInfo } from '../../../lib/src/config';
-import { Service } from '../service';
+import { Context } from '../../../lib/src/context.ts';
+import { BuildInfo } from '../../../lib/src/config.ts';
+import { Service } from '../service.ts';
+// @ts-ignore
 import { AbortError, Headers } from '@adobe/helix-fetch';
-import { CancellationTokenSource } from '../cancellation';
-import { Fetcher, Response } from '../../../lib/src/networking';
+import { CancellationTokenSource } from '../cancellation.ts';
+import { Fetcher, Response } from '../../../lib/src/networking.ts';
 
 type FetchRequestParams = {
   url: string;

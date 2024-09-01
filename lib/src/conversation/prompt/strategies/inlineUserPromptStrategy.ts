@@ -1,4 +1,4 @@
-import { AbstractUserPromptStrategy } from './userPromptStrategy';
+import { AbstractUserPromptStrategy } from "./userPromptStrategy.ts";
 
 class InlineUserPromptStrategy extends AbstractUserPromptStrategy {
   suffix(): string {

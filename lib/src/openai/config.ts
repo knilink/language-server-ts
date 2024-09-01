@@ -1,9 +1,9 @@
 import { URI, Utils } from 'vscode-uri';
 
-import { Context } from '../context';
-import { NetworkConfiguration } from '../networkConfiguration';
-import { AvailableModelManager } from './model';
-import { TelemetryWithExp } from '../telemetry';
+import { Context } from "../context.ts";
+import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { AvailableModelManager } from "./model.ts";
+import { TelemetryWithExp } from "../telemetry.ts";
 
 function getProxyURLWithPath(ctx: Context, path: string): string {
   return ctx.get<NetworkConfiguration>(NetworkConfiguration).getCompletionsUrl(ctx, path);

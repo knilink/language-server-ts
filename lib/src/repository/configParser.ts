@@ -2,12 +2,12 @@ import * as os from 'os';
 
 import { URI, Utils } from 'vscode-uri';
 
-import { Context } from '../context';
-import { RepositoryManager } from './repositoryManager';
-import { FileSystem } from '../fileSystem';
-import { resolveFilePath } from '../util/uri';
-import { Logger, LogLevel } from '../logger';
-import { GitConfigData, GitConfigLoader } from './config';
+import { Context } from "../context.ts";
+import { RepositoryManager } from "./repositoryManager.ts";
+import { FileSystem } from "../fileSystem.ts";
+import { resolveFilePath } from "../util/uri.ts";
+import { Logger, LogLevel } from "../logger.ts";
+import { GitConfigData, GitConfigLoader } from "./config.ts";
 
 const logger = new Logger(LogLevel.INFO, 'repository');
 const esc = '\\\\';

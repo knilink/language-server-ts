@@ -2,8 +2,8 @@ import { Position } from 'vscode-languageserver-types';
 import { URI } from 'vscode-uri';
 
 import { EventEmitter } from 'events';
-import { Context } from './context';
-import { TelemetryWithExp } from './telemetry';
+import { Context } from "./context.ts";
+import { TelemetryWithExp } from "./telemetry.ts";
 
 type PostInsertionEvent = {
   ctx: Context;

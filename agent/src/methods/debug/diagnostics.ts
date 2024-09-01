@@ -1,8 +1,8 @@
 import { Type } from '@sinclair/typebox';
 
-import { Context } from '../../../../lib/src/context';
-import { formatDiagnosticsAsMarkdown, collectDiagnostics } from '../../../../lib/src/diagnostics';
-import { addMethodHandlerValidation } from '../../schemaValidation';
+import { Context } from "../../../../lib/src/context.ts";
+import { formatDiagnosticsAsMarkdown, collectDiagnostics } from "../../../../lib/src/diagnostics.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
 
 const Params = Type.Object({});
 

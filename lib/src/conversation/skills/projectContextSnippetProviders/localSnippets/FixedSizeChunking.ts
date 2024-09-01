@@ -1,6 +1,6 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { IChunking } from './IndexingTypes';
-import { getTokenizer } from '../../../../../../prompt/src/tokenization';
+import { IChunking } from "./IndexingTypes.ts";
+import { getTokenizer } from "../../../../../../prompt/src/tokenization/index.ts";
 
 const chunkSize = 500;
 const overlap = Math.floor(0.25 * chunkSize);

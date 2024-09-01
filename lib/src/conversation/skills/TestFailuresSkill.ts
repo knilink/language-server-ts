@@ -2,14 +2,14 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { RangeSchema } from '../schema';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader';
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { Skill } from '../../types';
-import { TextDocument } from '../../textDocument';
-import { TurnContext } from '../turnContext';
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { RangeSchema } from "../schema.ts";
+import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
+import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { Skill } from "../../types.ts";
+import { TextDocument } from "../../textDocument.ts";
+import { TurnContext } from "../turnContext.ts";
 
 const TestFailuresSchema = Type.Object({
   failures: Type.Array(

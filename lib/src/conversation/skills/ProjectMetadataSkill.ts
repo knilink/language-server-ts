@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { Skill } from '../../types';
+import { Skill } from "../../types.ts";
 
-import { IProjectMetadataLookup } from './ProjectMetadataLookups';
+import { IProjectMetadataLookup } from "./ProjectMetadataLookups.ts";
 
-import { getMetadataLookup, determineProgrammingLanguage } from './ProjectMetadata';
-import { ElidableText } from '../../../../prompt/src/elidableText/elidableText';
-import { TurnContext } from '../turnContext';
+import { getMetadataLookup, determineProgrammingLanguage } from "./ProjectMetadata.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { TurnContext } from "../turnContext.ts";
 
 const ProjectMetadataSkillId: 'project-metadata' = 'project-metadata';
 

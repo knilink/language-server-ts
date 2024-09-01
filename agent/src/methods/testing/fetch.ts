@@ -1,11 +1,11 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation';
+import { type CancellationToken } from "../../cancellation.ts";
 
-import { Context } from '../../../../lib/src/context';
-import { addMethodHandlerValidation } from '../../schemaValidation';
-import { EditorFetcher } from '../../editorFeatures/fetcher';
+import { Context } from "../../../../lib/src/context.ts";
+import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { EditorFetcher } from "../../editorFeatures/fetcher.ts";
 
-import type { Response } from '../../../../lib/src/networking';
+import type { Response } from "../../../../lib/src/networking.ts";
 
 const Params = Type.Object({
   url: Type.String(),

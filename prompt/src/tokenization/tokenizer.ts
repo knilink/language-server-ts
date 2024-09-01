@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 import { createTokenizer, getSpecialTokensByEncoder, getRegexByEncoder, TikTokenizer } from '@microsoft/tiktokenizer';
 import { join as pathJoin } from 'path';
 
@@ -10,6 +12,9 @@ interface ITokenizer {
   takeFirstTokens(text: string, n: number): { text: string; tokens: number[] };
   takeLastLinesTokens(text: string, n: number): string;
 }
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class Tokenizer implements ITokenizer {
   private _tokenizer: TikTokenizer;

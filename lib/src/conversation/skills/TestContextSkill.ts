@@ -1,12 +1,12 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
 
-import { statusFromTextDocumentResult, FileReader } from '../../fileReader';
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { PromptForTestGeneration } from '../prompt/testPrompt';
-import { Skill } from '../../types';
-import { ElidableText } from '../../../../prompt/src/elidableText';
-import { TurnContext } from '../turnContext';
+import { statusFromTextDocumentResult, FileReader } from "../../fileReader.ts";
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { PromptForTestGeneration } from "../prompt/testPrompt.ts";
+import { Skill } from "../../types.ts";
+import { ElidableText } from "../../../../prompt/src/elidableText/index.ts";
+import { TurnContext } from "../turnContext.ts";
 
 export const TestContextSchema = Type.Object({
   currentFileUri: Type.String(),

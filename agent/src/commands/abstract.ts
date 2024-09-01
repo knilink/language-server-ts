@@ -1,6 +1,6 @@
 import { type Static, type TSchema } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation';
-import { type Context } from '../../../lib/src/context';
+import { type CancellationToken } from "../cancellation.ts";
+import { type Context } from "../../../lib/src/context.ts";
 
 abstract class AbstractCommand {
   abstract readonly name: string;

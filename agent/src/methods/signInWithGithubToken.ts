@@ -1,10 +1,10 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation';
-import { AuthStatus } from '../../../lib/src/auth/types';
+import { type CancellationToken } from "../cancellation.ts";
+import { AuthStatus } from "../../../lib/src/auth/types.ts";
 
-import { Context } from '../../../lib/src/context';
-import { AuthManager } from '../../../lib/src/auth/manager';
-import { addMethodHandlerValidation } from '../schemaValidation';
+import { Context } from "../../../lib/src/context.ts";
+import { AuthManager } from "../../../lib/src/auth/manager.ts";
+import { addMethodHandlerValidation } from "../schemaValidation.ts";
 
 const Params = Type.Object({
   githubToken: Type.String({ minLength: 1 }),

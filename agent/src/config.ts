@@ -4,7 +4,7 @@ import {
   InMemoryConfigProvider,
   ConfigKey,
   type ConfigValueType,
-} from '../../lib/src/config';
+} from '../../lib/src/config.ts';
 
 class AgentConfigProvider extends InMemoryConfigProvider {
   readonly env: NodeJS.ProcessEnv;

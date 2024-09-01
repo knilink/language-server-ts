@@ -1,25 +1,25 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { SHA256 } from 'crypto-js';
-import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation';
+import SHA256 from "crypto-js/sha256.js";
+import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
 import { URI } from 'vscode-uri';
 import { WorkDoneProgress, ProtocolRequestType, ProgressType } from 'vscode-languageserver';
 import { Range } from 'vscode-languageserver-types';
-import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types';
-import { Context } from '../../../lib/src/context';
-import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel';
-import { CopilotCompletionCache } from '../copilotCompletionCache';
-import { solutionCountTarget, completionContextForDocument } from '../../../lib/src/copilotPanel/common';
-import { getOpenTextDocumentChecked } from '../textDocument';
-import { verifyAuthenticated } from '../auth/authDecorator';
-import { Service } from '../service';
-import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments';
-import { addMethodHandlerValidation } from '../schemaValidation';
-import { Logger, LogLevel } from '../../../lib/src/logger';
-import { didAcceptPanelCompletionItemCommand } from '../commands/panel';
+import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
+import { Context } from '../../../lib/src/context.ts';
+import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { solutionCountTarget, completionContextForDocument } from '../../../lib/src/copilotPanel/common.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { verifyAuthenticated } from '../auth/authDecorator.ts';
+import { Service } from '../service.ts';
+import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { didAcceptPanelCompletionItemCommand } from '../commands/panel.ts';
 
 // import { } from '../rpc';
 // import { } from '../../../lib/src/ghostText/ghostText';
-import { type TelemetryWithExp } from '../../../lib/src/telemetry';
+import { type TelemetryWithExp } from '../../../lib/src/telemetry.ts';
 
 type Completion = {
   range: Range;

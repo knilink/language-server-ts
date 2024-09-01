@@ -1,12 +1,12 @@
 import path from 'path';
 
-import { knownLanguages } from './generatedLanguages';
-import { Context } from '../context';
-import { TextDocumentManager, INotebook } from '../textDocumentManager';
-import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from './languages';
-import { LRUCacheMap } from '../common/cache';
-import { TextDocument } from '../textDocument';
-import { LanguageId } from '../types';
+import { knownLanguages } from "./generatedLanguages.ts";
+import { Context } from "../context.ts";
+import { TextDocumentManager, INotebook } from "../textDocumentManager.ts";
+import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from "./languages.ts";
+import { LRUCacheMap } from "../common/cache.ts";
+import { TextDocument } from "../textDocument.ts";
+import { LanguageId } from "../types.ts";
 
 function getLanguageDetection(ctx: Context) {
   return new CachingLanguageDetection(

@@ -1,7 +1,7 @@
-import { Context } from '../../lib/src/context';
-import { Service } from './service';
-import { SpawnUrlOpener } from '../../lib/src/util/opener';
-import { UrlOpener } from '../../lib/src/util/opener';
+import { Context } from "../../lib/src/context.ts";
+import { Service } from "./service.ts";
+import { SpawnUrlOpener } from "../../lib/src/util/opener.ts";
+import { UrlOpener } from "../../lib/src/util/opener.ts";
 
 class AgentUrlOpener extends UrlOpener {
   constructor(

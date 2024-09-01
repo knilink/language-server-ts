@@ -1,15 +1,15 @@
-import { SkillId, Unknown } from '../types';
-import { type CancellationToken } from '../../../agent/src/cancellation';
+import { SkillId, Unknown } from "../types.ts";
+import { type CancellationToken } from "../../../agent/src/cancellation.ts";
 
 // import { } from './skills/ProblemInActiveDocumentSkill';
-import { Context } from '../context';
-import { getDebugTemplates } from './promptDebugTemplates';
-import { isDebugEnabled, isRunningInTest } from '../testing/runtimeMode';
-import { getLastTurnId } from './dump';
-import { TurnContext } from './turnContext';
-import { TestFailuresSkillId } from './skills/TestFailuresSkill';
-import { TestContextSkillId } from './skills/TestContextSkill';
-import { ProblemsInActiveDocumentSkillId } from './skills/ProblemInActiveDocumentSkill';
+import { Context } from "../context.ts";
+import { getDebugTemplates } from "./promptDebugTemplates.ts";
+import { isDebugEnabled, isRunningInTest } from "../testing/runtimeMode.ts";
+import { getLastTurnId } from "./dump.ts";
+import { TurnContext } from "./turnContext.ts";
+import { TestFailuresSkillId } from "./skills/TestFailuresSkill.ts";
+import { TestContextSkillId } from "./skills/TestContextSkill.ts";
+import { ProblemsInActiveDocumentSkillId } from "./skills/ProblemInActiveDocumentSkill.ts";
 
 export type TemplateScope = 'editor' | 'chat-panel' | 'inline';
 

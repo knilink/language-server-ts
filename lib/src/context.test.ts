@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Context } from './context';
+import { Context } from "./context.ts";
 
 class TestClassA {
   constructor(public name: string) { }

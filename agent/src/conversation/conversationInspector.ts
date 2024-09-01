@@ -1,8 +1,8 @@
-import { NotificationType } from 'vscode-languageserver/node';
-import { type Context } from '../../../lib/src/context';
-import { isRunningInSimulation } from '../../../lib/src/testing/runtimeMode';
-import { Service } from '../service';
-import { ConversationInspector } from '../../../lib/src/conversation/conversationInspector';
+import { NotificationType } from "vscode-languageserver/node.js";
+import { type Context } from '../../../lib/src/context.ts';
+import { isRunningInSimulation } from '../../../lib/src/testing/runtimeMode.ts';
+import { Service } from '../service.ts';
+import { ConversationInspector } from '../../../lib/src/conversation/conversationInspector.ts';
 
 class AgentConversationInspector extends ConversationInspector {
   constructor(readonly ctx: Context) {

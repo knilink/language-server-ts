@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
-import { SingleStepReportingSkill } from '../prompt/conversationSkill';
-import { TurnContext } from '../turnContext';
-import { Skill } from '../../types';
+import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { TurnContext } from "../turnContext.ts";
+import { Skill } from "../../types.ts";
 
 const RuntimeLogsSchema = Type.String();
 
