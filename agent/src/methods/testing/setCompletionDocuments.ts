@@ -22,11 +22,11 @@ function getTestCompletions(
   ctx: Context,
   position: Position,
   isCycling: boolean
-): { insertText: string; range: Range }[] {
+): { insertText: string; range: Range }[] | undefined {
   let testingDocs: CompletionDocuments | undefined;
   try {
     testingDocs = ctx.get(CompletionDocuments);
-  } catch {}
+  } catch { }
   if (testingDocs) {
     const numCompletions = isCycling ? 3 : 1;
     return testingDocs.documents.slice(0, numCompletions).map((challengeDoc) => {
@@ -39,7 +39,6 @@ function getTestCompletions(
       };
     });
   }
-  return [];
 }
 
 class CompletionDocuments {
