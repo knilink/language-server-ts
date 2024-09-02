@@ -244,8 +244,9 @@ class InMemoryConfigProvider extends ConfigProvider {
       ConfigKey.DelayCompletions,
       ConfigKey.FilterCompletions,
     ]) {
-      if (key === undefined) continue;
-      config[key] = JSON.stringify(this.overrides[ConfigKey.ShowEditorCompletions]);
+      const value = this.overrides[ConfigKey.ShowEditorCompletions];
+      if (value === undefined) continue;
+      config[key] = JSON.stringify(value);
     }
     return config;
   }
