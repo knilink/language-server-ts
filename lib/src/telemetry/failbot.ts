@@ -7,17 +7,19 @@ import { Context } from '../context.ts';
 import { TelemetryUserConfig } from './userConfig.ts';
 import { EditorAndPluginInfo, BuildInfo, EditorSession, formatNameAndVersion } from '../config.ts';
 
+type StacktraceFrame = {
+  filename?: string;
+  function?: string;
+  lineno?: string | number;
+  colno?: string | number;
+  in_app?: boolean;
+};
+
 // Params from ../../../agent/src/methods/telemetryTrack.ts
 type ExceptionDetail = {
   type?: string;
   value?: string;
-  stacktrace?: {
-    filename?: string;
-    function?: string;
-    lineno?: string | number;
-    colno?: string | number;
-    in_app?: boolean;
-  }[];
+  stacktrace?: StacktraceFrame[];
 };
 
 // ../../../agent/src/methods/telemetryTrack.ts
@@ -28,11 +30,11 @@ type Payload = {
   release?: string;
   deployed_to: string;
   catalog_service:
-    | 'CopilotCompletionsVSCode'
-    | 'CopilotLanguageServer'
-    | 'CopilotIntelliJ'
-    | 'CopilotVim'
-    | 'CopilotVS';
+  | 'CopilotCompletionsVSCode'
+  | 'CopilotLanguageServer'
+  | 'CopilotIntelliJ'
+  | 'CopilotVim'
+  | 'CopilotVS';
   context: {
     '#editor': string;
     '#editor_version': string;
@@ -69,13 +71,19 @@ function buildExceptionDetail(error: Error): ExceptionDetail {
       if (match) {
         const [, , functionName, , filePath, lineNumber, columnNumber] = match;
         const filename = filePath?.trim() || '';
-        exceptionDetail.stacktrace?.push({
+        const frame: StacktraceFrame = {
           filename,
           function: functionName?.trim().replace(/^[^.]{1,2}(\.|$)/, '_$1') || '',
-          lineno: lineNumber !== ':0' ? lineNumber.slice(1) : undefined,
-          colno: lineNumber !== ':0' ? columnNumber.slice(1) : undefined,
           in_app: !/[[<:]|(?:^|\/)node_modules\//.test(filename),
-        });
+        };
+        if (lineNumber && lineNumber !== ':0') {
+          frame.lineno = lineNumber.slice(1);
+        }
+        if (columnNumber && columnNumber !== ':0') {
+          frame.colno = columnNumber.slice(1);
+        }
+
+        exceptionDetail.stacktrace.push(frame);
       }
     }
   }
