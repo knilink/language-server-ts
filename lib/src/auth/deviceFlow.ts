@@ -1,19 +1,19 @@
-import { type Context } from "../context.ts";
+import { type Context } from '../context.ts';
 
-import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from "../telemetry/auth.ts";
-import { editorVersionHeaders } from "../config.ts";
-import { Fetcher, isNetworkError, type Request } from "../networking.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { UserErrorNotifier } from "../error/userErrorNotifier.ts";
-import { CopilotAuthError } from "./error.ts";
-import { AuthRecord } from "./types.ts";
+import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from '../telemetry/auth.ts';
+import { editorVersionHeaders } from '../config.ts';
+import { Fetcher, isNetworkError, type Request } from '../networking.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
+import { CopilotAuthError } from './error.ts';
+import { AuthRecord } from './types.ts';
 
-// ../../../../agent/src/methods/signInInitiate.ts
+// ../../../agent/src/methods/signInInitiate.ts
 type DeviceFlow = {
   device_code: string;
-  expires_in: number;
-  interval: number;
-  user_code: unknown;
+  expires_in: number; // seconds
+  interval: number; // seconds
+  user_code: string; // guess string for user to enter at verification_uri
   verification_uri: string;
 };
 

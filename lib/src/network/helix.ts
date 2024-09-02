@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 // @ts-ignore
-import { context, type RequestOptions as HelixOptions } from '@adobe/helix-fetch';
+import { context, type RequestOptions as HelixOptions, AbortController } from '@adobe/helix-fetch'; // has to be helix AbortController controller
 
 import { type Context } from '../context.ts';
 

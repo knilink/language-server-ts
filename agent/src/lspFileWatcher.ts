@@ -60,7 +60,7 @@ class LspFileWatcher {
   init() {
     const capabilitiesProvider = this.ctx.get(CopilotCapabilitiesProvider);
     if (capabilitiesProvider.getCapabilities().watchedFiles) {
-      this.connection.onNotification('workspace/didChangeWatchedFiles', (event: unknown) => {
+      this.connection.onNotification('workspace/didChangeWatchedFiles', (event) => {
         this.didChangeWatchedFilesHandler(event);
       });
     }
@@ -107,7 +107,9 @@ class LspFileWatcher {
     this.emitter.off(didChangeWatchedFilesEvent, listener);
   }
 
-  async didChangeWatchedFilesHandler(event: any): Promise<void> {
+  async didChangeWatchedFilesHandler(
+    event: any // MARK event.workspaceUri doesn't seem to align with workspace/didChangeWatchedFiles in protocol
+  ): Promise<void> {
     const res: LspFileWatcher.ChangeWatchedFilesEvent = {
       workspaceFolder: URI.parse(event.workspaceUri),
       created: [],

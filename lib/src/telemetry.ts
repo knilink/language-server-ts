@@ -42,8 +42,6 @@ import { isNetworkError, Fetcher } from './networking.ts';
 import { Features } from './experiments/features.ts';
 import { ExpConfig } from './experiments/expConfig.ts';
 
-import { AppInsightsReporter } from './telemetry/appInsightsReporter.ts';
-
 type IncludeExp = 'SkipExp' | 'IncludeExp';
 
 const propertiesSchema = Type.Object({}, { additionalProperties: Type.String() });
@@ -586,6 +584,7 @@ class TelemetryData {
       'invalidTelemetryData',
       // TODO wtf
       TelemetryData.createAndMarkAsIssued({
+        // MARK, recursive and causing overflow if the result of this.makeReadyForSending fail the validation
         properties: JSON.stringify(this.properties),
         measurements: JSON.stringify(this.measurements),
         problem: invalid.problem,

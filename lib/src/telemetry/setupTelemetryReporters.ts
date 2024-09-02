@@ -27,10 +27,10 @@ class TelemetryInitialization {
       enabled: telemetryEnabled,
     };
     if (telemetryEnabled) {
-      const container = ctx.get<TelemetryReporters>(TelemetryReporters);
-      container.setReporter(new AppInsightsReporter(ctx as any, telemetryNamespace, APP_INSIGHTS_KEY));
-      container.setRestrictedReporter(new AppInsightsReporter(ctx as any, telemetryNamespace, APP_INSIGHTS_KEY_SECURE));
-      container.setFTReporter(new AppInsightsReporter(ctx as any, telemetryNamespace, APP_INSIGHTS_KEY_FT, true));
+      const container = ctx.get(TelemetryReporters);
+      container.setReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY));
+      container.setRestrictedReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY_SECURE));
+      container.setFTReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY_FT, true));
     }
     await deactivation;
   }

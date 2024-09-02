@@ -151,6 +151,7 @@ type TelemetryExperimentConfigProperties = {
 //   TelemetryRequestProperties &
 //   TelemetryExperimentConfigProperties
 // >;
+// propertiesSchema ./telemetry.ts
 export type TelemetryProperties = Record<string, string>;
 
 export type TelemetryRawProperties = Record<string, unknown>;

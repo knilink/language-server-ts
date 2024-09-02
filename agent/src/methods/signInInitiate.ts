@@ -20,7 +20,7 @@ async function handleSignInInitiateChecked(
     (
       | {
         status: 'PromptUserDeviceFlow';
-        userCode: unknown;
+        userCode: string;
         expiresIn: number;
         interval: number;
         verificationUri: string;

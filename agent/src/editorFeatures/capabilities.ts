@@ -1,12 +1,4 @@
-import { Type } from '@sinclair/typebox';
-
-type CopilotCapabilitiesParam = {
-  fetch?: boolean;
-  redirectedTelemetry?: boolean;
-  token?: boolean;
-  related?: boolean;
-  watchedFiles?: boolean;
-};
+import { Type, type Static } from '@sinclair/typebox';
 
 const CopilotCapabilitiesParam = Type.Object({
   fetch: Type.Optional(Type.Boolean()),
@@ -16,14 +8,16 @@ const CopilotCapabilitiesParam = Type.Object({
   watchedFiles: Type.Optional(Type.Boolean()),
 });
 
-class CopilotCapabilitiesProvider {
-  private capabilities: CopilotCapabilitiesParam = {};
+type CopilotCapabilitiesParamType = Static<typeof CopilotCapabilitiesParam>;
 
-  setCapabilities(capabilities: CopilotCapabilitiesParam): void {
+class CopilotCapabilitiesProvider {
+  private capabilities: CopilotCapabilitiesParamType = {};
+
+  setCapabilities(capabilities: CopilotCapabilitiesParamType): void {
     this.capabilities = capabilities;
   }
 
-  getCapabilities(): CopilotCapabilitiesParam {
+  getCapabilities(): CopilotCapabilitiesParamType {
     return this.capabilities;
   }
 }

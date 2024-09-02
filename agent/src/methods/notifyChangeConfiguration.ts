@@ -56,6 +56,7 @@ async function notifyChangeConfiguration(ctx: Context, params: unknown): Promise
   await initializePostConfigurationDependencies(ctx);
 }
 
+// ./setEditorInfo.ts
 function applySettingsToConfiguration(ctx: Context, settings: Record<string, unknown>): void {
   const errors = typeCheckEditorConfiguration.Errors(settings);
   for (const error of errors) {

@@ -63,12 +63,13 @@ function isNetworkError(e: any, checkCause = true) {
   }
   return (
     // (e instanceof Error && networkErrorCodes_fDe.has(e.code))
-    (e instanceof FetchError ||
+    e instanceof FetchError ||
     (e instanceof Error && e.name === 'EditorFetcherError') ||
     (e instanceof Error && e.name === 'FetchError') ||
     e instanceof JsonParseError ||
     e instanceof FetchResponseError ||
-    e?.message?.startsWith('net::') || (e instanceof Error && networkErrorCodes.has((e as any).code)))
+    e?.message?.startsWith('net::') ||
+    (e instanceof Error && networkErrorCodes.has((e as any).code))
   );
 }
 
