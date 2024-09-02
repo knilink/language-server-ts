@@ -152,7 +152,7 @@ async function extractPromptForSource(
     return _copilotNotAvailable;
 
   const suffixPercent = ctx.get(Features).suffixPercent(telemetryData);
-  if (suffixPercent > 0 ? source.length : offset < MIN_PROMPT_CHARS) return _contextTooShort;
+  if ((suffixPercent > 0 ? source.length : offset) < MIN_PROMPT_CHARS) return _contextTooShort;
 
   const startTime = Date.now();
   const {
@@ -231,7 +231,7 @@ async function extractPromptForNotebook(
     const beforeSource =
       beforeCells.length > 0
         ? beforeCells.map((cell) => addNeighboringCellsToPrompt(cell, activeCell.document.languageId)).join(`\n\n`) +
-          `\n\n`
+        `\n\n`
         : '';
     const source = beforeSource + doc.getText();
     const offset = beforeSource.length + doc.offsetAt(position);

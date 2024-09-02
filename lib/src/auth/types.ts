@@ -1,5 +1,6 @@
 export type TokenEnvelope = {
-  user_notification: unknown;
+  // ./copilotToken.ts
+  user_notification: boolean;
   token: string; // ./copilotToken.ts
   error_details: Record<string, unknown>;
   expires_at: number;
@@ -7,7 +8,8 @@ export type TokenEnvelope = {
   // ../prompt/repository.ts ['a5db0bcaae94032fe715fb34a5e4bce2', '7184f66dfcee98cb5f08a1cb936d5225', '4535c7beffc844b46bb1ed4aa04d759a']
   organization_list?: string[];
   enterprise_list: unknown;
-  copilotignore_enabled: boolean;
+  // optional ../contentExclusion/contentExclusionManager.ts
+  copilotignore_enabled?: boolean;
   copilot_ide_agent_chat_gpt4_small_prompt: boolean;
 
   // ../defaultNetworkConfiguration.ts

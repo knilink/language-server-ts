@@ -13,7 +13,7 @@ import { setLastShown } from '../../../lib/src/ghostText/last.ts';
 import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { LocationFactory, TextDocument } from '../../../lib/src/textDocument.ts';
-import { getGhostText } from '../../../lib/src/ghostText/ghostText.ts';
+import { getGhostText, GhostTextResult } from '../../../lib/src/ghostText/ghostText.ts';
 import { isAbortError } from '../../../lib/src/networking.ts';
 import { TestingOptions } from './testingOptions.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
@@ -243,7 +243,9 @@ async function telemetryVersionMismatch(
   telemetry(ctx, 'getCompletions.docVersionMismatch', data);
 }
 
-function cancellationReason(resultWithTelemetry: any): { cancellationReason?: 'RequestCancelled' | 'OtherFailure' } {
+function cancellationReason(resultWithTelemetry: GhostTextResult): {
+  cancellationReason?: 'RequestCancelled' | 'OtherFailure';
+} {
   switch (resultWithTelemetry.type) {
     case 'abortedBeforeIssued':
     case 'canceled':
@@ -263,7 +265,7 @@ async function getGhostTextWithAbortHandling(
   telemetryData: TelemetryData,
   token: CancellationToken,
   ifInserted?: { text: string; end?: any }
-): ReturnType<typeof getGhostText> {
+): Promise<GhostTextResult> {
   try {
     return await getGhostText(requestCtx, textDocument, position, isCycling, telemetryData, token, ifInserted);
   } catch (e) {
