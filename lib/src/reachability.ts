@@ -1,6 +1,6 @@
-import { Context } from "./context.ts";
-import { NetworkConfiguration } from "./networkConfiguration.ts";
-import { Fetcher } from "./networking.ts";
+import { Context } from './context.ts';
+import { NetworkConfiguration } from './networkConfiguration.ts';
+import { Fetcher } from './networking.ts';
 
 type URLToCheck = {
   label: string;

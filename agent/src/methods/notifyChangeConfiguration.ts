@@ -1,16 +1,16 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Context } from "../../../lib/src/context.ts";
+import { Context } from '../../../lib/src/context.ts';
 
-import { NetworkConfiguration } from "../../../lib/src/networkConfiguration.ts";
-import { logger } from "../service.ts";
-import { AgentConfigProvider } from "../config.ts";
-import { ConfigKey, getConfigKeyRecursively } from "../../../lib/src/config.ts";
-import { Fetcher } from "../../../lib/src/networking.ts";
-import { getHttpSettingsFromEnvironment, proxySettingFromUrl, HttpSettings } from "../../../lib/src/network/proxy.ts";
-import { TestingOptions } from "./testingOptions.ts";
-import { SchemaValidationError } from "../schemaValidation.ts";
-import { AgentInstallationManager } from "../installationManager.ts";
+import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
+import { logger } from '../service.ts';
+import { AgentConfigProvider } from '../config.ts';
+import { ConfigKey, getConfigKeyRecursively } from '../../../lib/src/config.ts';
+import { Fetcher } from '../../../lib/src/networking.ts';
+import { getHttpSettingsFromEnvironment, proxySettingFromUrl, HttpSettings } from '../../../lib/src/network/proxy.ts';
+import { TestingOptions } from './testingOptions.ts';
+import { SchemaValidationError } from '../schemaValidation.ts';
+import { AgentInstallationManager } from '../installationManager.ts';
 
 const NetworkProxy = Type.Object({
   host: Type.String(),

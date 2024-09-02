@@ -1,8 +1,8 @@
 import { Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { v4 as uuidv4 } from 'uuid';
-import SHA256 from "crypto-js/sha256.js";
-import Utf16 from "crypto-js/enc-utf16.js";
+import SHA256 from 'crypto-js/sha256.js';
+import Utf16 from 'crypto-js/enc-utf16.js';
 import { ConnectionError, ResponseError } from 'vscode-languageserver-protocol';
 
 import {
@@ -374,14 +374,14 @@ async function logEngineCompletion(
 async function logEnginePrompt(ctx: Context, prompt: Prompt, telemetryData: TelemetryData) {
   const promptTelemetry: TelemetryProperties = prompt.isFimEnabled
     ? {
-      promptPrefixJson: JSON.stringify(prompt.prefix),
-      promptSuffixJson: JSON.stringify(prompt.suffix),
-      promptElementRanges: JSON.stringify(prompt.promptElementRanges),
-    }
+        promptPrefixJson: JSON.stringify(prompt.prefix),
+        promptSuffixJson: JSON.stringify(prompt.suffix),
+        promptElementRanges: JSON.stringify(prompt.promptElementRanges),
+      }
     : {
-      promptJson: JSON.stringify(prompt.prefix),
-      promptElementRanges: JSON.stringify(prompt.promptElementRanges),
-    };
+        promptJson: JSON.stringify(prompt.prefix),
+        promptElementRanges: JSON.stringify(prompt.promptElementRanges),
+      };
 
   const telemetryDataWithPrompt = telemetryData.extendedBy(promptTelemetry);
   await telemetry(ctx, 'engine.prompt', telemetryDataWithPrompt, 1);
@@ -445,7 +445,7 @@ class TelemetryData {
     public properties: TelemetryProperties,
     public measurements: TelemetryMeasurements,
     public issuedTime: number
-  ) { }
+  ) {}
 
   static createAndMarkAsIssued(properties?: TelemetryProperties, measurements?: TelemetryMeasurements) {
     return new TelemetryData(properties || {}, measurements || {}, now());

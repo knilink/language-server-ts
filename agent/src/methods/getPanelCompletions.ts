@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
-import SHA256 from "crypto-js/sha256.js";
+import SHA256 from 'crypto-js/sha256.js';
 import { Range } from 'vscode-languageserver-types';
 import { NotificationType } from 'vscode-languageserver';
 
@@ -100,7 +100,7 @@ async function handleGetPanelCompletionsChecked(
 
   try {
     testingDocs = ctx.get(PanelCompletionDocuments);
-  } catch { }
+  } catch {}
 
   if (testingDocs) {
     const documents = testingDocs.documents;
@@ -141,7 +141,7 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
     readonly ctx: Context,
     readonly params: ParamsType,
     readonly range: Range
-  ) { }
+  ) {}
 
   get service(): Service {
     return this.ctx.get(Service);

@@ -1,5 +1,5 @@
 import { Jhaystack, RankingStrategy, FullTextScoringStrategy } from 'jhaystack';
-import { IScoring, IRanking, Chunk, ChunkId, RankingAlgorithmStatus } from "./IndexingTypes.ts";
+import { IScoring, IRanking, Chunk, ChunkId, RankingAlgorithmStatus } from './IndexingTypes.ts';
 
 class BM25Ranking implements IRanking<Chunk> {
   private _status: RankingAlgorithmStatus = 'notStarted';

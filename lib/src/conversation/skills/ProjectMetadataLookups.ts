@@ -1,4 +1,4 @@
-import type { ProjectMetadata, Dependency } from "./ProjectMetadataSkill.ts";
+import type { ProjectMetadata, Dependency } from './ProjectMetadataSkill.ts';
 
 function addFromLibraries(
   skill: ProjectMetadata,

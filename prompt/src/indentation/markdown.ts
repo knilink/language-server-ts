@@ -1,5 +1,5 @@
-import { Node, TopNode, isBlank } from "./classes.ts";
-import { labelLines, buildLabelRules, groupBlocks, flattenVirtual, labelVirtualInherited } from "./parsing.ts";
+import { Node, TopNode, isBlank } from './classes.ts';
+import { labelLines, buildLabelRules, groupBlocks, flattenVirtual, labelVirtualInherited } from './parsing.ts';
 
 const _MarkdownLabelRules = { heading: /^# /, subheading: /^## /, subsubheading: /### / };
 const MarkdownLabelRules = buildLabelRules(_MarkdownLabelRules);

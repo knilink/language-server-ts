@@ -1,4 +1,4 @@
-import { topNode, Node, Label } from "./classes.ts";
+import { topNode, Node, Label } from './classes.ts';
 
 function clearLabelsIf(tree: Node, condition: (label: Label) => boolean): Node {
   return (

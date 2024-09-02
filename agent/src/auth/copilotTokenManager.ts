@@ -1,4 +1,4 @@
-import { ProtocolRequestType, Disposable } from "vscode-languageserver/node.js";
+import { ProtocolRequestType, Disposable } from 'vscode-languageserver/node.js';
 import type { GitHubToken, TokenEnvelope, AuthRecord } from '../../../lib/src/auth/types.ts';
 
 import { Context } from '../../../lib/src/context.ts';

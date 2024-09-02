@@ -1,6 +1,6 @@
-import { Clock } from "../clock.ts";
-import { FilterSettings } from "./filters.ts";
-import { TimeBucketGranularity, GranularityImplementation, DEFAULT_GRANULARITY } from "./granularityImplementation.ts";
+import { Clock } from '../clock.ts';
+import { FilterSettings } from './filters.ts';
+import { TimeBucketGranularity, GranularityImplementation, DEFAULT_GRANULARITY } from './granularityImplementation.ts';
 
 const BUCKETFILTER: string = 'X-Copilot-ClientTimeBucket';
 

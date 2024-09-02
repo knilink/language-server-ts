@@ -1,5 +1,5 @@
-import { BM25Ranking } from "./BM25Ranking.ts";
-import { IRanking } from "./IndexingTypes.ts";
+import { BM25Ranking } from './BM25Ranking.ts';
+import { IRanking } from './IndexingTypes.ts';
 
 const defaultRanking = 'bm25';
 const algorithms: Map<string, new () => IRanking> = new Map([['bm25', BM25Ranking]]);

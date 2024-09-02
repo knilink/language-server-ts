@@ -1,11 +1,11 @@
-import { Context } from "../../../../context.ts";
-import { CancellationToken } from "../../../../../../agent/src/cancellation.ts";
-import { conversationLogger } from "../../../logger.ts";
-import { ModelConfigurationProvider } from "../../../modelConfigurations.ts";
-import { fetchEmbeddings } from "./EmbeddingsFetcher.ts";
-import { ChunkingProvider } from "./ChunkingProvider.ts";
-import { ScoringProvider } from "./ScoringProvider.ts";
-import { type ScoringAlgorithmType } from "./ScoringAlgorithms.ts";
+import { Context } from '../../../../context.ts';
+import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
+import { conversationLogger } from '../../../logger.ts';
+import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
+import { fetchEmbeddings } from './EmbeddingsFetcher.ts';
+import { ChunkingProvider } from './ChunkingProvider.ts';
+import { ScoringProvider } from './ScoringProvider.ts';
+import { type ScoringAlgorithmType } from './ScoringAlgorithms.ts';
 
 type Snippet = { id: string; text: string };
 interface RerankingOptions {

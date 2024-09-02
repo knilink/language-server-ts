@@ -1,15 +1,15 @@
 import { URI } from 'vscode-uri';
 
-import { TelemetryMeasurements, TelemetryProperties, TelemetryStore, DocumentEvaluateResult } from "../types.ts";
-import { Context } from "../context.ts";
+import { TelemetryMeasurements, TelemetryProperties, TelemetryStore, DocumentEvaluateResult } from '../types.ts';
+import { Context } from '../context.ts';
 
-import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from "./constants.ts";
-import { TextDocumentManager } from "../textDocumentManager.ts";
-import { CopilotContentExclusion } from "./contentExclusions.ts";
-import { StatusReporter } from "../progress.ts";
-import { CopilotTokenNotifier } from "../auth/copilotTokenNotifier.ts";
-import { isSupportedUriScheme } from "../util/uri.ts";
-import { TelemetryData, telemetry } from "../telemetry.ts";
+import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from './constants.ts';
+import { TextDocumentManager } from '../textDocumentManager.ts';
+import { CopilotContentExclusion } from './contentExclusions.ts';
+import { StatusReporter } from '../progress.ts';
+import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { isSupportedUriScheme } from '../util/uri.ts';
+import { TelemetryData, telemetry } from '../telemetry.ts';
 
 class CopilotContentExclusionManager {
   private _featureEnabled = false;

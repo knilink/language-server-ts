@@ -1,38 +1,45 @@
 import { URI } from 'vscode-uri';
 
-import type { LanguageId } from "../types.ts";
-import type { Snippet, SnippetContext, Document, PromptInfo, Prompt, PromptBackground } from "../../../prompt/src/lib.ts";
-import { ProviderTimeoutError, PromptChoices, PromptOptions } from "../../../prompt/src/lib.ts";
+import type { LanguageId } from '../types.ts';
+import type {
+  Snippet,
+  SnippetContext,
+  Document,
+  PromptInfo,
+  Prompt,
+  PromptBackground,
+} from '../../../prompt/src/lib.ts';
+import { ProviderTimeoutError, PromptChoices, PromptOptions } from '../../../prompt/src/lib.ts';
 
-import { Context } from "../context.ts";
-import { Features } from "../experiments/features.ts";
-import { NeighborSource, considerNeighborFile } from "./similarFiles/neighborFiles.ts";
-import { TelemetryData, telemetryException, telemetryRaw, TelemetryWithExp } from "../telemetry.ts";
+import { Context } from '../context.ts';
+import { Features } from '../experiments/features.ts';
+import { NeighborSource, considerNeighborFile } from './similarFiles/neighborFiles.ts';
+import { TelemetryData, telemetryException, telemetryRaw, TelemetryWithExp } from '../telemetry.ts';
 import {
   SnippetOrchestrator,
   providersSnippets,
   providersErrors,
   providersPerformance,
-} from "../../../prompt/src/orchestrator.ts";
-import { mkBasicResultTelemetry } from "../ghostText/telemetry.ts";
-import { promptLibProxy } from "./promptLibProxy.ts";
-import { CopilotContentExclusionManager } from "../contentExclusion/contentExclusionManager.ts";
-import { TextDocumentManager, INotebook, NotebookCell } from "../textDocumentManager.ts";
-import { commentBlockAsSingles } from "../../../prompt/src/languageMarker.ts";
-import { getMaxSolutionTokens } from "../openai/openai.ts";
+} from '../../../prompt/src/orchestrator.ts';
+import { mkBasicResultTelemetry } from '../ghostText/telemetry.ts';
+import { promptLibProxy } from './promptLibProxy.ts';
+import { CopilotContentExclusionManager } from '../contentExclusion/contentExclusionManager.ts';
+import { TextDocumentManager, INotebook, NotebookCell } from '../textDocumentManager.ts';
+import { commentBlockAsSingles } from '../../../prompt/src/languageMarker.ts';
+import { getMaxSolutionTokens } from '../openai/openai.ts';
 import { Position } from 'vscode-languageserver-types';
-import { TextDocument } from "../textDocument.ts";
+import { TextDocument } from '../textDocument.ts';
 
 type ExtractedPrompt =
   | {
-    type: 'prompt';
-    prompt: Prompt;
-    trailingWs: string;
-    promptChoices: PromptChoices;
-    computeTimeMs: number;
-    promptBackground: PromptBackground;
-    neighborSource: Map<string, string[]>;
-  }
+      type: 'prompt';
+      prompt: Prompt;
+      trailingWs: string;
+      promptChoices: PromptChoices;
+      computeTimeMs: number;
+      promptBackground: PromptBackground;
+      neighborSource: Map<string, string[]>;
+    }
   | { type: 'contextTooShort' }
   | { type: 'copilotNotAvailable' };
 
@@ -224,7 +231,7 @@ async function extractPromptForNotebook(
     const beforeSource =
       beforeCells.length > 0
         ? beforeCells.map((cell) => addNeighboringCellsToPrompt(cell, activeCell.document.languageId)).join(`\n\n`) +
-        `\n\n`
+          `\n\n`
         : '';
     const source = beforeSource + doc.getText();
     const offset = beforeSource.length + doc.offsetAt(position);

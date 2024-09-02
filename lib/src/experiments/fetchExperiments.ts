@@ -1,9 +1,9 @@
-import { FilterHeaders } from "../types.ts";
-import { Context } from "../context.ts";
+import { FilterHeaders } from '../types.ts';
+import { Context } from '../context.ts';
 
-import { telemetryException } from "../telemetry.ts";
-import { Fetcher, Response } from "../networking.ts";
-import { ExpConfig } from "./expConfig.ts";
+import { telemetryException } from '../telemetry.ts';
+import { Fetcher, Response } from '../networking.ts';
+import { ExpConfig } from './expConfig.ts';
 
 const ProdExpDomain = 'https://default.exp-tas.com';
 
@@ -51,8 +51,8 @@ class ExpConfigFromTAS extends ExpConfigMaker {
     const vscodeConfig =
       json && json.hasOwnProperty('Configs')
         ? ((json as { Configs: Array<{ Id: string; Parameters: Record<string, any> }> }).Configs.find(
-          (c: { Id: string }) => c.Id === 'vscode'
-        ) ?? { Id: 'vscode', Parameters: {} })
+            (c: { Id: string }) => c.Id === 'vscode'
+          ) ?? { Id: 'vscode', Parameters: {} })
         : { Id: 'vscode', Parameters: {} };
     const features = Object.entries(vscodeConfig.Parameters).map(([name, value]) => name + (value ? '' : 'cf'));
 

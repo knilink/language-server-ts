@@ -148,10 +148,10 @@ function lexEditDistance(
     } else return hLexId === nLexId ? 0 : 1;
   }
   let alignment = editDistance(
-    haystackLexed.map((x) => x[0]),
-    needleLexed.map((x) => x[0]),
-    compare
-  ),
+      haystackLexed.map((x) => x[0]),
+      needleLexed.map((x) => x[0]),
+      compare
+    ),
     startOffset = haystackLexed[alignment.startOffset][1],
     endOffset = alignment.endOffset < haystackLexed.length ? haystackLexed[alignment.endOffset][1] : haystack.length;
   return (

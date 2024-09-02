@@ -1,4 +1,4 @@
-import { clearLabelsIf, visitTree, rebuildTree } from "./manipulation.ts";
+import { clearLabelsIf, visitTree, rebuildTree } from './manipulation.ts';
 import {
   Node,
   Label,
@@ -11,7 +11,7 @@ import {
   isLine,
   isVirtual,
   isBlank,
-} from "./classes.ts";
+} from './classes.ts';
 
 type Matches = (sourceLine: string) => boolean;
 type LabelRule = { matches: Matches; label: Label };
@@ -62,7 +62,7 @@ function parseRaw(source: string): TopNode {
   let [subs, parsedLine] = parseSubs(0, -1);
   let line = parsedLine;
 
-  for (; line < lines.length && lines[line] === '';) {
+  for (; line < lines.length && lines[line] === ''; ) {
     subs.push(blankNode(line));
     line += 1;
   }

@@ -1,4 +1,4 @@
-import { IReporter, TelemetryMeasurements, TelemetryProperties } from "../types.ts";
+import { IReporter, TelemetryMeasurements, TelemetryProperties } from '../types.ts';
 
 import { strictEqual } from 'assert';
 

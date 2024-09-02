@@ -1,10 +1,10 @@
-import { IStreamingData } from "../../openai/stream.ts";
-import { Chat, OpenAIRequestId } from "../../types.ts";
-import { type TelemetryData } from "../../telemetry.ts";
-import { Context } from "../../context.ts";
-import { convertToAPIJsonData } from "../../openai/stream.ts";
-import { convertToChatCompletion } from "./openai.ts";
-import { Logger, LogLevel } from "../../logger.ts";
+import { IStreamingData } from '../../openai/stream.ts';
+import { Chat, OpenAIRequestId } from '../../types.ts';
+import { type TelemetryData } from '../../telemetry.ts';
+import { Context } from '../../context.ts';
+import { convertToAPIJsonData } from '../../openai/stream.ts';
+import { convertToChatCompletion } from './openai.ts';
+import { Logger, LogLevel } from '../../logger.ts';
 
 interface CompletionDetails {
   solution: IStreamingData;

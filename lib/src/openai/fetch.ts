@@ -9,17 +9,17 @@ import {
   Chat,
   ToolCall,
   Tool,
-} from "../types.ts";
-import { Prompt } from "../../../prompt/src/types.ts";
-import { CancellationToken } from "../../../agent/src/cancellation.ts";
+} from '../types.ts';
+import { Prompt } from '../../../prompt/src/types.ts';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
 
-import { Context } from "../context.ts";
+import { Context } from '../context.ts';
 
-import { RepoInfo, tryGetGitHubNWO } from "../prompt/repository.ts";
-import { getMaxSolutionTokens, getTemperatureForSamples, getTopP, getStops, APIChoice } from "./openai.ts";
-import { type ChatCompletion } from "../conversation/openai/openai.ts";
-import { asyncIterableFilter, asyncIterableMap } from "../common/iterableHelpers.ts";
-import { logger } from "../logger.ts";
+import { RepoInfo, tryGetGitHubNWO } from '../prompt/repository.ts';
+import { getMaxSolutionTokens, getTemperatureForSamples, getTopP, getStops, APIChoice } from './openai.ts';
+import { type ChatCompletion } from '../conversation/openai/openai.ts';
+import { asyncIterableFilter, asyncIterableMap } from '../common/iterableHelpers.ts';
+import { logger } from '../logger.ts';
 import {
   TelemetryData,
   telemetrizePromptLength,
@@ -27,12 +27,12 @@ import {
   now,
   logEnginePrompt,
   TelemetryWithExp,
-} from "../telemetry.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { Request, Response, postRequest, isAbortError } from "../networking.ts";
-import { Features } from "../experiments/features.ts";
-import { SSEProcessor, prepareSolutionForReturn } from "./stream.ts";
-import { StatusReporter } from "../progress.ts";
+} from '../telemetry.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { Request, Response, postRequest, isAbortError } from '../networking.ts';
+import { Features } from '../experiments/features.ts';
+import { SSEProcessor, prepareSolutionForReturn } from './stream.ts';
+import { StatusReporter } from '../progress.ts';
 
 function getRequestId(response: Response, json?: JsonData): OpenAIRequestId {
   return {
@@ -195,24 +195,24 @@ namespace OpenAIFetcher {
   // ../conversation/openai/fetch.ts
   export type ConversationResponse =
     | {
-      type: 'success';
-      chatCompletions: AsyncIterable<ChatCompletion>;
-      getProcessingTime: () => number;
-    }
+        type: 'success';
+        chatCompletions: AsyncIterable<ChatCompletion>;
+        getProcessingTime: () => number;
+      }
     | {
-      type: 'failed';
-      reason: string;
-      code: number;
-    }
+        type: 'failed';
+        reason: string;
+        code: number;
+      }
     | {
-      type: 'canceled';
-      reason: string;
-    }
+        type: 'canceled';
+        reason: string;
+      }
     | {
-      type: 'authRequired';
-      reason: string;
-      authUrl: string;
-    };
+        type: 'authRequired';
+        reason: string;
+        authUrl: string;
+      };
 
   export type CompletionRequest = {
     prompt: string;
@@ -255,18 +255,18 @@ namespace OpenAIFetcher {
 
   export type CompletionResponse =
     | {
-      type: 'success';
-      choices: AsyncIterable<APIChoice>;
-      getProcessingTime: () => number;
-    }
+        type: 'success';
+        choices: AsyncIterable<APIChoice>;
+        getProcessingTime: () => number;
+      }
     | {
-      type: 'failed';
-      reason: string;
-    }
+        type: 'failed';
+        reason: string;
+      }
     | {
-      type: 'canceled';
-      reason: string;
-    };
+        type: 'canceled';
+        reason: string;
+      };
 }
 
 abstract class OpenAIFetcher {
@@ -376,18 +376,18 @@ class LiveOpenAIFetcher extends OpenAIFetcher {
     return cancel?.isCancellationRequested
       ? 'not-sent'
       : fetchWithInstrumentation(
-        ctx,
-        params.prompt,
-        params.engineUrl,
-        endpoint,
-        params.ourRequestId,
-        request,
-        (await ctx.get(CopilotTokenManager).getCopilotToken(ctx)).token,
-        params.uiKind,
-        cancel,
-        telemetryProperties,
-        params.headers
-      );
+          ctx,
+          params.prompt,
+          params.engineUrl,
+          endpoint,
+          params.ourRequestId,
+          request,
+          (await ctx.get(CopilotTokenManager).getCopilotToken(ctx)).token,
+          params.uiKind,
+          cancel,
+          telemetryProperties,
+          params.headers
+        );
   }
 
   async handleError(

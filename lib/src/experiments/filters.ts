@@ -1,5 +1,5 @@
-import { TelemetryData } from "../telemetry.ts";
-import { FilterHeaders } from "../types.ts";
+import { TelemetryData } from '../telemetry.ts';
+import { FilterHeaders } from '../types.ts';
 
 const telmetryNames: Record<string, string> = {
   'X-Copilot-ClientTimeBucket': 'timeBucket',

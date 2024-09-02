@@ -1,12 +1,12 @@
-import { TopNode, Node, isBlank } from "./classes.ts";
+import { TopNode, Node, isBlank } from './classes.ts';
 import {
   buildLabelRules,
   labelLines,
   combineClosersAndOpeners,
   flattenVirtual,
   labelVirtualInherited,
-} from "./parsing.ts";
-import { visitTree } from "./manipulation.ts";
+} from './parsing.ts';
+import { visitTree } from './manipulation.ts';
 
 function processJava(originalTree: TopNode): Node {
   let tree: Node = originalTree;

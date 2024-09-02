@@ -1,12 +1,12 @@
 import { Type } from '@sinclair/typebox';
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
-import { TurnContext } from "../turnContext.ts";
-import { Skill } from "../../types.ts";
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { TurnContext } from '../turnContext.ts';
+import { Skill } from '../../types.ts';
 
 const RuntimeLogsSchema = Type.String();
 
 class RuntimeLogsSkillProcessor implements Skill.ISkillProcessor<string> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 0.9;

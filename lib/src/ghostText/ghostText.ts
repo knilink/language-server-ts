@@ -1,4 +1,4 @@
-import SHA256 from "crypto-js/sha256.js";
+import SHA256 from 'crypto-js/sha256.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Position } from 'vscode-languageserver-types';
 
@@ -69,31 +69,31 @@ const ghostTextDebouncer = new Debouncer();
 
 type CompletionResult<T> =
   | {
-    type: 'failed';
-    reason: string;
-    telemetryData: TelemetryProperties;
-  }
+      type: 'failed';
+      reason: string;
+      telemetryData: TelemetryProperties;
+    }
   | {
-    type: 'canceled';
-    reason: string;
-    telemetryData: { cancelledNetworkRequest?: boolean; telemetryBlob: TelemetryData };
-  }
+      type: 'canceled';
+      reason: string;
+      telemetryData: { cancelledNetworkRequest?: boolean; telemetryBlob: TelemetryData };
+    }
   | {
-    type: 'empty';
-    reason: string;
-    telemetryData: TelemetryProperties;
-  }
+      type: 'empty';
+      reason: string;
+      telemetryData: TelemetryProperties;
+    }
   | {
-    type: 'abortedBeforeIssued';
-    reason: string;
-  }
+      type: 'abortedBeforeIssued';
+      reason: string;
+    }
   | {
-    type: 'success';
-    // value: apiChoices, array
-    value: T;
-    telemetryData: TelemetryProperties;
-    telemetryBlob: TelemetryData;
-  };
+      type: 'success';
+      // value: apiChoices, array
+      value: T;
+      telemetryData: TelemetryProperties;
+      telemetryBlob: TelemetryData;
+    };
 
 type Result = {
   completion: {
@@ -111,7 +111,7 @@ type Result = {
 type GhostTextResult = CompletionResult<[Result[], CompletionResultType]>;
 
 class ForceMultiLine {
-  constructor(public requestMultilineOverride = false) { }
+  constructor(public requestMultilineOverride = false) {}
 }
 
 async function genericGetCompletionsFromNetwork<T>(

@@ -1,4 +1,4 @@
-import { Context } from "../context.ts";
+import { Context } from '../context.ts';
 import {
   ghostTextDisplayLanguageParameters,
   ghostTextDisplayInterceptParameter,
@@ -6,9 +6,9 @@ import {
   ghostTextDisplayLog1pcompCharLenParameter,
   ghostTextDisplayMeanLogProbParameter,
   ghostTextDisplayMeanAlternativeLogProbParameter,
-} from "./mlConstants.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { type TelemetryData } from "../telemetry.ts";
+} from './mlConstants.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { type TelemetryData } from '../telemetry.ts';
 
 function linearInterpolation(x0: number, points: Map<number, number>): number {
   const x_after = Math.min(...Array.from(points.keys()).filter((x) => x >= x0));
@@ -52,7 +52,7 @@ class Regressor {
     readonly name: string,
     readonly coefficient: number,
     readonly transformation: (value: number) => number = (x) => x
-  ) { }
+  ) {}
 
   contribution(value: number): number {
     return this.coefficient * this.transformation(value);

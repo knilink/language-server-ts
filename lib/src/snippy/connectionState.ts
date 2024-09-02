@@ -1,7 +1,7 @@
-import { type Context } from "../context.ts";
-import { codeReferenceLogger } from "./logger.ts";
-import { Fetcher } from "../networking.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { type Context } from '../context.ts';
+import { codeReferenceLogger } from './logger.ts';
+import { Fetcher } from '../networking.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
 
 const InitialTimeout = 3_000;
 const BaseRetryTime = 2;
@@ -166,7 +166,7 @@ function registerConnectionState(): typeof stateAPI {
           setConnected();
           return;
         }
-      } catch { }
+      } catch {}
     }
     codeReferenceLogger.info(ctx, 'Max retry time reached, disabling.');
     setDisabled();

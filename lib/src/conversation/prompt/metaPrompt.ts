@@ -1,16 +1,16 @@
-import { type CancellationToken } from "../../../../agent/src/cancellation.ts";
-import { Context } from "../../context.ts";
-import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } from "../../types.ts";
+import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
+import { Context } from '../../context.ts';
+import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } from '../../types.ts';
 
-import { conversationLogger } from "../logger.ts";
-import { ConversationPromptEngine } from "./conversationPromptEngine.ts";
-import { telemetry, TelemetryData } from "../../telemetry.ts";
-import { ModelConfigurationProvider } from "../modelConfigurations.ts";
-import { ConversationInspector } from "../conversationInspector.ts";
-import { telemetryPrefixForUiKind } from "../telemetry.ts";
-import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
-import { TurnContext } from "../turnContext.ts";
-import { ChatMLFetcher } from "../chatMLFetcher.ts";
+import { conversationLogger } from '../logger.ts';
+import { ConversationPromptEngine } from './conversationPromptEngine.ts';
+import { telemetry, TelemetryData } from '../../telemetry.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
+import { ConversationInspector } from '../conversationInspector.ts';
+import { telemetryPrefixForUiKind } from '../telemetry.ts';
+import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
+import { TurnContext } from '../turnContext.ts';
+import { ChatMLFetcher } from '../chatMLFetcher.ts';
 
 const MAX_SKILLS = 4;
 const DEFAULT_PROMPT_CONTEXT: { skillIds: SkillId[] } = { skillIds: [] };
@@ -19,7 +19,7 @@ class MetaPromptFetcher {
   constructor(
     readonly ctx: Context,
     readonly chatFetcher: ChatMLFetcher
-  ) { }
+  ) {}
 
   public async fetchPromptContext(
     turnContext: TurnContext,
@@ -77,12 +77,12 @@ class MetaPromptFetcher {
     } else
       return conversationLogger.error(this.ctx, 'Missing tool call in meta prompt response'), DEFAULT_PROMPT_CONTEXT;
     let promptTelemetryData = baseUserTelemetry.extendedBy(
-      {
-        uiKind: uiKind,
-        skillIds: skillIds?.join(',') ?? '',
-      },
-      { numTokens: fetchResult.numTokens + fetchResult.toolCalls[0].approxNumTokens }
-    ),
+        {
+          uiKind: uiKind,
+          skillIds: skillIds?.join(',') ?? '',
+        },
+        { numTokens: fetchResult.numTokens + fetchResult.toolCalls[0].approxNumTokens }
+      ),
       promptTelemetryDataRestricted = promptTelemetryData.extendedBy({ messageText: messageText });
     return (
       telemetry(this.ctx, `${telemetryPrefixForUiKind(uiKind)}.metaPrompt`, promptTelemetryData, 0),

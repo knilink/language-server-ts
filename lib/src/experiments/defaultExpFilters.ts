@@ -1,7 +1,7 @@
-import { Context } from "../context.ts";
-import { Features } from "./features.ts";
-import { getConfig, ConfigKey, EditorAndPluginInfo, EditorSession } from "../config.ts";
-import { Logger, LogLevel } from "../logger.ts";
+import { Context } from '../context.ts';
+import { Features } from './features.ts';
+import { getConfig, ConfigKey, EditorAndPluginInfo, EditorSession } from '../config.ts';
+import { Logger, LogLevel } from '../logger.ts';
 
 function setupExperimentationService(ctx: Context): void {
   const features = ctx.get(Features);

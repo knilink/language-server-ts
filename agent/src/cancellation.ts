@@ -94,7 +94,7 @@ class MergedToken implements CancellationToken {
       return shortcutEvent(() => listener.call(thisArgs), thisArgs);
     } else {
       this.handlers.push(listener.bind(thisArgs));
-      return { dispose: () => { } };
+      return { dispose: () => {} };
     }
   }
 

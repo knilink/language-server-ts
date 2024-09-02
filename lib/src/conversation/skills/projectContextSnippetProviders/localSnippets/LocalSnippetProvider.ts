@@ -1,14 +1,14 @@
 import type { Range } from 'vscode-languageserver-types';
 
-import type { Snippet } from "../../../../types.ts";
+import type { Snippet } from '../../../../types.ts';
 
-import { RankingProvider } from "./RankingProvider.ts";
-import { ChunkingProvider } from "./ChunkingProvider.ts";
-import { parseUserQuery } from "./UserQueryParser.ts";
-import { rerankSnippets } from "./EmbeddingsReranker.ts";
-import { FileReader } from "../../../../fileReader.ts";
-import { conversationLogger } from "../../../logger.ts";
-import { type TurnContext } from "../../../turnContext.ts";
+import { RankingProvider } from './RankingProvider.ts';
+import { ChunkingProvider } from './ChunkingProvider.ts';
+import { parseUserQuery } from './UserQueryParser.ts';
+import { rerankSnippets } from './EmbeddingsReranker.ts';
+import { FileReader } from '../../../../fileReader.ts';
+import { conversationLogger } from '../../../logger.ts';
+import { type TurnContext } from '../../../turnContext.ts';
 
 class LocalSnippetProvider implements Snippet.ISnippetProvider {
   async canProvideSnippets(turnContext: TurnContext): Promise<boolean> {

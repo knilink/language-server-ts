@@ -1,5 +1,5 @@
-import type { DocumentEvaluateResult } from "../types.ts";
-import { Logger, LogLevel } from "../logger.ts";
+import type { DocumentEvaluateResult } from '../types.ts';
+import { Logger, LogLevel } from '../logger.ts';
 
 const NOT_BLOCKED_RESPONSE: DocumentEvaluateResult = { isBlocked: false, reason: 'VALID_FILE' };
 

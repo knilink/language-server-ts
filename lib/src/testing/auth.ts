@@ -1,9 +1,9 @@
-import { type Context } from "../context.ts";
+import { type Context } from '../context.ts';
 
-import { type AuthStatus } from "../auth/types.ts";
+import { type AuthStatus } from '../auth/types.ts';
 
-import { AuthManager } from "../auth/manager.ts";
-import { FixedCopilotTokenManager } from "./tokenManager.ts";
+import { AuthManager } from '../auth/manager.ts';
+import { FixedCopilotTokenManager } from './tokenManager.ts';
 
 class NotAuthManager extends AuthManager {
   constructor() {

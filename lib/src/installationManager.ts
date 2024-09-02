@@ -1,5 +1,5 @@
-import { type Context } from "./context.ts";
-import { telemetry } from "./telemetry.ts";
+import { type Context } from './context.ts';
+import { telemetry } from './telemetry.ts';
 
 abstract class InstallationManager {
   abstract isNewInstall(ctx: Context): Promise<boolean>;

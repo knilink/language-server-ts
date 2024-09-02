@@ -1,19 +1,19 @@
-import { type CancellationToken } from "../../../../agent/src/cancellation.ts";
-import { SkillId, UiKind } from "../../types.ts";
-import { Context } from "../../context.ts";
+import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
+import { SkillId, UiKind } from '../../types.ts';
+import { Context } from '../../context.ts';
 
-import { TurnContext } from "../turnContext.ts";
-import { TelemetryData } from "../../telemetry.ts";
+import { TurnContext } from '../turnContext.ts';
+import { TelemetryData } from '../../telemetry.ts';
 
-import { CurrentEditorSkillId } from "../skills/CurrentEditorSkill.ts";
-import { ProjectLabelsSkillId } from "../skills/ProjectLabelsSkill.ts";
-import { Conversations } from "../conversations.ts";
-import { ProjectMetadataSkillId } from "../skills/ProjectMetadataSkill.ts";
-import { ConversationSkillRegistry } from "./conversationSkill.ts";
-import { MetaPromptFetcher } from "./metaPrompt.ts";
-import { getAgents } from "../agents/agents.ts";
-import { ReferencesSkillId } from "../skills/ReferencesSkill.ts";
-import { type ChatMLFetcher } from "../chatMLFetcher.ts";
+import { CurrentEditorSkillId } from '../skills/CurrentEditorSkill.ts';
+import { ProjectLabelsSkillId } from '../skills/ProjectLabelsSkill.ts';
+import { Conversations } from '../conversations.ts';
+import { ProjectMetadataSkillId } from '../skills/ProjectMetadataSkill.ts';
+import { ConversationSkillRegistry } from './conversationSkill.ts';
+import { MetaPromptFetcher } from './metaPrompt.ts';
+import { getAgents } from '../agents/agents.ts';
+import { ReferencesSkillId } from '../skills/ReferencesSkill.ts';
+import { type ChatMLFetcher } from '../chatMLFetcher.ts';
 
 type Template = { requiredSkills?: (ctx: Context) => Promise<SkillId[]> };
 type Agent = { additionalSkills: (ctx: Context) => Promise<SkillId[]> };

@@ -1,11 +1,11 @@
 import { Type, type Static } from '@sinclair/typebox';
 import * as os from 'node:os';
-import { type CancellationToken } from "../cancellation.ts";
+import { type CancellationToken } from '../cancellation.ts';
 
-import { Context } from "../../../lib/src/context.ts";
-import { normalizeNewlines, asReadableCert } from "../../../lib/src/testing/certificates.ts";
-import { getRootCertificateReader } from "../../../lib/src/network/certificateReaders.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { Context } from '../../../lib/src/context.ts';
+import { normalizeNewlines, asReadableCert } from '../../../lib/src/testing/certificates.ts';
+import { getRootCertificateReader } from '../../../lib/src/network/certificateReaders.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
 
 const Params = Type.Object({ expectedCertificate: Type.String() });
 

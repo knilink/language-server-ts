@@ -1,15 +1,15 @@
 import { Type } from '@sinclair/typebox';
 import { v4 as uuidv4 } from 'uuid';
-import { type CancellationToken } from "../cancellation.ts";
+import { type CancellationToken } from '../cancellation.ts';
 
-import { ConversationProgress } from "../../../lib/src/conversation/conversationProgress.ts";
-import { conversationLogger } from "../../../lib/src/conversation/logger.ts";
-import { Conversations } from "../../../lib/src/conversation/conversations.ts";
-import { AgentSkillResolver } from "./skillResolver.ts";
-import { TurnContext } from "../../../lib/src/conversation/turnContext.ts";
-import { SkillId, Unknown } from "../../../lib/src/types.ts";
+import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
+import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
+import { Conversations } from '../../../lib/src/conversation/conversations.ts';
+import { AgentSkillResolver } from './skillResolver.ts';
+import { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
+import { SkillId, Unknown } from '../../../lib/src/types.ts';
 
-import { Reference } from "../../../lib/src/conversation/schema.ts";
+import { Reference } from '../../../lib/src/conversation/schema.ts';
 
 class SyntheticTurn {
   constructor(
@@ -19,7 +19,7 @@ class SyntheticTurn {
     readonly suggestedTitle = '',
     readonly skills: SkillId[] = [],
     readonly references: Reference[] = []
-  ) { }
+  ) {}
 }
 
 class SyntheticTurns {

@@ -1,7 +1,7 @@
-import { Context } from "../context.ts";
+import { Context } from '../context.ts';
 
 class RuntimeMode {
-  constructor(public flags: Flags) { }
+  constructor(public flags: Flags) {}
 
   static fromEnvironment(
     isRunningInTest: boolean,

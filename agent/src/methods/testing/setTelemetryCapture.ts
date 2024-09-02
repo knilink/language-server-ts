@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { CancellationToken } from "../../cancellation.ts";
+import { CancellationToken } from '../../cancellation.ts';
 
-import { Context } from "../../../../lib/src/context.ts";
-import { setupTelemetryReporters } from "../../../../lib/src/telemetry/setupTelemetryReporters.ts";
-import { TelemetryReporters } from "../../../../lib/src/telemetry.ts";
-import { PromiseQueue } from "../../../../lib/src/util/promiseQueue.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
-import { TelemetrySpy } from "../../../../lib/src/testing/telemetrySpy.ts";
-import { TestPromiseQueue } from "../../../../lib/src/testing/telemetry.ts";
+import { Context } from '../../../../lib/src/context.ts';
+import { setupTelemetryReporters } from '../../../../lib/src/telemetry/setupTelemetryReporters.ts';
+import { TelemetryReporters } from '../../../../lib/src/telemetry.ts';
+import { PromiseQueue } from '../../../../lib/src/util/promiseQueue.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { TelemetrySpy } from '../../../../lib/src/testing/telemetrySpy.ts';
+import { TestPromiseQueue } from '../../../../lib/src/testing/telemetry.ts';
 
 const Params = Type.Object({ telemetryCapture: Type.Boolean() });
 

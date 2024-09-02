@@ -10,7 +10,7 @@ import {
   InitializeParams,
   ClientCapabilities,
   TextDocumentSyncKind,
-} from "vscode-languageserver/node.js";
+} from 'vscode-languageserver/node.js';
 
 import { Type, type Static } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';

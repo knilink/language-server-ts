@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type Context } from "../../../lib/src/context.ts";
-import { type CancellationToken } from "../cancellation.ts";
-import { type AuthRecord } from "../../../lib/src/auth/types.ts";
+import { type Context } from '../../../lib/src/context.ts';
+import { type CancellationToken } from '../cancellation.ts';
+import { type AuthRecord } from '../../../lib/src/auth/types.ts';
 
-import { AuthManager } from "../../../lib/src/auth/manager.ts";
-import { GitHubAppInfo } from "../../../lib/src/config.ts";
-import { GitHubDeviceFlow } from "../../../lib/src/auth/deviceFlow.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
-import { CopilotAuthError } from "../../../lib/src/auth/error.ts";
+import { AuthManager } from '../../../lib/src/auth/manager.ts';
+import { GitHubAppInfo } from '../../../lib/src/config.ts';
+import { GitHubDeviceFlow } from '../../../lib/src/auth/deviceFlow.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { CopilotAuthError } from '../../../lib/src/auth/error.ts';
 
 const Params = Type.Object({ options: Type.Optional(Type.Object({})) });
 
@@ -17,21 +17,21 @@ async function handleSignInInitiateChecked(
   params: Static<typeof Params>
 ): Promise<
   | [
-    (
-      | {
-        status: 'PromptUserDeviceFlow';
-        userCode: string;
-        expiresIn: number;
-        interval: number;
-        verificationUri: string;
-      }
-      | {
-        status: 'AlreadySignedIn';
-        user?: string;
-      }
-    ),
-    null,
-  ]
+      (
+        | {
+            status: 'PromptUserDeviceFlow';
+            userCode: string;
+            expiresIn: number;
+            interval: number;
+            verificationUri: string;
+          }
+        | {
+            status: 'AlreadySignedIn';
+            user?: string;
+          }
+      ),
+      null,
+    ]
   | [null, { code: number; message: string }]
 > {
   try {

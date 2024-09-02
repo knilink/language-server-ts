@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { type CancellationToken } from '../cancellation.ts';
 import { Type, type Static } from '@sinclair/typebox';
 import type { Range } from 'vscode-languageserver-types';
-import { InlineCompletionRequest } from "vscode-languageserver/node.js";
+import { InlineCompletionRequest } from 'vscode-languageserver/node.js';
 
 import { Context } from '../../../lib/src/context.ts';
 import { getOpenTextDocumentChecked } from '../textDocument.ts';

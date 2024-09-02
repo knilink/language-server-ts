@@ -1,20 +1,20 @@
-import { OpenAIFetcher } from "../../openai/fetch.ts";
-import { type CancellationToken } from "../../../../agent/src/cancellation.ts";
-import { type Context } from "../../context.ts";
-import { StatusReporter } from "../../progress.ts";
-import { TelemetryData, telemetry, now, TelemetryWithExp } from "../../telemetry.ts";
-import { extractEngineName, getRequestId, getProcessingTime } from "../../openai/fetch.ts";
-import { uiKindToIntent, logEngineMessages } from "../telemetry.ts";
-import { postRequest, isAbortError, type Response } from "../../networking.ts";
-import { Features } from "../../experiments/features.ts";
-import { SSEProcessor } from "../../openai/stream.ts";
-import { asyncIterableMap } from "../../common/iterableHelpers.ts";
-import { prepareChatCompletionForReturn } from "./stream.ts";
-import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from "../../openai/openai.ts";
-import { tryGetGitHubNWO } from "../../prompt/repository.ts";
-import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
-import { Logger, LogLevel } from "../../logger.ts";
-import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind } from "../../types.ts";
+import { OpenAIFetcher } from '../../openai/fetch.ts';
+import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
+import { type Context } from '../../context.ts';
+import { StatusReporter } from '../../progress.ts';
+import { TelemetryData, telemetry, now, TelemetryWithExp } from '../../telemetry.ts';
+import { extractEngineName, getRequestId, getProcessingTime } from '../../openai/fetch.ts';
+import { uiKindToIntent, logEngineMessages } from '../telemetry.ts';
+import { postRequest, isAbortError, type Response } from '../../networking.ts';
+import { Features } from '../../experiments/features.ts';
+import { SSEProcessor } from '../../openai/stream.ts';
+import { asyncIterableMap } from '../../common/iterableHelpers.ts';
+import { prepareChatCompletionForReturn } from './stream.ts';
+import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from '../../openai/openai.ts';
+import { tryGetGitHubNWO } from '../../prompt/repository.ts';
+import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
+import { Logger, LogLevel } from '../../logger.ts';
+import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind } from '../../types.ts';
 
 const logger = new Logger(LogLevel.INFO, 'fetchChat');
 
@@ -201,18 +201,18 @@ class OpenAIChatMLFetcher {
     return cancel?.isCancellationRequested
       ? 'not-sent'
       : fetchWithInstrumentation(
-        ctx,
-        params.messages,
-        params.engineUrl,
-        endpoint,
-        params.ourRequestId,
-        request,
-        params.authToken,
-        params.uiKind,
-        cancel,
-        telemetryProperties,
-        telemetryMeasurements
-      );
+          ctx,
+          params.messages,
+          params.engineUrl,
+          endpoint,
+          params.ourRequestId,
+          request,
+          params.authToken,
+          params.uiKind,
+          cancel,
+          telemetryProperties,
+          telemetryMeasurements
+        );
   }
 
   async handleError(
@@ -231,7 +231,7 @@ class OpenAIChatMLFetcher {
         const text = await response.text();
         const json = JSON.parse(text);
         if (json.authorize_url) return { type: 'authRequired', reason: 'not authorized', authUrl: json.authorize_url };
-      } catch { }
+      } catch {}
     } else if (response.status === 401 || response.status === 403) {
       ctx.get(CopilotTokenManager).resetCopilotToken(ctx, response.status);
       return { type: 'failed', reason: `token expired or invalid: ${response.status}`, code: response.status };

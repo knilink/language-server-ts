@@ -1,5 +1,5 @@
-import type { PromptType } from "../types.ts";
-import { ChatMLFetcher } from "./chatMLFetcher.ts";
+import type { PromptType } from '../types.ts';
+import { ChatMLFetcher } from './chatMLFetcher.ts';
 
 export abstract class ConversationInspector {
   abstract inspectFetchResult(fetchResult: ChatMLFetcher.Response): void;

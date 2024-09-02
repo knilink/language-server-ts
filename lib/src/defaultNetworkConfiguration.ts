@@ -1,16 +1,16 @@
 import assert from 'assert';
 
-import { Context } from "./context.ts";
-import { NetworkConfiguration } from "./networkConfiguration.ts";
+import { Context } from './context.ts';
+import { NetworkConfiguration } from './networkConfiguration.ts';
 
-import { CopilotTokenNotifier } from "./auth/copilotTokenNotifier.ts";
-import { isProduction, getConfig, ConfigKey, type ConfigKeysByType } from "./config.ts";
-import { NotificationSender } from "./notificationSender.ts";
-import { CopilotTokenManager } from "./auth/copilotTokenManager.ts";
-import { TelemetryInitialization } from "./telemetry/setupTelemetryReporters.ts";
-import { isRunningInTest } from "./testing/runtimeMode.ts";
-import { GitHubToken } from "./auth/types.ts";
-import { CopilotToken } from "./auth/copilotToken.ts";
+import { CopilotTokenNotifier } from './auth/copilotTokenNotifier.ts';
+import { isProduction, getConfig, ConfigKey, type ConfigKeysByType } from './config.ts';
+import { NotificationSender } from './notificationSender.ts';
+import { CopilotTokenManager } from './auth/copilotTokenManager.ts';
+import { TelemetryInitialization } from './telemetry/setupTelemetryReporters.ts';
+import { isRunningInTest } from './testing/runtimeMode.ts';
+import { GitHubToken } from './auth/types.ts';
+import { CopilotToken } from './auth/copilotToken.ts';
 
 const DotComAuthority = 'github.com';
 const DotComUrl = `https://${DotComAuthority}`;
@@ -239,7 +239,7 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     ) {
       try {
         return { base: new URL(this.env.GITHUB_SERVER_URL), api: new URL(this.env.GITHUB_API_URL) };
-      } catch { }
+      } catch {}
     }
     const base = new URL(url);
     const api = this.prefixWith('api.', base);
@@ -254,7 +254,7 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     try {
       new URL(url);
       return true;
-    } catch { }
+    } catch {}
     return false;
   }
 

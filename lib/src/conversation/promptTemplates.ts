@@ -1,15 +1,15 @@
-import { SkillId, Unknown } from "../types.ts";
-import { type CancellationToken } from "../../../agent/src/cancellation.ts";
+import { SkillId, Unknown } from '../types.ts';
+import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 
 // import { } from './skills/ProblemInActiveDocumentSkill';
-import { Context } from "../context.ts";
-import { getDebugTemplates } from "./promptDebugTemplates.ts";
-import { isDebugEnabled, isRunningInTest } from "../testing/runtimeMode.ts";
-import { getLastTurnId } from "./dump.ts";
-import { TurnContext } from "./turnContext.ts";
-import { TestFailuresSkillId } from "./skills/TestFailuresSkill.ts";
-import { TestContextSkillId } from "./skills/TestContextSkill.ts";
-import { ProblemsInActiveDocumentSkillId } from "./skills/ProblemInActiveDocumentSkill.ts";
+import { Context } from '../context.ts';
+import { getDebugTemplates } from './promptDebugTemplates.ts';
+import { isDebugEnabled, isRunningInTest } from '../testing/runtimeMode.ts';
+import { getLastTurnId } from './dump.ts';
+import { TurnContext } from './turnContext.ts';
+import { TestFailuresSkillId } from './skills/TestFailuresSkill.ts';
+import { TestContextSkillId } from './skills/TestContextSkill.ts';
+import { ProblemsInActiveDocumentSkillId } from './skills/ProblemInActiveDocumentSkill.ts';
 
 export type TemplateScope = 'editor' | 'chat-panel' | 'inline';
 
@@ -56,7 +56,7 @@ export class PromptTemplateResponse {
     // ./promptDebugTemplates.ts
     readonly error?: unknown,
     readonly annotations: Unknown.Annotation[] = []
-  ) { }
+  ) {}
 }
 
 export class StaticPromptTemplate implements IPromptTemplate {
@@ -69,7 +69,7 @@ export class StaticPromptTemplate implements IPromptTemplate {
     readonly scopes: TemplateScope[] = [],
     readonly inlinePrompt?: string,
     readonly producesCodeEdits: boolean = false
-  ) { }
+  ) {}
 
   instructions(ctx: Context, userMessage: string, source: 'panel' | 'inline'): string {
     const prompt = source === 'inline' && this.inlinePrompt ? this.inlinePrompt : this.prompt;

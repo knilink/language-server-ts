@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCursorContext } from "./cursorContext.ts";
+import { getCursorContext } from './cursorContext.ts';
 
 // Mock the tokenizer functions as needed for testing purposes.
 const mockTokenizer = {

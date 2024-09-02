@@ -1,12 +1,12 @@
 import { Type } from '@sinclair/typebox';
 
-import { type CancellationToken } from "../cancellation.ts";
-import { type Context } from "../../../lib/src/context.ts";
-import { type AuthStatus } from "../../../lib/src/auth/types.ts";
+import { type CancellationToken } from '../cancellation.ts';
+import { type Context } from '../../../lib/src/context.ts';
+import { type AuthStatus } from '../../../lib/src/auth/types.ts';
 
-import { TestingOptions } from "./testingOptions.ts";
-import { AuthManager } from "../../../lib/src/auth/manager.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { TestingOptions } from './testingOptions.ts';
+import { AuthManager } from '../../../lib/src/auth/manager.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
 
 const Params = Type.Object({
   options: Type.Optional(

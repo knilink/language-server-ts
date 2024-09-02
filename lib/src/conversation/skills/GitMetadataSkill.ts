@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
-import { Skill } from "../../types.ts";
-import { TurnContext } from "../turnContext.ts";
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { Skill } from '../../types.ts';
+import { TurnContext } from '../turnContext.ts';
 
 const RemoteSchema = Type.Object({
   name: Type.String(),
@@ -21,7 +21,7 @@ type GitMetadata = Static<typeof GitMetadataSchema>;
 const GitMetadataSkillId: 'git-metadata' = 'git-metadata';
 
 class GitMetadataSkillProcessor implements Skill.ISkillProcessor<GitMetadata> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value() {
     return 0.8;

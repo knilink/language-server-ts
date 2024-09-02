@@ -1,20 +1,20 @@
 import { Range } from 'vscode-languageserver-types';
 import { type Static, Type } from '@sinclair/typebox';
 
-import type { Skill } from "../../types.ts";
+import type { Skill } from '../../types.ts';
 
-import { } from "../modelMetadata.ts";
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
-import { RangeSchema } from "../schema.ts";
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { weighElidableList } from "../prompt/elidableList.ts";
-import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
-import { ModelConfigurationProvider } from "../modelConfigurations.ts";
-import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import {} from '../modelMetadata.ts';
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { RangeSchema } from '../schema.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { weighElidableList } from '../prompt/elidableList.ts';
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 
-import { TurnContext } from "../turnContext.ts";
-import { ValidDocumentResult } from "../../util/documentEvaluation.ts";
+import { TurnContext } from '../turnContext.ts';
+import { ValidDocumentResult } from '../../util/documentEvaluation.ts';
 
 const ProblemsInActiveDocumentSchema = Type.Object({
   uri: Type.String(),
@@ -24,7 +24,7 @@ const ProblemsInActiveDocumentSchema = Type.Object({
 type ProblemsInActiveDocument = Static<typeof ProblemsInActiveDocumentSchema>;
 
 class ProblemsInActiveDocumentSkillProcessor implements Skill.ISkillProcessor<ProblemsInActiveDocument> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value() {
     return 1;
@@ -67,7 +67,7 @@ class ProblemsInActiveDocumentSkillProcessor implements Skill.ISkillProcessor<Pr
       elidableProblem.push(
         new ElidableText([
           `- "${problem.message}" at line ${problem.range.start.line}.` +
-          (documentResult.document ? ' Excerpt from the code:' : ''),
+            (documentResult.document ? ' Excerpt from the code:' : ''),
         ])
       );
       const problemRange = problem.range;

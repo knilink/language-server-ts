@@ -15,23 +15,23 @@ type Request = {
   timeout?: number;
   signal?: AbortSignal;
 } & (
-    | {
+  | {
       method?: 'GET';
     }
-    | {
+  | {
       method: 'POST';
       // ./helix.ts
       // ./snippy/network.ts
       body: string | object;
       json?: never;
     }
-    | {
+  | {
       method: 'POST';
       body?: never;
       // ./helix.ts
       json: object;
     }
-  );
+);
 
 const requestTimeoutMs = 30_000;
 
@@ -245,9 +245,9 @@ class Response {
           throw headerLength === null
             ? new JsonParseError(`Response body truncated: actualLength=${actualLength}`, 'Truncated')
             : new JsonParseError(
-              `Response body truncated: actualLength=${actualLength}, headerLength=${headerLength}`,
-              'Truncated'
-            );
+                `Response body truncated: actualLength=${actualLength}, headerLength=${headerLength}`,
+                'Truncated'
+              );
         }
       }
       throw e;

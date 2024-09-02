@@ -1,5 +1,5 @@
-import { GitHubToken } from "./auth/types.ts";
-import { type Context } from "./context.ts";
+import { GitHubToken } from './auth/types.ts';
+import { type Context } from './context.ts';
 
 export abstract class NetworkConfiguration {
   abstract getTokenUrl(githubToken: GitHubToken): string;

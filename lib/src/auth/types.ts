@@ -25,17 +25,17 @@ export type TokenEnvelope = {
 
 export type CopilotAuthStatus =
   | {
-    kind: 'success';
-    envelope: TokenEnvelope;
-  }
+      kind: 'success';
+      envelope: TokenEnvelope;
+    }
   | {
-    kind: 'failure';
-    reason: string;
-    message?: string;
-    code?: number;
-    msg?: string;
-    meta?: { [key: string]: unknown };
-  };
+      kind: 'failure';
+      reason: string;
+      message?: string;
+      code?: number;
+      msg?: string;
+      meta?: { [key: string]: unknown };
+    };
 
 export type GitHubToken = {
   token: string;
@@ -60,15 +60,15 @@ export type AuthRecord = {
 // ../../../agent/src/methods/signInInitiate.ts
 export type AuthStatus =
   | {
-    status: 'NotSignedIn';
-    user?: AuthRecord['user'];
-  }
+      status: 'NotSignedIn';
+      user?: AuthRecord['user'];
+    }
   | {
-    status: 'MaybeOK' | 'OK';
-    user: AuthRecord['user'];
-  }
+      status: 'MaybeOK' | 'OK';
+      user: AuthRecord['user'];
+    }
   | {
-    status: 'Other';
-    user: AuthRecord['user'];
-    reason: string;
-  };
+      status: 'Other';
+      user: AuthRecord['user'];
+      reason: string;
+    };

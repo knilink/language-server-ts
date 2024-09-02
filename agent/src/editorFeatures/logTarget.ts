@@ -1,4 +1,4 @@
-import { MessageType, NotificationType, ConnectionError } from "vscode-languageserver/node.js";
+import { MessageType, NotificationType, ConnectionError } from 'vscode-languageserver/node.js';
 
 import { Context } from '../../../lib/src/context.ts';
 import { format, verboseLogging, LogLevel, LogTarget } from '../../../lib/src/logger.ts';

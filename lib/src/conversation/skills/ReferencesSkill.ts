@@ -1,14 +1,14 @@
 import { DocumentUri } from 'vscode-languageserver-types';
-import type { Skill } from "../../types.ts";
-import type { Reference } from "../conversation.ts";
+import type { Skill } from '../../types.ts';
+import type { Reference } from '../conversation.ts';
 
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { ElidableDocument } from "./ElidableDocument.ts";
-import { TurnContext } from "../turnContext.ts";
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { ElidableDocument } from './ElidableDocument.ts';
+import { TurnContext } from '../turnContext.ts';
 
 class ReferencesSkillProcessor implements Skill.ISkillProcessor<Reference[]> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 1;

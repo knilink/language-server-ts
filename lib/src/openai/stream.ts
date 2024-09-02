@@ -1,8 +1,8 @@
 import { Readable } from 'stream';
 
-import { Context } from "../context.ts";
-import { Response } from "../networking.ts";
-import { CancellationToken } from "../../../agent/src/cancellation.ts";
+import { Context } from '../context.ts';
+import { Response } from '../networking.ts';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
 import {
   AnnotationsMap,
   OpenAIRequestId,
@@ -14,13 +14,13 @@ import {
   Token,
   ToolCall,
   Unknown,
-} from "../types.ts";
+} from '../types.ts';
 
-import { Logger, LogLevel } from "../logger.ts";
-import { telemetry, TelemetryData, TelemetryWithExp } from "../telemetry.ts";
-import { Features } from "../experiments/features.ts";
-import { convertToAPIChoice } from "./openai.ts";
-import { getRequestId } from "./fetch.ts";
+import { Logger, LogLevel } from '../logger.ts';
+import { telemetry, TelemetryData, TelemetryWithExp } from '../telemetry.ts';
+import { Features } from '../experiments/features.ts';
+import { convertToAPIChoice } from './openai.ts';
+import { getRequestId } from './fetch.ts';
 
 interface IStreamingToolCall {
   name?: string;

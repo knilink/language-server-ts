@@ -1,23 +1,23 @@
 import { Type } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
 
-import { Snippet, Skill } from "../../types.ts";
+import { Snippet, Skill } from '../../types.ts';
 
-import type { Context } from "../../context.ts";
-import type { TurnContext } from "../turnContext.ts";
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { isTestFile } from "../prompt/testFiles.ts";
-import { WorkspaceNotifier } from "../../workspaceNotifier.ts";
-import { Features } from "../../experiments/features.ts";
-import { ChunkingProvider } from "./projectContextSnippetProviders/localSnippets/ChunkingProvider.ts";
-import { WorkspaceWatcherProvider } from "../../workspaceWatcherProvider.ts";
-import { RankingProvider } from "./projectContextSnippetProviders/localSnippets/RankingProvider.ts";
-import { ScoringProvider } from "./projectContextSnippetProviders/localSnippets/ScoringProvider.ts";
-import { ElidableDocument } from "./ElidableDocument.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { BlackbirdSnippetProvider } from "./projectContextSnippetProviders/BlackbirdSnippetProvider.ts";
-import { LocalSnippetProvider } from "./projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts";
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import type { Context } from '../../context.ts';
+import type { TurnContext } from '../turnContext.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { isTestFile } from '../prompt/testFiles.ts';
+import { WorkspaceNotifier } from '../../workspaceNotifier.ts';
+import { Features } from '../../experiments/features.ts';
+import { ChunkingProvider } from './projectContextSnippetProviders/localSnippets/ChunkingProvider.ts';
+import { WorkspaceWatcherProvider } from '../../workspaceWatcherProvider.ts';
+import { RankingProvider } from './projectContextSnippetProviders/localSnippets/RankingProvider.ts';
+import { ScoringProvider } from './projectContextSnippetProviders/localSnippets/ScoringProvider.ts';
+import { ElidableDocument } from './ElidableDocument.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { BlackbirdSnippetProvider } from './projectContextSnippetProviders/BlackbirdSnippetProvider.ts';
+import { LocalSnippetProvider } from './projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts';
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
 
 const ProjectContextSnippetSchema = Type.Object({
   path: Type.String(),
@@ -31,7 +31,7 @@ const ProjectContextSnippetSchema = Type.Object({
 const EMBEDDINGS_DELETION_DELAY = 30 * 60_000;
 
 class ProjectContextSkillProcessor implements Skill.ISkillProcessor<Snippet.Snippet[]> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value() {
     return 1;

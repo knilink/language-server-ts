@@ -1,12 +1,12 @@
 import path from 'path';
 
-import { knownLanguages } from "./generatedLanguages.ts";
-import { Context } from "../context.ts";
-import { TextDocumentManager, INotebook } from "../textDocumentManager.ts";
-import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from "./languages.ts";
-import { LRUCacheMap } from "../common/cache.ts";
-import { TextDocument } from "../textDocument.ts";
-import { LanguageId } from "../types.ts";
+import { knownLanguages } from './generatedLanguages.ts';
+import { Context } from '../context.ts';
+import { TextDocumentManager, INotebook } from '../textDocumentManager.ts';
+import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from './languages.ts';
+import { LRUCacheMap } from '../common/cache.ts';
+import { TextDocument } from '../textDocument.ts';
+import { LanguageId } from '../types.ts';
 
 function getLanguageDetection(ctx: Context) {
   return new CachingLanguageDetection(
@@ -24,7 +24,7 @@ class Language {
     public languageId: LanguageId,
     public isGuess: boolean,
     public fileExtension: string
-  ) { }
+  ) {}
 }
 
 abstract class LanguageDetection {

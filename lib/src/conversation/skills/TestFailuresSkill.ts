@@ -2,14 +2,14 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
-import { RangeSchema } from "../schema.ts";
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { Skill } from "../../types.ts";
-import { TextDocument } from "../../textDocument.ts";
-import { TurnContext } from "../turnContext.ts";
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { RangeSchema } from '../schema.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { Skill } from '../../types.ts';
+import { TextDocument } from '../../textDocument.ts';
+import { TurnContext } from '../turnContext.ts';
 
 const TestFailuresSchema = Type.Object({
   failures: Type.Array(
@@ -26,7 +26,7 @@ const TestFailuresSchema = Type.Object({
 type TestFailures = Static<typeof TestFailuresSchema>;
 
 class TestFailuresSkillProcessor implements Skill.ISkillProcessor<TestFailures> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 0.9;

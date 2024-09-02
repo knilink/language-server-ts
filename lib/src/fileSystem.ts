@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { URI, isSupportedUriScheme, getFsPath } from "./util/uri.ts";
+import { URI, isSupportedUriScheme, getFsPath } from './util/uri.ts';
 
 type FileStat = {
   ctime: number;
@@ -52,7 +52,7 @@ class LocalFileSystem extends FileSystem {
       try {
         const stat = await fs.promises.stat(fsPath);
         return { lstat, targetStat: stat, stat };
-      } catch { }
+      } catch {}
     }
     return { lstat, targetStat: lstat };
   }

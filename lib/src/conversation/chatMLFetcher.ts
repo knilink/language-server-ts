@@ -1,57 +1,57 @@
-import { type Context } from "../context.ts";
-import { Chat, Model, TelemetryMeasurements, TelemetryProperties, TelemetryStore, ToolCall, UiKind } from "../types.ts";
+import { type Context } from '../context.ts';
+import { Chat, Model, TelemetryMeasurements, TelemetryProperties, TelemetryStore, ToolCall, UiKind } from '../types.ts';
 
-import { type CancellationToken } from "../../../agent/src/cancellation.ts";
+import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 
 import { v4 as uuidv4 } from 'uuid';
-import { getChatURL } from "./openai/config.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { TelemetryData, telemetry } from "../telemetry.ts";
-import { asyncIterableMapFilter } from "../common/iterableHelpers.ts";
-import { conversationLogger } from "./logger.ts";
-import { isRepetitive } from "../suggestions/anomalyDetection.ts";
-import { isAbortError } from "../networking.ts";
-import { OpenAIChatMLFetcher } from "./openai/fetch.ts";
-import { SSEProcessor } from "../openai/stream.ts";
-import { OpenAIFetcher } from "../openai/fetch.ts";
-import { ChatCompletion } from "./openai/openai.ts";
+import { getChatURL } from './openai/config.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { TelemetryData, telemetry } from '../telemetry.ts';
+import { asyncIterableMapFilter } from '../common/iterableHelpers.ts';
+import { conversationLogger } from './logger.ts';
+import { isRepetitive } from '../suggestions/anomalyDetection.ts';
+import { isAbortError } from '../networking.ts';
+import { OpenAIChatMLFetcher } from './openai/fetch.ts';
+import { SSEProcessor } from '../openai/stream.ts';
+import { OpenAIFetcher } from '../openai/fetch.ts';
+import { ChatCompletion } from './openai/openai.ts';
 
 namespace ChatMLFetcher {
   export type SuccessfulResponse =
     | {
-      type: 'success';
-      value: string;
-      // ./skills/projectContextSnippetProviders/localSnippets/UserQueryParser.ts
-      toolCalls: ToolCall[];
-      requestId: string;
-      numTokens: number;
-    }
+        type: 'success';
+        value: string;
+        // ./skills/projectContextSnippetProviders/localSnippets/UserQueryParser.ts
+        toolCalls: ToolCall[];
+        requestId: string;
+        numTokens: number;
+      }
     | {
-      type: 'tool_calls';
-      toolCalls: ToolCall[];
-      requestId: string;
-    }
+        type: 'tool_calls';
+        toolCalls: ToolCall[];
+        requestId: string;
+      }
     | {
-      type: 'filtered';
-      reason: string;
-      requestId: string;
-    }
+        type: 'filtered';
+        reason: string;
+        requestId: string;
+      }
     | {
-      type: 'length';
-      reason: string;
-      requestId: string;
-    }
+        type: 'length';
+        reason: string;
+        requestId: string;
+      }
     | {
-      type: 'successMultiple';
-      value: string[]; // messages[].content
-      toolCalls: ToolCall[][];
-      requestId: string;
-    }
+        type: 'successMultiple';
+        value: string[]; // messages[].content
+        toolCalls: ToolCall[][];
+        requestId: string;
+      }
     | {
-      type: 'unknown';
-      reason: string;
-      requestId: string;
-    };
+        type: 'unknown';
+        reason: string;
+        requestId: string;
+      };
 
   export type CanceledResponse = {
     type: 'canceled';
@@ -61,16 +61,16 @@ namespace ChatMLFetcher {
 
   export type FailedResponse =
     | {
-      type: 'offTopic';
-      reason: string;
-      requestId: string;
-    }
+        type: 'offTopic';
+        reason: string;
+        requestId: string;
+      }
     | {
-      type: 'failed';
-      reason: string;
-      requestId: string;
-      code?: number;
-    };
+        type: 'failed';
+        reason: string;
+        requestId: string;
+        code?: number;
+      };
 
   export type AuthRequiredResponse = {
     type: 'agentAuthRequired';
@@ -110,7 +110,7 @@ namespace ChatMLFetcher {
 
 class ChatMLFetcher {
   readonly fetcher = new OpenAIChatMLFetcher();
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async fetchResponse(
     params: ChatMLFetcher.Params,

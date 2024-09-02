@@ -1,6 +1,6 @@
-import { Document } from "../types.ts";
-import { fromTreeWithFocussedLines } from "./fromIndentationTrees.ts"; // circular deps
-import { Node, parseTree, flattenVirtual, visitTree, mapLabels, isLine, isBlank } from "../indentation/index.ts";
+import { Document } from '../types.ts';
+import { fromTreeWithFocussedLines } from './fromIndentationTrees.ts'; // circular deps
+import { Node, parseTree, flattenVirtual, visitTree, mapLabels, isLine, isBlank } from '../indentation/index.ts';
 
 function elidableTextForSourceCode(
   contents: Document | string,

@@ -1,10 +1,10 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { Context } from "../../../../lib/src/context.ts";
-import { type CancellationToken } from "../../cancellation.ts";
+import { Context } from '../../../../lib/src/context.ts';
+import { type CancellationToken } from '../../cancellation.ts';
 
-import { NotificationSender } from "../../../../lib/src/notificationSender.ts";
-import { LogTarget, LogLevel } from "../../../../lib/src/logger.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { NotificationSender } from '../../../../lib/src/notificationSender.ts';
+import { LogTarget, LogLevel } from '../../../../lib/src/logger.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 
 const Params = Type.Object({});
 

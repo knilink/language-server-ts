@@ -1,8 +1,8 @@
-import { SkillId, Skill } from "../../types.ts";
-import { Context } from "../../context.ts";
-import { Conversation } from "../conversation.ts";
-import { TurnContext } from "../turnContext.ts";
-import { SkillMap } from "../skills/skillMap.ts";
+import { SkillId, Skill } from '../../types.ts';
+import { Context } from '../../context.ts';
+import { Conversation } from '../conversation.ts';
+import { TurnContext } from '../turnContext.ts';
+import { SkillMap } from '../skills/skillMap.ts';
 
 class ConversationSkillRegistry<T extends Record<keyof T & SkillId, any> = SkillMap> {
   private skills: Partial<{
@@ -29,7 +29,7 @@ class StepReportingSkillResolver<T> implements Skill.ISkillResolver<T> {
     private delegate: Skill.ISkillResolver<T>,
     private stepId: SkillId, // for view only
     private stepTitle: string
-  ) { }
+  ) {}
 
   async resolveSkill(turnContext: TurnContext): Promise<T | undefined> {
     await turnContext.steps.start(this.stepId, this.stepTitle);
@@ -50,7 +50,7 @@ class StepReportingSkillProcessor<T> implements Skill.ISkillProcessor<T> {
   constructor(
     private delegate: Skill.ISkillProcessor<T>,
     private stepId: SkillId // for view only
-  ) { }
+  ) {}
 
   value() {
     return this.delegate.value();

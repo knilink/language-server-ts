@@ -1,14 +1,14 @@
-import { Context } from "../context.ts";
+import { Context } from '../context.ts';
 
-import { TelemetryData, telemetry, telemetryError } from "../telemetry.ts";
-import { codeReferenceLogger } from "./logger.ts";
+import { TelemetryData, telemetry, telemetryError } from '../telemetry.ts';
+import { codeReferenceLogger } from './logger.ts';
 
 const statusCodeRe = /^[1-6][0-9][0-9]$/;
 const capitalsRe = /([A-Z][a-z]+)/;
 const NAMESPACE = 'code_referencing';
 
 class CodeQuoteTelemetry {
-  constructor(readonly baseKey: string) { }
+  constructor(readonly baseKey: string) {}
 
   buildKey(...keys: string[]): string {
     return [NAMESPACE, this.baseKey, ...keys].join('.');

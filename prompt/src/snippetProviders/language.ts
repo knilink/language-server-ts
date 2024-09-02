@@ -1,8 +1,8 @@
-import { SnippetContext, Snippet } from "../types.ts";
-import { SnippetProvider } from "./snippetProvider.ts";
+import { SnippetContext, Snippet } from '../types.ts';
+import { SnippetProvider } from './snippetProvider.ts';
 // import { } from '../snippetInclusion/snippets';
-import { normalizeLanguageId } from "../prompt.ts";
-import { getLanguageMarker, newLineEnded } from "../languageMarker.ts";
+import { normalizeLanguageId } from '../prompt.ts';
+import { getLanguageMarker, newLineEnded } from '../languageMarker.ts';
 
 class LanguageSnippetProvider extends SnippetProvider {
   type = 'language';

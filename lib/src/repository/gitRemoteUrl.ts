@@ -109,7 +109,7 @@ class GitRemoteUrl {
       try {
         this._path = decodeURIComponent(path);
         return;
-      } catch { }
+      } catch {}
     }
     this._path = path;
   }

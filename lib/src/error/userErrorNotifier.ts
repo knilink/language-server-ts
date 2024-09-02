@@ -1,7 +1,7 @@
-import { Context } from "../context.ts";
-import { UrlOpener } from "../util/opener.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { NotificationSender } from "../notificationSender.ts";
+import { Context } from '../context.ts';
+import { UrlOpener } from '../util/opener.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { NotificationSender } from '../notificationSender.ts';
 
 const CERTIFICATE_ERRORS = ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_SIGNATURE_FAILURE'];
 const errorMsg =

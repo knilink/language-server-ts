@@ -1,9 +1,9 @@
-import { Context } from "../context.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { EditorAndPluginInfo } from "../config.ts";
+import { Context } from '../context.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { EditorAndPluginInfo } from '../config.ts';
 
 class CapiVersionHeaderContributor {
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   contributeHeaderValues(url: string, headers: Record<string, string>): void {
     const capiUrl = this.ctx.get(NetworkConfiguration).getCAPIUrl(this.ctx);

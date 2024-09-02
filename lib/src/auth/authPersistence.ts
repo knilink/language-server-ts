@@ -1,9 +1,9 @@
-import type { AuthRecord } from "./types.ts";
-import { type Context } from "../context.ts";
+import type { AuthRecord } from './types.ts';
+import { type Context } from '../context.ts';
 
-import { GitHubAppInfo } from "../config.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { PersistenceManager } from "../persist.ts";
+import { GitHubAppInfo } from '../config.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { PersistenceManager } from '../persist.ts';
 
 const AUTH_FILE = 'apps';
 const LEGACY_AUTH_FILE = 'hosts';
@@ -12,7 +12,7 @@ class AuthPersistence {
   constructor(
     readonly ctx: Context,
     readonly persistenceManager: PersistenceManager
-  ) { }
+  ) {}
 
   async getAuthRecord(): Promise<AuthRecord> {
     let authRecord = (await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx))) as AuthRecord;

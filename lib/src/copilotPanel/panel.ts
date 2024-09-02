@@ -1,25 +1,25 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Position } from 'vscode-languageserver-types';
 
-import { Context } from "../context.ts";
-import { CancellationToken } from "../../../agent/src/cancellation.ts";
-import { extractRepoInfoInBackground } from "../prompt/repository.ts";
-import { TelemetryData, TelemetryWithExp, telemetrizePromptLength, telemetry } from "../telemetry.ts";
-import { completionTypeToString } from "./common.ts";
-import { Features } from "../experiments/features.ts";
-import { extractPrompt, trimLastLine } from "../prompt/prompt.ts";
-import { LocationFactory, TextDocument } from "../textDocument.ts";
-import { BlockModeConfig } from "../config.ts";
-import { promptLibProxy } from "../prompt/promptLibProxy.ts";
-import { contextIndentation, parsingBlockFinished, getNodeStart } from "../prompt/parseBlock.ts";
-import { getEngineRequestInfo } from "../openai/config.ts";
-import { StatusReporter } from "../progress.ts";
-import { OpenAIFetcher } from "../openai/fetch.ts";
-import { APIChoice, cleanupIndentChoices } from "../openai/openai.ts";
-import { asyncIterableMapFilter } from "../common/iterableHelpers.ts";
-import { postProcessChoice } from "../suggestions/suggestions.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { SSEProcessor } from "../openai/stream.ts";
+import { Context } from '../context.ts';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
+import { extractRepoInfoInBackground } from '../prompt/repository.ts';
+import { TelemetryData, TelemetryWithExp, telemetrizePromptLength, telemetry } from '../telemetry.ts';
+import { completionTypeToString } from './common.ts';
+import { Features } from '../experiments/features.ts';
+import { extractPrompt, trimLastLine } from '../prompt/prompt.ts';
+import { LocationFactory, TextDocument } from '../textDocument.ts';
+import { BlockModeConfig } from '../config.ts';
+import { promptLibProxy } from '../prompt/promptLibProxy.ts';
+import { contextIndentation, parsingBlockFinished, getNodeStart } from '../prompt/parseBlock.ts';
+import { getEngineRequestInfo } from '../openai/config.ts';
+import { StatusReporter } from '../progress.ts';
+import { OpenAIFetcher } from '../openai/fetch.ts';
+import { APIChoice, cleanupIndentChoices } from '../openai/openai.ts';
+import { asyncIterableMapFilter } from '../common/iterableHelpers.ts';
+import { postProcessChoice } from '../suggestions/suggestions.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { SSEProcessor } from '../openai/stream.ts';
 
 type Solution = unknown;
 
@@ -275,7 +275,7 @@ class SolutionManager {
     public completionContext: any,
     public cancellationToken: CancellationToken,
     public solutionCountTarget: number
-  ) { }
+  ) {}
 
   get savedTelemetryData(): TelemetryWithExp | undefined {
     return this._savedTelemetryData;

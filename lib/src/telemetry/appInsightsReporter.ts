@@ -2,17 +2,17 @@ import os from 'os';
 import { BreezeChannelIdentifier } from '@microsoft/applicationinsights-common';
 import { ApplicationInsights } from '@microsoft/applicationinsights-web-basic';
 
-import { IReporter, TelemetryProperties, TelemetryMeasurements } from "../types.ts";
-import { Context } from "../context.ts";
-import { CopilotTokenNotifier } from "../auth/copilotTokenNotifier.ts";
-import { logger } from "../logger.ts";
+import { IReporter, TelemetryProperties, TelemetryMeasurements } from '../types.ts';
+import { Context } from '../context.ts';
+import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { logger } from '../logger.ts';
 // import { } from '../telemetry';
-import { EditorSession, BuildInfo } from "../config.ts";
-import { Fetcher, Request, Response } from "../networking.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
+import { EditorSession, BuildInfo } from '../config.ts';
+import { Fetcher, Request, Response } from '../networking.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
 
-import { TelemetryUserConfig } from "../telemetry/userConfig.ts";
-import { CopilotToken } from "../auth/copilotToken.ts";
+import { TelemetryUserConfig } from '../telemetry/userConfig.ts';
+import { CopilotToken } from '../auth/copilotToken.ts';
 
 type Tags = Partial<{
   'ai.user.id': string;

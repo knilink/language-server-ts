@@ -1,12 +1,12 @@
-import { GitHubToken } from "./types.ts";
-import { CopilotAuthStatus } from "./types.ts";
+import { GitHubToken } from './types.ts';
+import { CopilotAuthStatus } from './types.ts';
 import { EventEmitter } from 'events';
 
-import { Context } from "../context.ts";
-import { telemetry } from "../telemetry.ts";
-import { CopilotAuthError } from "./error.ts";
-import { AuthManager } from "./manager.ts";
-import { CopilotToken, authFromGitHubToken, authLogger, refreshToken } from "./copilotToken.ts";
+import { Context } from '../context.ts';
+import { telemetry } from '../telemetry.ts';
+import { CopilotAuthError } from './error.ts';
+import { AuthManager } from './manager.ts';
+import { CopilotToken, authFromGitHubToken, authLogger, refreshToken } from './copilotToken.ts';
 
 abstract class CopilotTokenManager {
   readonly tokenRefreshEventEmitter: EventEmitter = new EventEmitter();

@@ -1,9 +1,9 @@
 import { Type } from '@sinclair/typebox';
-import { ToolCall, Unknown, Chat, OpenAIRequestId, Model } from "../../types.ts";
-import { Context } from "../../context.ts";
-import { TelemetryData } from "../../telemetry.ts";
+import { ToolCall, Unknown, Chat, OpenAIRequestId, Model } from '../../types.ts';
+import { Context } from '../../context.ts';
+import { TelemetryData } from '../../telemetry.ts';
 
-import { logEngineMessages } from "../telemetry.ts";
+import { logEngineMessages } from '../telemetry.ts';
 
 type ChatCompletion = {
   message: Chat.ChatMessage;

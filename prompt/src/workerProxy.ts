@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as WorkerThread from 'node:worker_threads';
 // import { install as registerSourceMapSupport } from 'source-map-support';
-import { getSimilarSnippets } from "./snippetInclusion/similarFiles.ts";
+import { getSimilarSnippets } from './snippetInclusion/similarFiles.ts';
 
 function sleep(delay: number): Promise<string> {
   return new Promise((resolve) => {

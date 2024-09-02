@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events';
 
-import { type Context } from "../context.ts";
-import { checkReachability, URLReachability } from "../reachability.ts";
-import { AuthManager } from "../auth/manager.ts";
-import { GitHubAppInfo } from "../config.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { CopilotTokenNotifier } from "../auth/copilotTokenNotifier.ts";
+import { type Context } from '../context.ts';
+import { checkReachability, URLReachability } from '../reachability.ts';
+import { AuthManager } from '../auth/manager.ts';
+import { GitHubAppInfo } from '../config.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
 
 type PreconditionResult = { type: string; status: 'ok' | 'failed'; details?: URLReachability[] };
 

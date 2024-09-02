@@ -1,17 +1,17 @@
-import type { Skill } from "../../types.ts";
+import type { Skill } from '../../types.ts';
 import { Type, type Static } from '@sinclair/typebox';
-import { type TurnContext } from "../turnContext.ts";
+import { type TurnContext } from '../turnContext.ts';
 
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
 
-import { DocumentSchema } from "../schema.ts";
-import { weighElidableList } from "../prompt/elidableList.ts";
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { ModelConfigurationProvider } from "../modelConfigurations.ts";
-import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
-import { ElidableDocument } from "./ElidableDocument.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { TextDocument } from "../../textDocument.ts";
+import { DocumentSchema } from '../schema.ts';
+import { weighElidableList } from '../prompt/elidableList.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
+import { ElidableDocument } from './ElidableDocument.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { TextDocument } from '../../textDocument.ts';
 
 const RecentFilesSchema = Type.Object({ files: Type.Array(DocumentSchema) });
 type RecentFiles = Static<typeof RecentFilesSchema>;
@@ -21,7 +21,7 @@ type Document = Static<typeof DocumentSchema>;
 const MAX_FILES = 3;
 
 class RecentFilesSkillProcessor implements Skill.ISkillProcessor<RecentFiles> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 0.7;

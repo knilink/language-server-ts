@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as tls from 'node:tls';
-import { Context } from "../context.ts";
-import { Logger, LogLevel } from "../logger.ts";
+import { Context } from '../context.ts';
+import { Logger, LogLevel } from '../logger.ts';
 
 const certLogger = new Logger(LogLevel.INFO, 'certificates');
 

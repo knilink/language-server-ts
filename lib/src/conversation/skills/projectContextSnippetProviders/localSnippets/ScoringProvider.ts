@@ -1,7 +1,7 @@
-import { LRUCacheMap } from "../../../../common/cache.ts";
-import { Context } from "../../../../context.ts";
-import { IScoring } from "./IndexingTypes.ts";
-import { getScoringAlgorithm } from "./ScoringAlgorithms.ts";
+import { LRUCacheMap } from '../../../../common/cache.ts';
+import { Context } from '../../../../context.ts';
+import { IScoring } from './IndexingTypes.ts';
+import { getScoringAlgorithm } from './ScoringAlgorithms.ts';
 
 class ScoringProvider {
   private workspaceScoringProviders: LRUCacheMap<string, IScoring>;

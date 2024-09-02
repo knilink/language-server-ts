@@ -5,7 +5,7 @@ import {
   isSupportedLanguageId,
   parseTreeSitter,
   queryPythonIsDocstring,
-} from "./parse.ts";
+} from './parse.ts';
 
 interface IPosition {
   column: number;
@@ -25,7 +25,7 @@ function getLineAtOffset(text: string, offset: number): string {
 
 function rewindToNearestNonWs(text: string, offset: number): number {
   let result = offset;
-  for (; result > 0 && /\s/.test(text.charAt(result - 1));) result--;
+  for (; result > 0 && /\s/.test(text.charAt(result - 1)); ) result--;
   return result;
 }
 

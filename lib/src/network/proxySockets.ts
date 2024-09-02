@@ -1,11 +1,11 @@
 import * as http from 'node:http';
 import type { Socket } from 'node:net';
-import { type Fetcher } from "../networking.ts";
+import { type Fetcher } from '../networking.ts';
 
-import { Context } from "../context.ts";
-import { telemetry } from "../telemetry.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { LRUCacheMap } from "../common/cache.ts";
+import { Context } from '../context.ts';
+import { telemetry } from '../telemetry.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { LRUCacheMap } from '../common/cache.ts';
 
 const PROXY_AUTHORIZATION_REQUIRED = 407;
 const logger = new Logger(LogLevel.DEBUG, 'proxySocketFactory');

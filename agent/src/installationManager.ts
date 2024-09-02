@@ -1,9 +1,9 @@
 import * as semver from 'semver';
-import { type Context } from "../../lib/src/context.ts";
+import { type Context } from '../../lib/src/context.ts';
 
-import { EditorAndPluginInfo } from "../../lib/src/config.ts";
-import { PersistenceManager } from "../../lib/src/persist.ts";
-import { InstallationManager } from "../../lib/src/installationManager.ts";
+import { EditorAndPluginInfo } from '../../lib/src/config.ts';
+import { PersistenceManager } from '../../lib/src/persist.ts';
+import { InstallationManager } from '../../lib/src/installationManager.ts';
 
 // ../agent/src/installationManager.ts
 

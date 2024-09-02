@@ -1,14 +1,14 @@
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Connection } from "vscode-languageserver/node.js";
+import { Connection } from 'vscode-languageserver/node.js';
 
 import { type Context } from '../../../lib/src/context.ts';
 import { purgeNulls, logger } from '../service.ts';
 import { SchemaValidationError } from '../schemaValidation.ts';
 
-import { } from '../schemaValidation.ts';
+import {} from '../schemaValidation.ts';
 import { WorkDoneProgressCancelNotification } from './workDoneProgressCancel.ts';
 import { githubNotifications } from './github.ts';
-import { } from '../service.ts';
+import {} from '../service.ts';
 import { textDocumentNotifications } from './textDocument.ts';
 import { type AbstractNotification } from './abstract.ts';
 

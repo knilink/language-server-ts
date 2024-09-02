@@ -1,12 +1,12 @@
-import { Context } from "../../../lib/src/context.ts";
-import { InitializedNotifier } from "../editorFeatures/initializedNotifier.ts";
-import { AgentConfigProvider } from "../config.ts";
-import { getConfig, ConfigKey, ConfigValueType } from "../../../lib/src/config.ts";
-import { Logger, LogLevel } from "../../../lib/src/logger.ts";
-import { HelixFetcher } from "../../../lib/src/network/helix.ts";
-import { EditorFetcher } from "../editorFeatures/fetcher.ts";
-import { FallbackFetcher } from "./fallbackFetcher.ts";
-import { Fetcher, Request } from "../../../lib/src/networking.ts";
+import { Context } from '../../../lib/src/context.ts';
+import { InitializedNotifier } from '../editorFeatures/initializedNotifier.ts';
+import { AgentConfigProvider } from '../config.ts';
+import { getConfig, ConfigKey, ConfigValueType } from '../../../lib/src/config.ts';
+import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { HelixFetcher } from '../../../lib/src/network/helix.ts';
+import { EditorFetcher } from '../editorFeatures/fetcher.ts';
+import { FallbackFetcher } from './fallbackFetcher.ts';
+import { Fetcher, Request } from '../../../lib/src/networking.ts';
 
 const logger = new Logger(LogLevel.INFO, 'fetcher');
 

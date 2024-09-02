@@ -1,12 +1,12 @@
-import { OpenAIRequestId, Choice, Unknown } from "../types.ts";
-import { LanguageId } from "../../../prompt/src/types.ts";
-import { Context } from "../context.ts";
+import { OpenAIRequestId, Choice, Unknown } from '../types.ts';
+import { LanguageId } from '../../../prompt/src/types.ts';
+import { Context } from '../context.ts';
 
-import { } from "./fetch.ts";
-import { isRunningInTest } from "../testing/runtimeMode.ts";
-import { logger } from "../logger.ts";
-import { TelemetryData, TelemetryWithExp, logEngineCompletion } from "../telemetry.ts";
-import { DEFAULT_MAX_COMPLETION_LENGTH } from "../../../prompt/src/lib.ts";
+import {} from './fetch.ts';
+import { isRunningInTest } from '../testing/runtimeMode.ts';
+import { logger } from '../logger.ts';
+import { TelemetryData, TelemetryWithExp, logEngineCompletion } from '../telemetry.ts';
+import { DEFAULT_MAX_COMPLETION_LENGTH } from '../../../prompt/src/lib.ts';
 
 type APIChoice = {
   completionText: string;

@@ -1,7 +1,7 @@
 import { TSchema, type Static } from '@sinclair/typebox';
 import { TypeCompiler, TypeCheck } from '@sinclair/typebox/compiler';
 
-import { ProtocolRequestType, ResponseError } from "vscode-languageserver/node.js";
+import { ProtocolRequestType, ResponseError } from 'vscode-languageserver/node.js';
 
 import { type CancellationToken } from '../cancellation.ts';
 import { Skill, type SkillId } from '../../../lib/src/types.ts';

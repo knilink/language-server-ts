@@ -1,16 +1,16 @@
-import type { LanguageId, UiKind, Unknown } from "../types.ts";
+import type { LanguageId, UiKind, Unknown } from '../types.ts';
 
-import { type Context } from "../context.ts";
-import { type PromptOptions } from "./prompt/strategies/types.ts";
-import { ConversationPromptEngine } from "./prompt/conversationPromptEngine.ts";
-import { CurrentEditorSkillId, CurrentEditorSkill } from "./skills/CurrentEditorSkill.ts";
-import { FileReader } from "../fileReader.ts";
-import { extractEditsFromTaggedCodeblocks, codeEditModes, applyEditsToDocument, CodeEdit } from "./codeEdits.ts";
-import { ConversationInspector } from "./conversationInspector.ts";
-import { TextDocument } from "../textDocument.ts";
-import { TurnContext } from "./turnContext.ts";
-import { IPromptTemplate } from "./promptTemplates.ts";
-import { SkillMap } from "./skills/skillMap.ts";
+import { type Context } from '../context.ts';
+import { type PromptOptions } from './prompt/strategies/types.ts';
+import { ConversationPromptEngine } from './prompt/conversationPromptEngine.ts';
+import { CurrentEditorSkillId, CurrentEditorSkill } from './skills/CurrentEditorSkill.ts';
+import { FileReader } from '../fileReader.ts';
+import { extractEditsFromTaggedCodeblocks, codeEditModes, applyEditsToDocument, CodeEdit } from './codeEdits.ts';
+import { ConversationInspector } from './conversationInspector.ts';
+import { TextDocument } from '../textDocument.ts';
+import { TurnContext } from './turnContext.ts';
+import { IPromptTemplate } from './promptTemplates.ts';
+import { SkillMap } from './skills/skillMap.ts';
 
 type Document = {
   uri: string;
@@ -36,7 +36,7 @@ class PanelTurnProcessorStrategy implements ITurnProcessorStrategy {
   readonly uiKind: UiKind = 'conversationPanel';
   computeSuggestions = true;
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async processResponse(): Promise<Document[]> {
     return [];
@@ -57,7 +57,7 @@ class InlineTurnProcessorStrategy implements ITurnProcessorStrategy {
   computeSuggestions = false;
   currentDocument?: TextDocument;
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async buildConversationPrompt(
     turnContext: TurnContext,

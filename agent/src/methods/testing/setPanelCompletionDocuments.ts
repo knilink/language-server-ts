@@ -1,14 +1,14 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Position } from 'vscode-languageserver-types';
 
-import { type Context } from "../../../../lib/src/context.ts";
-import { type CancellationToken } from "../../cancellation.ts";
-import { SolutionHandler } from "../../../../lib/src/types.ts";
+import { type Context } from '../../../../lib/src/context.ts';
+import { type CancellationToken } from '../../cancellation.ts';
+import { SolutionHandler } from '../../../../lib/src/types.ts';
 
 import { v4 as uuidv4 } from 'uuid';
-import { parseChallengeDoc } from "../../testing/challengeDoc.ts";
-import { TelemetryWithExp } from "../../../../lib/src/telemetry.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { parseChallengeDoc } from '../../testing/challengeDoc.ts';
+import { TelemetryWithExp } from '../../../../lib/src/telemetry.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 
 function runTestSolutions(
   position: Position,
@@ -62,7 +62,7 @@ const Params = Type.Object({
 });
 
 class PanelCompletionDocuments {
-  constructor(public documents: { text: string; score: number }[]) { }
+  constructor(public documents: { text: string; score: number }[]) {}
 }
 
 const handleTestingSetPanelCompletionDocuments = addMethodHandlerValidation(

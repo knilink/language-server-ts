@@ -1,7 +1,7 @@
-import { Context } from "../context.ts";
-import { TextDocument } from "../textDocument.ts";
+import { Context } from '../context.ts';
+import { TextDocument } from '../textDocument.ts';
 
-import { CopilotContentExclusionManager } from "../contentExclusion/contentExclusionManager.ts";
+import { CopilotContentExclusionManager } from '../contentExclusion/contentExclusionManager.ts';
 
 function isDocumentTooLarge(document: TextDocument): boolean {
   try {

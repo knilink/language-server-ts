@@ -1,7 +1,7 @@
 import path from 'path';
 import { URI } from 'vscode-uri';
 import { Range } from 'vscode-languageserver-types';
-import { Disposable, NotificationHandler } from "vscode-languageserver/node.js";
+import { Disposable, NotificationHandler } from 'vscode-languageserver/node.js';
 import { WorkspaceFolder } from './types.ts';
 
 import { Context } from './context.ts';
@@ -57,7 +57,7 @@ abstract class TextDocumentManager {
   // ): Disposable;
   abstract findNotebook(doc: TextDocument): INotebook | void;
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async textDocuments(): Promise<TextDocument[]> {
     this.textDocuments.bind;

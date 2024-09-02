@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Context } from "./context.ts";
+import { Context } from './context.ts';
 
 class TestClassA {
-  constructor(public name: string) { }
+  constructor(public name: string) {}
 }
 
 class TestClassB {
-  constructor(public age: number) { }
+  constructor(public age: number) {}
 }
 
 describe('Context', () => {

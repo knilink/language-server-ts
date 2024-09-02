@@ -1,1 +1,1 @@
-export class PolicyEvaluator { }
+export class PolicyEvaluator {}

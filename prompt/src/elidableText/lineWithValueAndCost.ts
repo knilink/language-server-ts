@@ -1,4 +1,4 @@
-import { getTokenizer } from "../tokenization/index.ts";
+import { getTokenizer } from '../tokenization/index.ts';
 
 class LineWithValueAndCost {
   text: string;

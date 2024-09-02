@@ -1,28 +1,28 @@
 import { URI, Utils } from 'vscode-uri';
 
-import { Unknown, TelemetryProperties, Model, Chat } from "../../types.ts";
-import { CancellationToken } from "../../../../agent/src/cancellation.ts";
-import { TextDocument } from "../../textDocument.ts";
-import { Turn, Conversation } from "../conversation.ts";
-import { TurnContext } from "../turnContext.ts";
-import { Response } from "../../networking.ts";
-import { TelemetryData } from "../../telemetry.ts";
+import { Unknown, TelemetryProperties, Model, Chat } from '../../types.ts';
+import { CancellationToken } from '../../../../agent/src/cancellation.ts';
+import { TextDocument } from '../../textDocument.ts';
+import { Turn, Conversation } from '../conversation.ts';
+import { TurnContext } from '../turnContext.ts';
+import { Response } from '../../networking.ts';
+import { TelemetryData } from '../../telemetry.ts';
 
-import { ConversationProgress } from "../conversationProgress.ts";
-import { } from "../openai/openai.ts";
-import { ConversationFinishCallback } from "../conversationFinishCallback.ts";
-import { } from "../../../../prompt/src/tokenization/index.ts";
-import { createTelemetryWithId, uiKindToMessageSource, extendUserMessageTelemetryData } from "../telemetry.ts";
-import { ChatModelFamily } from "../modelMetadata.ts";
-import { ChatFetchResultPostProcessor } from "../fetchPostProcessor.ts";
-import { conversationLogger } from "../logger.ts";
-import { ChatMLFetcher } from "../chatMLFetcher.ts";
-import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
-import { countMessagesTokens } from "../openai/chatTokens.ts";
-import { } from "../../openai/fetch.ts";
-import { NetworkConfiguration } from "../../networkConfiguration.ts";
-import { StreamCopilotAnnotations } from "../../openai/stream.ts";
-import { IPromptTemplate } from "../promptTemplates.ts";
+import { ConversationProgress } from '../conversationProgress.ts';
+import {} from '../openai/openai.ts';
+import { ConversationFinishCallback } from '../conversationFinishCallback.ts';
+import {} from '../../../../prompt/src/tokenization/index.ts';
+import { createTelemetryWithId, uiKindToMessageSource, extendUserMessageTelemetryData } from '../telemetry.ts';
+import { ChatModelFamily } from '../modelMetadata.ts';
+import { ChatFetchResultPostProcessor } from '../fetchPostProcessor.ts';
+import { conversationLogger } from '../logger.ts';
+import { ChatMLFetcher } from '../chatMLFetcher.ts';
+import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
+import { countMessagesTokens } from '../openai/chatTokens.ts';
+import {} from '../../openai/fetch.ts';
+import { NetworkConfiguration } from '../../networkConfiguration.ts';
+import { StreamCopilotAnnotations } from '../../openai/stream.ts';
+import { IPromptTemplate } from '../promptTemplates.ts';
 
 const GENERATE_RESPONSE_STEP = 'generate-response';
 
@@ -122,17 +122,17 @@ class RemoteAgentTurnProcessor {
         await this.endProgress(
           'error' in response
             ? {
-              error: response.error,
-              followUp: undefined,
-              suggestedTitle: undefined,
-              skillResolutions: conversationPrompt.skillResolutions,
-            }
+                error: response.error,
+                followUp: undefined,
+                suggestedTitle: undefined,
+                skillResolutions: conversationPrompt.skillResolutions,
+              }
             : {
-              error: undefined,
-              followUp: response.followUp,
-              suggestedTitle: response.suggestedTitle,
-              skillResolutions: conversationPrompt.skillResolutions,
-            }
+                error: undefined,
+                followUp: response.followUp,
+                suggestedTitle: response.suggestedTitle,
+                skillResolutions: conversationPrompt.skillResolutions,
+              }
         );
       }
     }

@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { URI, Utils } from 'vscode-uri';
 
-import { Context } from "../../context.ts";
-import { logger } from "../../logger.ts";
+import { Context } from '../../context.ts';
+import { logger } from '../../logger.ts';
 
 const TestSuffixTypes: string[] = ['.test', '.spec', '_test', 'Test', '_spec', '_test', 'Tests', '.Tests', 'Spec'];
 const TestPrefixTypes: string = 'test_';
@@ -31,13 +31,13 @@ export async function isTestFile(potentialTestFile: URI): Promise<boolean> {
   const testHint = testFileHints[sourceFileExtension];
   return testHint
     ? !(
-      (testHint.suffix && !testHint.suffix.some((suffix) => sourceFileName.endsWith(suffix + sourceFileExtension))) ||
-      (testHint.prefix && !sourceFileName.startsWith(testHint.prefix))
-    )
+        (testHint.suffix && !testHint.suffix.some((suffix) => sourceFileName.endsWith(suffix + sourceFileExtension))) ||
+        (testHint.prefix && !sourceFileName.startsWith(testHint.prefix))
+      )
     : !!(
-      TestSuffixTypes.some((suffix) => sourceFileName.endsWith(suffix + sourceFileExtension)) ||
-      sourceFileName.startsWith(TestPrefixTypes)
-    );
+        TestSuffixTypes.some((suffix) => sourceFileName.endsWith(suffix + sourceFileExtension)) ||
+        sourceFileName.startsWith(TestPrefixTypes)
+      );
 }
 
 class TestFileFinder {
@@ -45,7 +45,7 @@ class TestFileFinder {
     readonly ctx: Context,
     readonly fileExists: (filePath: URI) => Promise<boolean>,
     readonly basePath?: URI
-  ) { }
+  ) {}
 
   public async findTestFileForSourceFile(sourceFile: URI): Promise<URI | undefined> {
     const sourceFileName = Utils.basename(sourceFile);

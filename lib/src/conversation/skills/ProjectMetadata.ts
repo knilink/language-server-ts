@@ -13,7 +13,7 @@ import {
   CompositeProjectMetadataLookup,
   ProjectMetadata,
   Dependency,
-} from "./ProjectMetadataLookups.ts";
+} from './ProjectMetadataLookups.ts';
 
 function determineProgrammingLanguage(skill: ProjectMetadata): string {
   return skill.language.version ? `${skill.language.name} ${skill.language.version}` : skill.language.name;

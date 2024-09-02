@@ -1,13 +1,13 @@
-import { Context } from "../context.ts";
-import { TelemetryData } from "../telemetry.ts";
+import { Context } from '../context.ts';
+import { TelemetryData } from '../telemetry.ts';
 
 import {
   contextualFilterIntercept,
   contextualFilterWeights,
   contextualFilterLanguageMap,
   contextualFilterCharacterMap,
-} from "./contextualFilterConstants.ts";
-import { treeScore } from "./contextualFilterTree.js";
+} from './contextualFilterConstants.ts';
+import { treeScore } from './contextualFilterTree.js';
 
 function getLastLineLength(source: string): number {
   const lines = source.split('\n');

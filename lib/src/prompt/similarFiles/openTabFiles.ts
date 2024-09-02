@@ -1,12 +1,12 @@
 import { URI } from 'vscode-uri';
 
-import { TextDocument } from "../../textDocument.ts";
+import { TextDocument } from '../../textDocument.ts';
 
-import { Document, LanguageId } from "../../../../prompt/src/lib.ts";
-import { TextDocumentManager } from "../../textDocumentManager.ts";
+import { Document, LanguageId } from '../../../../prompt/src/lib.ts';
+import { TextDocumentManager } from '../../textDocumentManager.ts';
 
-import { NeighborSource, considerNeighborFile } from "./neighborFiles.ts";
-import { sortByAccessTimes } from "../../documentTracker.ts";
+import { NeighborSource, considerNeighborFile } from './neighborFiles.ts';
+import { sortByAccessTimes } from '../../documentTracker.ts';
 
 class OpenTabFiles {
   private docManager: TextDocumentManager;

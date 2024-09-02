@@ -1,4 +1,4 @@
-import SHA256 from "crypto-js/sha256.js";
+import SHA256 from 'crypto-js/sha256.js';
 import { LRUCacheMap } from '../../../../common/cache.ts';
 import type { DocumentChunk, ChunkId, Chunk } from './IndexingTypes.ts';
 type FilePath = string;

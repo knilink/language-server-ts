@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { extname } from 'path';
-import { type Connection, ProtocolRequestType } from "vscode-languageserver/node.js";
+import { type Connection, ProtocolRequestType } from 'vscode-languageserver/node.js';
 import { URI } from 'vscode-uri';
 
 import { Context } from '../../lib/src/context.ts';
@@ -51,7 +51,7 @@ class LspFileWatcher {
   >('copilot/watchedFiles');
   private emitter = new EventEmitter<{ [didChangeWatchedFilesEvent]: [LspFileWatcher.ChangeWatchedFilesEvent] }>();
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   get connection(): Connection {
     return this.ctx.get(Service).connection;

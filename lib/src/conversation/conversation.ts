@@ -1,6 +1,6 @@
-import type { Reference } from "./schema.ts";
+import type { Reference } from './schema.ts';
 
-import { Unknown } from "../types.ts";
+import { Unknown } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 class Turn {
@@ -40,12 +40,12 @@ class Turn {
     public request: {
       message: string;
       type:
-      | 'user'
-      | 'template'
-      // ./turnProcessor.ts
-      | 'follow-up';
+        | 'user'
+        | 'template'
+        // ./turnProcessor.ts
+        | 'follow-up';
     }
-  ) { }
+  ) {}
 }
 
 class Conversation {

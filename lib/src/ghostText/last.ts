@@ -1,12 +1,12 @@
 import { Position, Range } from 'vscode-languageserver-types';
 import { URI } from 'vscode-uri';
-import { Completion, CompletionResultType } from "../types.ts";
-import { Context } from "../context.ts";
-import { postRejectionTasks, postInsertionTasks } from "../postInsertion.ts";
-import { telemetryShown } from "./telemetry.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { TextDocument } from "../textDocument.ts";
-import { TelemetryWithExp } from "../telemetry.ts";
+import { Completion, CompletionResultType } from '../types.ts';
+import { Context } from '../context.ts';
+import { postRejectionTasks, postInsertionTasks } from '../postInsertion.ts';
+import { telemetryShown } from './telemetry.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { TextDocument } from '../textDocument.ts';
+import { TelemetryWithExp } from '../telemetry.ts';
 
 type Rejection = {
   completionText: string;

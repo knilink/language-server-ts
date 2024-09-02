@@ -1,20 +1,20 @@
-import { type CancellationToken } from "../cancellation.ts";
+import { type CancellationToken } from '../cancellation.ts';
 import { Type, type Static } from '@sinclair/typebox';
 
-import { type Context } from "../../../lib/src/context.ts";
-import { EditorAndPluginInfo } from "../../../lib/src/config.ts";
+import { type Context } from '../../../lib/src/context.ts';
+import { EditorAndPluginInfo } from '../../../lib/src/config.ts';
 import {
   applySettingsToConfiguration,
   applyNetworkProxyConfiguration,
   initializePostConfigurationDependencies,
   NetworkProxy,
   AuthProvider,
-} from "./notifyChangeConfiguration.ts";
-import { Fetcher } from "../../../lib/src/networking.ts";
-import { AgentConfigProvider } from "../config.ts";
-import { getProxyFromEnvironment, proxySettingFromUrl } from "../../../lib/src/network/proxy.ts";
-import { NetworkConfiguration } from "../../../lib/src/networkConfiguration.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
+} from './notifyChangeConfiguration.ts';
+import { Fetcher } from '../../../lib/src/networking.ts';
+import { AgentConfigProvider } from '../config.ts';
+import { getProxyFromEnvironment, proxySettingFromUrl } from '../../../lib/src/network/proxy.ts';
+import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
 
 const NameAndVersionParam = Type.Object({
   name: Type.String(),

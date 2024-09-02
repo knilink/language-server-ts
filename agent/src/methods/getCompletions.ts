@@ -1,24 +1,24 @@
 import { Type, type Static } from '@sinclair/typebox';
 import type { Position, Range } from 'vscode-languageserver-types';
 
-import { Context } from "../../../lib/src/context.ts";
-import { getOpenTextDocumentChecked } from "../textDocument.ts";
-import { verifyAuthenticated } from "../auth/authDecorator.ts";
-import { TelemetryData, telemetry } from "../../../lib/src/telemetry.ts";
-import { getTestCompletions } from "./testing/setCompletionDocuments.ts";
+import { Context } from '../../../lib/src/context.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { verifyAuthenticated } from '../auth/authDecorator.ts';
+import { TelemetryData, telemetry } from '../../../lib/src/telemetry.ts';
+import { getTestCompletions } from './testing/setCompletionDocuments.ts';
 import { v4 as uuidv4 } from 'uuid';
-import { StatusReporter } from "../../../lib/src/progress.ts";
-import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from "../../../lib/src/ghostText/telemetry.ts";
-import { setLastShown } from "../../../lib/src/ghostText/last.ts";
-import { completionsFromGhostTextResults } from "../../../lib/src/ghostText/copilotCompletion.ts";
-import { CopilotCompletionCache } from "../copilotCompletionCache.ts";
-import { LocationFactory, TextDocument } from "../../../lib/src/textDocument.ts";
-import { getGhostText } from "../../../lib/src/ghostText/ghostText.ts";
-import { isAbortError } from "../../../lib/src/networking.ts";
-import { TestingOptions } from "./testingOptions.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
-import { type CancellationToken, CancellationTokenSource, MergedToken } from "../cancellation.ts";
-import { Logger, LogLevel } from "../../../lib/src/logger.ts";
+import { StatusReporter } from '../../../lib/src/progress.ts';
+import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
+import { setLastShown } from '../../../lib/src/ghostText/last.ts';
+import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { LocationFactory, TextDocument } from '../../../lib/src/textDocument.ts';
+import { getGhostText } from '../../../lib/src/ghostText/ghostText.ts';
+import { isAbortError } from '../../../lib/src/networking.ts';
+import { TestingOptions } from './testingOptions.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
+import { Logger, LogLevel } from '../../../lib/src/logger.ts';
 
 type _Completion = {
   uuid: string;
@@ -59,12 +59,12 @@ async function handleGetCompletionsHelper(
   isCycling: boolean
 ): Promise<
   | [
-    {
-      completions: _Completion[];
-      cancellationReason?: 'CopilotNotAvailable' | 'DocumentVersionMismatch' | 'RequestCancelled' | 'OtherFailure';
-    },
-    null,
-  ]
+      {
+        completions: _Completion[];
+        cancellationReason?: 'CopilotNotAvailable' | 'DocumentVersionMismatch' | 'RequestCancelled' | 'OtherFailure';
+      },
+      null,
+    ]
   | [null, { code: number; message: string }]
 > {
   const docResultPromise = getOpenTextDocumentChecked(ctx, params.doc.uri);

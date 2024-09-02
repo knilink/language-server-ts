@@ -1,7 +1,7 @@
-import { Context } from "../context.ts";
-import { GitHubToken } from "../auth/types.ts";
-import { CopilotToken, CopilotTokenManagerFromGitHubTokenBase } from "../auth/copilotToken.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
+import { Context } from '../context.ts';
+import { GitHubToken } from '../auth/types.ts';
+import { CopilotToken, CopilotTokenManagerFromGitHubTokenBase } from '../auth/copilotToken.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
 
 class FakeCopilotTokenManagerFromGitHubToken extends CopilotTokenManagerFromGitHubTokenBase {
   constructor(readonly githubToken: GitHubToken) {

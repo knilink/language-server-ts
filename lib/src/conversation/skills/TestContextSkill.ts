@@ -1,12 +1,12 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
 
-import { statusFromTextDocumentResult, FileReader } from "../../fileReader.ts";
-import { SingleStepReportingSkill } from "../prompt/conversationSkill.ts";
-import { PromptForTestGeneration } from "../prompt/testPrompt.ts";
-import { Skill } from "../../types.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/index.ts";
-import { TurnContext } from "../turnContext.ts";
+import { statusFromTextDocumentResult, FileReader } from '../../fileReader.ts';
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { PromptForTestGeneration } from '../prompt/testPrompt.ts';
+import { Skill } from '../../types.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/index.ts';
+import { TurnContext } from '../turnContext.ts';
 
 export const TestContextSchema = Type.Object({
   currentFileUri: Type.String(),
@@ -17,7 +17,7 @@ export const TestContextSchema = Type.Object({
 type TestContext = Static<typeof TestContextSchema>;
 
 class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 0.9;

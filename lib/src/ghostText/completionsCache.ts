@@ -1,5 +1,5 @@
-import { LRUCacheMap } from "../common/cache.ts";
-import { APIChoice } from "../openai/openai.ts";
+import { LRUCacheMap } from '../common/cache.ts';
+import { APIChoice } from '../openai/openai.ts';
 
 type CacheEntry = {
   multiline: boolean;

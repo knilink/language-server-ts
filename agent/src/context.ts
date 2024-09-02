@@ -12,7 +12,7 @@ import {
   StreamMessageWriter,
   MessageReader,
   MessageWriter,
-} from "vscode-languageserver/node.js";
+} from 'vscode-languageserver/node.js';
 
 import { createConsole } from '../../lib/src/util/console.ts';
 import { makeXdgPersistenceManager, PersistenceManager } from '../../lib/src/persist.ts';

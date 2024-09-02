@@ -9,15 +9,15 @@ import {
 import { TextDocument as LSPTextDocument, Range } from 'vscode-languageserver-textdocument';
 // import { Disposable } from 'vscode-jsonrpc';
 
-import { Context } from "../../lib/src/context.ts";
-import { LanguageDetection } from "../../lib/src/language/languageDetection.ts";
-import { TextDocument } from "../../lib/src/textDocument.ts";
-import { Service } from "./service.ts";
-import { FileSystem } from "../../lib/src/fileSystem.ts";
+import { Context } from '../../lib/src/context.ts';
+import { LanguageDetection } from '../../lib/src/language/languageDetection.ts';
+import { TextDocument } from '../../lib/src/textDocument.ts';
+import { Service } from './service.ts';
+import { FileSystem } from '../../lib/src/fileSystem.ts';
 import { EventEmitter } from 'events';
-import { INotebook, TextDocumentManager } from "../../lib/src/textDocumentManager.ts";
+import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
 // import { Document } from '../../prompt/src/types';
-import { WorkspaceFolder } from "../../lib/src/types.ts";
+import { WorkspaceFolder } from '../../lib/src/types.ts';
 
 function wrapDoc(ctx: Context, doc: TextDocument): TextDocument {
   const languageDetection = ctx.get<LanguageDetection>(LanguageDetection);
@@ -30,7 +30,7 @@ function wrapDoc(ctx: Context, doc: TextDocument): TextDocument {
 class AgentTextDocumentsConfiguration {
   readonly emitter = new EventEmitter<{ change: [TextDocumentManager.DidChangeTextDocumentParams] }>();
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   create(uri: string, languageId: string, version: number, content: string): LSPTextDocument {
     const doc = TextDocument.create(URI.parse(uri), languageId, version, content);
@@ -86,12 +86,12 @@ class AgentTextDocumentManager extends TextDocumentManager {
       const uri = URI.parse(event.textDocument?.uri ?? event.uri);
       listener({ document: { uri } });
     });
-    return { dispose: () => { } };
+    return { dispose: () => {} };
   }
 
   onDidChangeCursor(listener: NotificationHandler<unknown>) {
     return {
-      dispose: () => { },
+      dispose: () => {},
     };
   }
 
@@ -134,7 +134,7 @@ class AgentTextDocumentManager extends TextDocumentManager {
   getWorkspaceFolders(): WorkspaceFolder[] {
     return this.workspaceFolders;
   }
-  findNotebook(doc: TextDocument): INotebook | void { }
+  findNotebook(doc: TextDocument): INotebook | void {}
 }
 
 export { AgentTextDocumentsConfiguration, AgentTextDocumentManager };

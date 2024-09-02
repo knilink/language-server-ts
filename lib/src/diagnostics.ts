@@ -1,12 +1,12 @@
 import * as os from 'node:os';
 import * as tls from 'node:tls';
 
-import { type Context } from "./context.ts";
+import { type Context } from './context.ts';
 
-import { getVersion, getBuildType, editorVersionHeaders } from "./config.ts";
-import { CopilotTokenManager } from "./auth/copilotTokenManager.ts";
-import { Fetcher } from "./networking.ts";
-import { checkReachability } from "./reachability.ts";
+import { getVersion, getBuildType, editorVersionHeaders } from './config.ts';
+import { CopilotTokenManager } from './auth/copilotTokenManager.ts';
+import { Fetcher } from './networking.ts';
+import { checkReachability } from './reachability.ts';
 
 type DiagnosticData = {
   sections: DiagnosticSection[];
@@ -85,7 +85,7 @@ async function collectFeatureFlagsSection(ctx: Context): Promise<DiagnosticSecti
     if (token.envelope?.chat_enabled) {
       items.Chat = 'enabled';
     }
-  } catch { }
+  } catch {}
 
   return { name: 'Feature Flags', items };
 }

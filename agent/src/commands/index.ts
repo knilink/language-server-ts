@@ -1,6 +1,6 @@
 import { type TSchema } from '@sinclair/typebox';
 import { TypeCompiler, TypeCheck } from '@sinclair/typebox/compiler';
-import { type Connection, ExecuteCommandParams } from "vscode-languageserver/node.js";
+import { type Connection, ExecuteCommandParams } from 'vscode-languageserver/node.js';
 
 import { type CancellationToken } from '../cancellation.ts';
 import { Context } from '../../../lib/src/context.ts';

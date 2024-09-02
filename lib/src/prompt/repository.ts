@@ -2,13 +2,13 @@ import path from 'node:path';
 import { Utils, URI } from 'vscode-uri';
 import gitUrlParse from 'git-url-parse';
 
-import type { RepoInfo, RepoUrlInfo } from "../types.ts";
+import type { RepoInfo, RepoUrlInfo } from '../types.ts';
 
-import { Context } from "../context.ts";
-import { isSupportedUriScheme } from "../util/uri.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { FileSystem } from "../fileSystem.ts";
-import { LRUCacheMap } from "../common/cache.ts";
+import { Context } from '../context.ts';
+import { isSupportedUriScheme } from '../util/uri.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { FileSystem } from '../fileSystem.ts';
+import { LRUCacheMap } from '../common/cache.ts';
 
 function isRepoInfo(info: RepoInfo | 0 | undefined): info is RepoInfo {
   return info !== undefined && info !== 0;
@@ -94,7 +94,7 @@ function parseRepoUrl(url: string): RepoUrlInfo | undefined {
         repo: parsedUrl.name,
         pathname: parsedUrl.pathname,
       };
-  } catch { }
+  } catch {}
 }
 
 async function getRepoBaseFolder(ctx: Context, uri: string): Promise<string | undefined> {
@@ -105,7 +105,7 @@ async function getRepoBaseFolder(ctx: Context, uri: string): Promise<string | un
     try {
       await fs.stat(URI.file(configPath));
       return uri;
-    } catch { }
+    } catch {}
     previousLength = uri.length;
     uri = path.dirname(uri);
   }
@@ -182,7 +182,7 @@ function computeInBackgroundAndMemoize<T extends unknown[], R>(
 }
 
 class CompletedComputation<T> {
-  constructor(public result: T) { }
+  constructor(public result: T) {}
 }
 
 export {

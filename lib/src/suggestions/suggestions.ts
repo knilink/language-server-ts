@@ -1,20 +1,20 @@
 import { Position } from 'vscode-languageserver-types';
 
-import { type Context } from "../context.ts";
-import { type TextDocument } from "../textDocument.ts";
-import { type APIChoice } from "../openai/openai.ts";
+import { type Context } from '../context.ts';
+import { type TextDocument } from '../textDocument.ts';
+import { type APIChoice } from '../openai/openai.ts';
 
-import { promptLibProxy } from "../prompt/promptLibProxy.ts";
-import { isRepetitive } from "./anomalyDetection.ts";
-import { TelemetryData, telemetry } from "../telemetry.ts";
-import { OpenAIRequestId, TelemetryStore } from "../types.ts";
-import { Logger } from "../logger.ts";
+import { promptLibProxy } from '../prompt/promptLibProxy.ts';
+import { isRepetitive } from './anomalyDetection.ts';
+import { TelemetryData, telemetry } from '../telemetry.ts';
+import { OpenAIRequestId, TelemetryStore } from '../types.ts';
+import { Logger } from '../logger.ts';
 
 function maybeSnipCompletion(ctx: Context, doc: TextDocument, position: Position, completion: string): string {
   let blockCloseToken = '}';
   try {
     blockCloseToken = promptLibProxy.getBlockCloseToken(doc.languageId) ?? '}';
-  } catch { }
+  } catch {}
   return maybeSnipCompletionImpl(
     { getLineText: (lineIdx) => doc.lineAt(lineIdx).text, getLineCount: () => doc.lineCount },
     position,

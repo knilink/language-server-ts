@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Position, Range } from 'vscode-languageserver-types';
-import { Context } from "../../../../lib/src/context.ts";
-import { parseChallengeDoc } from "../../testing/challengeDoc.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
-import { CancellationToken } from "../../cancellation.ts";
+import { Context } from '../../../../lib/src/context.ts';
+import { parseChallengeDoc } from '../../testing/challengeDoc.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { CancellationToken } from '../../cancellation.ts';
 
 const Params = Type.Object({
   documents: Type.Array(Type.String()),
@@ -26,7 +26,7 @@ function getTestCompletions(
   let testingDocs: CompletionDocuments | undefined;
   try {
     testingDocs = ctx.get(CompletionDocuments);
-  } catch { }
+  } catch {}
   if (testingDocs) {
     const numCompletions = isCycling ? 3 : 1;
     return testingDocs.documents.slice(0, numCompletions).map((challengeDoc) => {

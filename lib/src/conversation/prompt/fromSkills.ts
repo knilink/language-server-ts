@@ -1,19 +1,19 @@
-import type { Skill, LanguageId, Unknown, SkillId } from "../../types.ts";
+import type { Skill, LanguageId, Unknown, SkillId } from '../../types.ts';
 
-import { ProjectLabelsSkillId } from "../skills/ProjectLabelsSkill.ts";
-import { ProjectMetadataSkillId } from "../skills/ProjectMetadataSkill.ts";
-import { weighElidableList } from "./elidableList.ts";
-import { mandatorySkills } from "./conversationContextCollector.ts";
-import { ConversationSkillRegistry } from "./conversationSkill.ts";
-import { conversationLogger } from "../logger.ts";
-import { ModelConfigurationProvider } from "../modelConfigurations.ts";
-import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
-import { ConversationDumper } from "../dump.ts";
-import { Features } from "../../experiments/features.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/index.ts";
-import { TurnContext, ConversationAbortError } from "../turnContext.ts";
+import { ProjectLabelsSkillId } from '../skills/ProjectLabelsSkill.ts';
+import { ProjectMetadataSkillId } from '../skills/ProjectMetadataSkill.ts';
+import { weighElidableList } from './elidableList.ts';
+import { mandatorySkills } from './conversationContextCollector.ts';
+import { ConversationSkillRegistry } from './conversationSkill.ts';
+import { conversationLogger } from '../logger.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
+import { ConversationDumper } from '../dump.ts';
+import { Features } from '../../experiments/features.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/index.ts';
+import { TurnContext, ConversationAbortError } from '../turnContext.ts';
 
-import { getTokenizer } from "../../../../prompt/src/lib.ts";
+import { getTokenizer } from '../../../../prompt/src/lib.ts';
 
 type SkillPromptOptions = { languageId?: LanguageId };
 
@@ -24,13 +24,13 @@ async function fromSkills(
   const [elidableSkills, nonElidableSkills, skillResolutions] = await handleSkillsInReverse(turnContext, promptOptions);
   return elidableSkills.length > 0 || nonElidableSkills.length > 0
     ? [
-      new ElidableText([
-        [new ElidableText(['Consider the additional context:']), 1],
-        [weighElidableList(elidableSkills, 'inverseLinear'), 0.9],
-        ...nonElidableSkills,
-      ]),
-      skillResolutions,
-    ]
+        new ElidableText([
+          [new ElidableText(['Consider the additional context:']), 1],
+          [weighElidableList(elidableSkills, 'inverseLinear'), 0.9],
+          ...nonElidableSkills,
+        ]),
+        skillResolutions,
+      ]
     : [null, skillResolutions];
 }
 
@@ -80,16 +80,16 @@ async function safelyProcessSkill(
       return processedSkill
         ? await handleProcessedSkill(turnContext, skill, processor, processedSkill, resolutionTimeMs, processingTimeMs)
         : [
-          undefined,
-          await determineResolution(
-            turnContext,
-            skill,
-            'unprocessable',
             undefined,
-            resolutionTimeMs,
-            processingTimeMs
-          ),
-        ];
+            await determineResolution(
+              turnContext,
+              skill,
+              'unprocessable',
+              undefined,
+              resolutionTimeMs,
+              processingTimeMs
+            ),
+          ];
     } else {
       return [undefined, await determineResolution(turnContext, skill, 'unresolvable', undefined, resolutionTimeMs)];
     }

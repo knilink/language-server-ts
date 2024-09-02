@@ -1,6 +1,6 @@
-import { Context } from "../context.ts";
-import { GitConfigLoader, GitConfigData } from "./config.ts";
-import { GitRemoteUrl } from "./gitRemoteUrl.ts";
+import { Context } from '../context.ts';
+import { GitConfigLoader, GitConfigData } from './config.ts';
+import { GitRemoteUrl } from './gitRemoteUrl.ts';
 
 class GitRemoteResolver {
   public async resolveRemote(ctx: Context, baseFolder: { fsPath: string }): Promise<GitRemoteUrl | undefined> {

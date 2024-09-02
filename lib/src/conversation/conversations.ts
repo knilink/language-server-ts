@@ -1,12 +1,12 @@
-import { type SkillId, Skill } from "../types.ts";
-import { type Context } from "../context.ts";
-import { type Reference } from "./schema.ts";
+import { type SkillId, Skill } from '../types.ts';
+import { type Context } from '../context.ts';
+import { type Reference } from './schema.ts';
 
-import { getPromptTemplates } from "./promptTemplates.ts";
-import { LRUCacheMap } from "../common/cache.ts";
-import { ConversationSkillRegistry } from "./prompt/conversationSkill.ts";
-import { Conversation, Turn } from "./conversation.ts";
-import { getAgents } from "./agents/agents.ts";
+import { getPromptTemplates } from './promptTemplates.ts';
+import { LRUCacheMap } from '../common/cache.ts';
+import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
+import { Conversation, Turn } from './conversation.ts';
+import { getAgents } from './agents/agents.ts';
 
 // ../../../agent/src/methods/conversation/conversationCreate.ts
 type Capabilities = {
@@ -18,13 +18,13 @@ class ConversationHolder {
   constructor(
     readonly conversation: Conversation,
     readonly capabilities: Capabilities
-  ) { }
+  ) {}
 }
 
 class Conversations {
   private conversations: LRUCacheMap<string, ConversationHolder> = new LRUCacheMap(100);
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async create(
     capabilities: Capabilities,

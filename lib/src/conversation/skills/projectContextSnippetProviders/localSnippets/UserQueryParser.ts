@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from "../../../../../../agent/src/cancellation.ts";
-import { type Context } from "../../../../context.ts";
-import { ModelConfigurationProvider } from "../../../modelConfigurations.ts";
-import { conversationLogger } from "../../../logger.ts";
-import { ChatMLFetcher } from "../../../chatMLFetcher.ts";
-import { Chat, Tool } from "../../../../types.ts";
-import { ChatRole } from "../../../openai/openai.ts";
-import { ChatModelFamily } from "../../../modelMetadata.ts";
+import { type CancellationToken } from '../../../../../../agent/src/cancellation.ts';
+import { type Context } from '../../../../context.ts';
+import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
+import { conversationLogger } from '../../../logger.ts';
+import { ChatMLFetcher } from '../../../chatMLFetcher.ts';
+import { Chat, Tool } from '../../../../types.ts';
+import { ChatRole } from '../../../openai/openai.ts';
+import { ChatModelFamily } from '../../../modelMetadata.ts';
 
 const userQuerySystemPrompt = `
 You are a coding assistant that helps developers find relevant code in their workspace by providing a list of relevant keywords they can search for.

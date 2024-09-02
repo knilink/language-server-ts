@@ -1,8 +1,8 @@
-import { Snippet } from "../types.ts";
-import { ITokenizer } from "../tokenization/index.ts";
+import { Snippet } from '../types.ts';
+import { ITokenizer } from '../tokenization/index.ts';
 
-import { commentBlockAsSingles } from "../languageMarker.ts";
-import { kindForSnippetProviderType, PromptPriorityList } from "../wishlist.ts";
+import { commentBlockAsSingles } from '../languageMarker.ts';
+import { kindForSnippetProviderType, PromptPriorityList } from '../wishlist.ts';
 
 const snippetSemanticsToString = {
   function: 'function',

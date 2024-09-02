@@ -2,7 +2,7 @@ import { URI } from 'vscode-uri';
 import { TextDocument as LSPTextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
 import { Position, Range, DocumentUri } from 'vscode-languageserver-types';
 
-import { LanguageId } from "./types.ts";
+import { LanguageId } from './types.ts';
 
 class LocationFactory {
   static range(x1: number, y1: number, x2: number, y2: number): Range;

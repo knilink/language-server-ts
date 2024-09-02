@@ -9,7 +9,7 @@ import {
   AbstractMessageReader,
   AbstractMessageWriter,
 } from 'vscode-languageserver';
-import { DebugServer } from "./debug/debugServer.ts";
+import { DebugServer } from './debug/debugServer.ts';
 
 function wrapTransports(
   env: NodeJS.ProcessEnv,

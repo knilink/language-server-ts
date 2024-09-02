@@ -1,14 +1,14 @@
-import { Unknown, PromptType, Model } from "../types.ts";
-import { Context } from "../context.ts";
+import { Unknown, PromptType, Model } from '../types.ts';
+import { Context } from '../context.ts';
 
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { logger } from "../logger.ts";
-import { HeaderContributors } from "../headerContributors.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { conversationLogger } from "./logger.ts";
-import { editorVersionHeaders } from "../config.ts";
-import { Fetcher, FetchResponseError, Response } from "../networking.ts";
-import { Features } from "../experiments/features.ts";
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { logger } from '../logger.ts';
+import { HeaderContributors } from '../headerContributors.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { conversationLogger } from './logger.ts';
+import { editorVersionHeaders } from '../config.ts';
+import { Fetcher, FetchResponseError, Response } from '../networking.ts';
+import { Features } from '../experiments/features.ts';
 
 enum ChatModelFamily {
   Gpt35turbo = 'gpt-3.5-turbo',

@@ -1,20 +1,20 @@
 import { type URI } from 'vscode-uri';
-import type { Prompt } from "../../prompt/src/types.ts";
+import type { Prompt } from '../../prompt/src/types.ts';
 
-import { Context } from "./context.ts";
-import { TextDocumentManager } from "./textDocumentManager.ts";
-import { extractPrompt } from "./prompt/prompt.ts";
-import { contextIndentationFromText, indentationBlockFinished } from "./prompt/parseBlock.ts";
-import { telemetryRejected, telemetryAccepted } from "./ghostText/telemetry.ts";
-import { telemetry, type TelemetryData, type TelemetryWithExp } from "./telemetry.ts";
-import { computeCompCharLen, computeCompletionText, SuggestionStatus } from "./suggestions/partialSuggestions.ts";
-import { isRunningInTest } from "./testing/runtimeMode.ts";
-import { PromiseQueue } from "./util/promiseQueue.ts";
-import { PostInsertionNotifier } from "./postInsertionNotifier.ts";
-import { lexEditDistance, editDistance } from "./suggestions/editDistance.ts";
-import { ChangeTracker } from "./changeTracker.ts";
-import { Logger, LogLevel } from "./logger.ts";
-import { TelemetryProperties, TelemetryStore } from "./types.ts";
+import { Context } from './context.ts';
+import { TextDocumentManager } from './textDocumentManager.ts';
+import { extractPrompt } from './prompt/prompt.ts';
+import { contextIndentationFromText, indentationBlockFinished } from './prompt/parseBlock.ts';
+import { telemetryRejected, telemetryAccepted } from './ghostText/telemetry.ts';
+import { telemetry, type TelemetryData, type TelemetryWithExp } from './telemetry.ts';
+import { computeCompCharLen, computeCompletionText, SuggestionStatus } from './suggestions/partialSuggestions.ts';
+import { isRunningInTest } from './testing/runtimeMode.ts';
+import { PromiseQueue } from './util/promiseQueue.ts';
+import { PostInsertionNotifier } from './postInsertionNotifier.ts';
+import { lexEditDistance, editDistance } from './suggestions/editDistance.ts';
+import { ChangeTracker } from './changeTracker.ts';
+import { Logger, LogLevel } from './logger.ts';
+import { TelemetryProperties, TelemetryStore } from './types.ts';
 import { Position } from 'vscode-languageserver-types';
 
 type CaptureCodeResult = {
@@ -125,9 +125,9 @@ function postRejectionTasks(
       );
       const promptTelemetry: TelemetryProperties = prompt.isFimEnabled
         ? {
-          hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
-          hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
-        }
+            hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
+            hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
+          }
         : { hypotheticalPromptJson: JSON.stringify(prompt.prefix) };
       const customTelemetryData = completionTelemetryData.extendedBy(
         { ...promptTelemetry, capturedCodeJson: JSON.stringify(capturedCode) },
@@ -281,9 +281,9 @@ async function checkStillInCode(
       );
       const promptTelemetry: TelemetryProperties = prompt.isFimEnabled
         ? {
-          hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
-          hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
-        }
+            hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
+            hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
+          }
         : { hypotheticalPromptJson: JSON.stringify(prompt.prefix) };
       const afterAcceptedTelemetry = telemetryData.extendedBy(
         { ...promptTelemetry, capturedCodeJson: JSON.stringify(capturedCode) },

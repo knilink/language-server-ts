@@ -1,18 +1,18 @@
-import { Unknown, Chat, Model } from "../../types.ts";
-import { Context } from "../../context.ts";
+import { Unknown, Chat, Model } from '../../types.ts';
+import { Context } from '../../context.ts';
 
-import { TurnContext } from "../turnContext.ts";
+import { TurnContext } from '../turnContext.ts';
 
-import { getSupportedModelFamiliesForPrompt } from "../modelMetadata.ts";
-import { ModelConfigurationProvider } from "../modelConfigurations.ts";
-import { ConversationInspector } from "../conversationInspector.ts";
-import { ConversationDumper } from "../dump.ts";
-import { countMessagesTokens } from "../openai/chatTokens.ts";
-import { AuthManager } from "../../auth/manager.ts";
-import { EditorAndPluginInfo } from "../../config.ts";
-import { chatBasePrompt } from "./basePrompt.ts";
-import { DefaultPromptStrategyFactory } from "./strategies/promptStrategyFactory.ts";
-import type { PromptOptions } from "./strategies/types.ts";
+import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
+import { ConversationInspector } from '../conversationInspector.ts';
+import { ConversationDumper } from '../dump.ts';
+import { countMessagesTokens } from '../openai/chatTokens.ts';
+import { AuthManager } from '../../auth/manager.ts';
+import { EditorAndPluginInfo } from '../../config.ts';
+import { chatBasePrompt } from './basePrompt.ts';
+import { DefaultPromptStrategyFactory } from './strategies/promptStrategyFactory.ts';
+import type { PromptOptions } from './strategies/types.ts';
 
 function processResultOfElidableText(elidedText: string): string {
   return elidedText.trimStart().replace(/^\[\.\.\.\]\n?/, '');
@@ -47,7 +47,7 @@ class ConversationPromptEngine {
   constructor(
     readonly ctx: Context,
     readonly promptStrategyFactory = new DefaultPromptStrategyFactory()
-  ) { }
+  ) {}
 
   async toPrompt(turnContext: TurnContext, options: PromptOptions): Promise<Unknown.ConversationPrompt> {
     const supportedModelFamilies = getSupportedModelFamiliesForPrompt(options.promptType);

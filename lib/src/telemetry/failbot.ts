@@ -1,7 +1,7 @@
 import os from 'os';
 
-import SHA256 from "crypto-js/sha256.js";
-import Utf16 from "crypto-js/enc-utf16.js";
+import SHA256 from 'crypto-js/sha256.js';
+import Utf16 from 'crypto-js/enc-utf16.js';
 
 import { Context } from '../context.ts';
 import { TelemetryUserConfig } from './userConfig.ts';
@@ -28,11 +28,11 @@ type Payload = {
   release?: string;
   deployed_to: string;
   catalog_service:
-  | 'CopilotCompletionsVSCode'
-  | 'CopilotLanguageServer'
-  | 'CopilotIntelliJ'
-  | 'CopilotVim'
-  | 'CopilotVS';
+    | 'CopilotCompletionsVSCode'
+    | 'CopilotLanguageServer'
+    | 'CopilotIntelliJ'
+    | 'CopilotVim'
+    | 'CopilotVS';
   context: {
     '#editor': string;
     '#editor_version': string;

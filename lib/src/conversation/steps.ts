@@ -1,9 +1,9 @@
-import type { SkillId } from "../types.ts";
+import type { SkillId } from '../types.ts';
 
-import type { Context } from "../context.ts";
-import { conversationLogger } from "./logger.ts";
-import { ConversationProgress } from "./conversationProgress.ts";
-import { Turn, Conversation } from "./conversation.ts";
+import type { Context } from '../context.ts';
+import { conversationLogger } from './logger.ts';
+import { ConversationProgress } from './conversationProgress.ts';
+import { Turn, Conversation } from './conversation.ts';
 
 namespace Steps {
   export type Status = 'completed' | 'cancelled' | 'running' | 'failed';

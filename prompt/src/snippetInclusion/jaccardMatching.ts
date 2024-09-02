@@ -1,7 +1,7 @@
-import { Document } from "../types.ts";
-import { getCursorContext } from "./cursorContext.ts";
-import { getBasicWindowDelineations } from "./windowDelineations.ts";
-import { WindowedMatcher } from "./selectRelevance.ts";
+import { Document } from '../types.ts';
+import { getCursorContext } from './cursorContext.ts';
+import { getBasicWindowDelineations } from './windowDelineations.ts';
+import { WindowedMatcher } from './selectRelevance.ts';
 
 // function computeScore(a: Set<unknown>, b: Set<unknown>): number {
 //   const intersection = new Set<unknown>();

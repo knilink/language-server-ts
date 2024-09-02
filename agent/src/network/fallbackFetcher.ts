@@ -1,6 +1,6 @@
-import { Context } from "../../../lib/src/context.ts";
-import { isAbortError, Fetcher, Request, Response } from "../../../lib/src/networking.ts";
-import { Logger, LogLevel } from "../../../lib/src/logger.ts";
+import { Context } from '../../../lib/src/context.ts';
+import { isAbortError, Fetcher, Request, Response } from '../../../lib/src/networking.ts';
+import { Logger, LogLevel } from '../../../lib/src/logger.ts';
 
 const logger = new Logger(LogLevel.INFO, 'fetcher');
 const expRoot = 'https://default.exp-tas.com/';

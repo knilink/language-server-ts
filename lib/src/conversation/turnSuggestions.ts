@@ -1,20 +1,20 @@
-import { type CancellationToken } from "../../../agent/src/cancellation.ts";
-import { FetchResult, Unknown, UiKind, TelemetryProperties } from "../types.ts";
-import { Context } from "../context.ts";
-import { TurnContext } from "./turnContext.ts";
+import { type CancellationToken } from '../../../agent/src/cancellation.ts';
+import { FetchResult, Unknown, UiKind, TelemetryProperties } from '../types.ts';
+import { Context } from '../context.ts';
+import { TurnContext } from './turnContext.ts';
 
-import { ConversationPromptEngine } from "./prompt/conversationPromptEngine.ts";
-import { getSupportedModelFamiliesForPrompt } from "./modelMetadata.ts";
-import { conversationLogger } from "./logger.ts";
-import { ModelConfigurationProvider } from "./modelConfigurations.ts";
-import { ChatMLFetcher } from "./chatMLFetcher.ts";
+import { ConversationPromptEngine } from './prompt/conversationPromptEngine.ts';
+import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
+import { conversationLogger } from './logger.ts';
+import { ModelConfigurationProvider } from './modelConfigurations.ts';
+import { ChatMLFetcher } from './chatMLFetcher.ts';
 
 class TurnSuggestions {
   constructor(
     readonly ctx: Context,
     // ./fetchPostProcessor.ts
     readonly chatFetcher: ChatMLFetcher
-  ) { }
+  ) {}
 
   async fetchRawSuggestions(
     turnContext: TurnContext,

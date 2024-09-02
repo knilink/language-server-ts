@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from "../../cancellation.ts";
+import { type CancellationToken } from '../../cancellation.ts';
 
-import { Context } from "../../../../lib/src/context.ts";
-import { TelemetryReporters } from "../../../../lib/src/telemetry.ts";
-import { PromiseQueue } from "../../../../lib/src/util/promiseQueue.ts";
-import { TestPromiseQueue } from "../../../../lib/src/testing/telemetry.ts";
-import { addMethodHandlerValidation, type ValidationError } from "../../schemaValidation.ts";
-import { TelemetrySpy, Event, ErrorEvent } from "../../../../lib/src/testing/telemetrySpy.ts";
+import { Context } from '../../../../lib/src/context.ts';
+import { TelemetryReporters } from '../../../../lib/src/telemetry.ts';
+import { PromiseQueue } from '../../../../lib/src/util/promiseQueue.ts';
+import { TestPromiseQueue } from '../../../../lib/src/testing/telemetry.ts';
+import { addMethodHandlerValidation, type ValidationError } from '../../schemaValidation.ts';
+import { TelemetrySpy, Event, ErrorEvent } from '../../../../lib/src/testing/telemetrySpy.ts';
 // import { } from '../../rpc';
 
 const Params = Type.Object({});
@@ -17,12 +17,12 @@ async function handleTestingGetTelemetryChecked(
   params: Static<typeof Params>
 ): Promise<
   | [
-    {
-      standard: { events: Event[]; errors: ErrorEvent[] };
-      restricted: { events: Event[]; errors: ErrorEvent[] };
-    },
-    null,
-  ]
+      {
+        standard: { events: Event[]; errors: ErrorEvent[] };
+        restricted: { events: Event[]; errors: ErrorEvent[] };
+      },
+      null,
+    ]
   | [null, ValidationError]
 > {
   let reporters = ctx.get(TelemetryReporters);

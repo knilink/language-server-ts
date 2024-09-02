@@ -1,8 +1,8 @@
 import * as util from 'util';
 
-import { Context } from "../context.ts";
-import { getBuildType } from "../config.ts";
-import { LogLevel, LogTarget } from "../logger.ts";
+import { Context } from '../context.ts';
+import { getBuildType } from '../config.ts';
+import { LogLevel, LogTarget } from '../logger.ts';
 
 function createConsole(ctx: Context): Console {
   const c = new console.Console(process.stderr, process.stderr);

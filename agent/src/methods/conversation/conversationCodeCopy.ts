@@ -1,20 +1,20 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from "../../cancellation.ts";
-import { type Context } from "../../../../lib/src/context.ts";
-import { type TextDocument } from "../../../../lib/src/textDocument.ts";
-import { type TelemetryMeasurements } from "../../../../lib/src/types.ts";
+import { type CancellationToken } from '../../cancellation.ts';
+import { type Context } from '../../../../lib/src/context.ts';
+import { type TextDocument } from '../../../../lib/src/textDocument.ts';
+import { type TelemetryMeasurements } from '../../../../lib/src/types.ts';
 
-import { getTextDocumentChecked } from "../../textDocument.ts";
+import { getTextDocumentChecked } from '../../textDocument.ts';
 import {
   conversationSourceToUiKind,
   telemetryUserAction,
   telemetryPrefixForUiKind,
-} from "../../../../lib/src/conversation/telemetry.ts";
-import { Conversations } from "../../../../lib/src/conversation/conversations.ts";
-import { DocumentSchema, ConversationSourceSchema } from "../../../../lib/src/conversation/schema.ts";
-import { TestingOptions } from "../testingOptions.ts";
-import { ensureAuthenticated } from "../../auth/authDecorator.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+} from '../../../../lib/src/conversation/telemetry.ts';
+import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
+import { DocumentSchema, ConversationSourceSchema } from '../../../../lib/src/conversation/schema.ts';
+import { TestingOptions } from '../testingOptions.ts';
+import { ensureAuthenticated } from '../../auth/authDecorator.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 
 enum CopyKind {
   Keyboard = 1,

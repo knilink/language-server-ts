@@ -1,14 +1,14 @@
-import { CopilotAuthStatus } from "../auth/types.ts";
-import { type Context } from "../context.ts";
+import { CopilotAuthStatus } from '../auth/types.ts';
+import { type Context } from '../context.ts';
 
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { ConnectionState } from "./connectionState.ts";
-import { createErrorResponse, getErrorType, ErrorReasons, ErrorMessages } from "./errorCreator.ts";
-import { codeReferenceLogger } from "./logger.ts";
-import { Fetcher, Request, Response } from "../networking.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { editorVersionHeaders } from "../config.ts";
-import { snippyTelemetry } from "./telemetryHandlers.ts";
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { ConnectionState } from './connectionState.ts';
+import { createErrorResponse, getErrorType, ErrorReasons, ErrorMessages } from './errorCreator.ts';
+import { codeReferenceLogger } from './logger.ts';
+import { Fetcher, Request, Response } from '../networking.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { editorVersionHeaders } from '../config.ts';
+import { snippyTelemetry } from './telemetryHandlers.ts';
 
 const TWIRP_URL = 'twirp/github.snippy.v1.SnippyAPI';
 
@@ -45,16 +45,16 @@ async function call(
       ctx.get(NetworkConfiguration).getOriginTrackingUrl(ctx, `${TWIRP_URL}/${endpoint}`),
       config.method === 'POST'
         ? {
-          method: 'POST',
-          body: JSON.stringify(config.body),
-          headers,
-          signal,
-        }
+            method: 'POST',
+            body: JSON.stringify(config.body),
+            headers,
+            signal,
+          }
         : {
-          method: 'GET',
-          headers,
-          signal,
-        }
+            method: 'GET',
+            headers,
+            signal,
+          }
     );
   } catch (error: unknown) {
     ConnectionState.enableRetry(ctx);

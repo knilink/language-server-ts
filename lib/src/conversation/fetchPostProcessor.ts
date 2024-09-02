@@ -1,33 +1,33 @@
-import { TelemetryProperties, Unknown, UiKind, FetchResult } from "../types.ts";
+import { TelemetryProperties, Unknown, UiKind, FetchResult } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
-import { TurnContext } from "./turnContext.ts";
-import { TextDocument } from "../textDocument.ts";
-import { CancellationToken } from "../../../agent/src/cancellation.ts";
-import { TelemetryData } from "../telemetry.ts";
-import { createOffTopicMessageTelemetryData } from "./telemetry.ts";
+import { TurnContext } from './turnContext.ts';
+import { TextDocument } from '../textDocument.ts';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
+import { TelemetryData } from '../telemetry.ts';
+import { createOffTopicMessageTelemetryData } from './telemetry.ts';
 
-import { ConversationInspector } from "./conversationInspector.ts";
+import { ConversationInspector } from './conversationInspector.ts';
 import {
   createSuggestionShownTelemetryData,
   createTelemetryWithId,
   createUserMessageTelemetryData,
   createModelMessageTelemetryData,
-} from "./telemetry.ts";
-import { conversationLogger } from "./logger.ts";
-import { TurnSuggestions } from "./turnSuggestions.ts";
-import { ChatMLFetcher } from "./chatMLFetcher.ts";
+} from './telemetry.ts';
+import { conversationLogger } from './logger.ts';
+import { TurnSuggestions } from './turnSuggestions.ts';
+import { ChatMLFetcher } from './chatMLFetcher.ts';
 
 namespace ChatFetchResultPostProcessor {
   // ./extensibility/remoteAgentTurnProcessor.ts
   export type PostProcessResult =
     | Partial<Unknown.Suggestions>
     | {
-      error: {
-        message: string;
-        responseIsFiltered?: boolean;
-        responseIsIncomplete?: boolean;
+        error: {
+          message: string;
+          responseIsFiltered?: boolean;
+          responseIsIncomplete?: boolean;
+        };
       };
-    };
 }
 
 class ChatFetchResultPostProcessor {
@@ -36,7 +36,7 @@ class ChatFetchResultPostProcessor {
     // ChatMLFetcher ./turnProcessor.ts
     readonly chatFetcher: ChatMLFetcher,
     readonly computeSuggestions: boolean
-  ) { }
+  ) {}
 
   async postProcess(
     fetchResult: ChatMLFetcher.Response,
@@ -131,11 +131,11 @@ class ChatFetchResultPostProcessor {
       );
       const suggestions = this.computeSuggestions
         ? await this.fetchSuggestions(
-          cancelationToken,
-          uiKind,
-          { messageId: telemetryMessageId, conversationId: this.turnContext.conversation.id },
-          doc
-        )
+            cancelationToken,
+            uiKind,
+            { messageId: telemetryMessageId, conversationId: this.turnContext.conversation.id },
+            doc
+          )
         : undefined;
       if (suggestions) {
         const { followUp, suggestedTitle } = suggestions;

@@ -1,8 +1,8 @@
-import { Context } from "../context.ts";
-import { promptLibProxy } from "./promptLibProxy.ts";
-import { LocationFactory, TextDocument } from "../textDocument.ts";
+import { Context } from '../context.ts';
+import { promptLibProxy } from './promptLibProxy.ts';
+import { LocationFactory, TextDocument } from '../textDocument.ts';
 import { Position } from 'vscode-languageserver-types';
-import { LanguageId } from "../../../prompt/src/types.ts";
+import { LanguageId } from '../../../prompt/src/types.ts';
 
 type IndentationContext = {
   prev?: number;
@@ -79,7 +79,7 @@ function contextIndentationFromText(source: string, offset: number, languageId: 
       const trimmedLine = lines[i].trim();
       if (trimmedLine.endsWith('"""')) {
         if (!(trimmedLine.startsWith('"""') && trimmedLine !== '"""')) {
-          for (i--; i >= 0 && !lines[i].trim().startsWith('"""');) i--;
+          for (i--; i >= 0 && !lines[i].trim().startsWith('"""'); ) i--;
         }
         if (i >= 0) {
           for (ind = undefined, i--; ind === undefined && i >= 0; i--) {

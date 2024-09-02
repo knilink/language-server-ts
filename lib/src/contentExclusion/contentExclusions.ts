@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { type URI } from 'vscode-uri';
-import { type Context } from "../context.ts";
-import type { DocumentEvaluateResult, TelemetryMeasurements, TelemetryProperties } from "../types.ts";
+import { type Context } from '../context.ts';
+import type { DocumentEvaluateResult, TelemetryMeasurements, TelemetryProperties } from '../types.ts';
 
 import { minimatch } from 'minimatch';
 import { factory } from 'dldr/cache';
@@ -10,18 +10,18 @@ import {
   NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE,
   NOT_BLOCKED_RESPONSE,
   BLOCKED_POLICY_ERROR_RESPONSE,
-} from "./constants.ts";
+} from './constants.ts';
 
-import { PolicyEvaluator } from "./policyEvaluator.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { Fetcher, FetchResponseError } from "../networking.ts";
-import { assertShape } from "../util/typebox.ts";
-import { telemetryException, telemetry, TelemetryData } from "../telemetry.ts";
-import { RepositoryManager } from "../repository/repositoryManager.ts";
-import { dirname } from "../util/uri.ts";
-import { LRUCacheMap } from "../common/cache.ts";
-import { CopilotAuthError } from "../auth/error.ts";
+import { PolicyEvaluator } from './policyEvaluator.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { Fetcher, FetchResponseError } from '../networking.ts';
+import { assertShape } from '../util/typebox.ts';
+import { telemetryException, telemetry, TelemetryData } from '../telemetry.ts';
+import { RepositoryManager } from '../repository/repositoryManager.ts';
+import { dirname } from '../util/uri.ts';
+import { LRUCacheMap } from '../common/cache.ts';
+import { CopilotAuthError } from '../auth/error.ts';
 
 const SourceSchema = Type.Object({ name: Type.String(), type: Type.String() });
 type SourceSchema = Static<typeof SourceSchema>;

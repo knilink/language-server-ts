@@ -3,25 +3,25 @@ import { URI } from 'vscode-uri';
 import { Range } from 'vscode-languageserver-types';
 
 // import { Snippet } from '../../../../../prompt/src/types';
-import { type TurnContext } from "../../turnContext.ts";
+import { type TurnContext } from '../../turnContext.ts';
 
-import { CopilotTokenManager } from "../../../auth/copilotTokenManager.ts";
-import { ProjectLabelsSkillId, ProjectLabelsType } from "../ProjectLabelsSkill.ts";
-import { BlackbirdIndexingStatus } from "./indexingStatus.ts";
+import { CopilotTokenManager } from '../../../auth/copilotTokenManager.ts';
+import { ProjectLabelsSkillId, ProjectLabelsType } from '../ProjectLabelsSkill.ts';
+import { BlackbirdIndexingStatus } from './indexingStatus.ts';
 import {
   tryGetGitHubNWO,
   extractRepoInfoInBackground,
   isRepoInfo,
   parseRepoUrl,
   RepoInfo,
-} from "../../../prompt/repository.ts";
-import { conversationLogger } from "../../logger.ts";
-import { NetworkConfiguration } from "../../../networkConfiguration.ts";
-import { postRequest, type Response } from "../../../networking.ts";
-import { CurrentEditorSkillId } from "../CurrentEditorSkill.ts";
-import { GitMetadataSkillId } from "../GitMetadataSkill.ts";
+} from '../../../prompt/repository.ts';
+import { conversationLogger } from '../../logger.ts';
+import { NetworkConfiguration } from '../../../networkConfiguration.ts';
+import { postRequest, type Response } from '../../../networking.ts';
+import { CurrentEditorSkillId } from '../CurrentEditorSkill.ts';
+import { GitMetadataSkillId } from '../GitMetadataSkill.ts';
 import assert from 'node:assert';
-import { Snippet } from "../../../types.ts";
+import { Snippet } from '../../../types.ts';
 
 class BlackbirdSnippetProvider implements Snippet.ISnippetProvider {
   async canProvideSnippets(turnContext: TurnContext): Promise<boolean> {

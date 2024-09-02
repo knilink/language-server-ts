@@ -1,9 +1,9 @@
 import type { URI } from 'vscode-uri';
 
-import { CopilotCapabilitiesProvider } from "../editorFeatures/capabilities.ts";
-import { AgentWorkspaceWatcher } from "./agentWatcher.ts";
+import { CopilotCapabilitiesProvider } from '../editorFeatures/capabilities.ts';
+import { AgentWorkspaceWatcher } from './agentWatcher.ts';
 
-import { WorkspaceWatcherProvider } from "../../../lib/src/workspaceWatcherProvider.ts";
+import { WorkspaceWatcherProvider } from '../../../lib/src/workspaceWatcherProvider.ts';
 // import { } from '../editorFeatures/capabilities';
 
 class AgentWorkspaceWatcherProvider extends WorkspaceWatcherProvider {

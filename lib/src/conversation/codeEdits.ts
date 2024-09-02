@@ -1,4 +1,4 @@
-import { type TextDocument } from "../textDocument.ts";
+import { type TextDocument } from '../textDocument.ts';
 
 type CodeEditMode = 'replace' | 'delete';
 

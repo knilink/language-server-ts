@@ -1,10 +1,10 @@
 import util from 'node:util';
-import { TelemetryStore } from "./types.ts";
+import { TelemetryStore } from './types.ts';
 
-import { Context } from "./context.ts";
-import { telemetryError, telemetryException, TelemetryData } from "./telemetry.ts";
-import { isProduction, getConfig, ConfigKey } from "./config.ts";
-import { isVerboseLoggingEnabled } from "./testing/runtimeMode.ts";
+import { Context } from './context.ts';
+import { telemetryError, telemetryException, TelemetryData } from './telemetry.ts';
+import { isProduction, getConfig, ConfigKey } from './config.ts';
+import { isVerboseLoggingEnabled } from './testing/runtimeMode.ts';
 
 function verboseLogging(ctx: Context): boolean {
   return isVerboseLoggingEnabled(ctx);
@@ -46,7 +46,7 @@ class Logger {
   constructor(
     private maxLoggedLevel: LogLevel = LogLevel.INFO,
     private context: string = 'default'
-  ) { }
+  ) {}
 
   setLevel(level: LogLevel): void {
     this.maxLoggedLevel = level;

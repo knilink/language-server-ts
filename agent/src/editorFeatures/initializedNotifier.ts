@@ -1,4 +1,4 @@
-import { InitializeParams as LSPInitializeParams } from "vscode-languageserver/node.js";
+import { InitializeParams as LSPInitializeParams } from 'vscode-languageserver/node.js';
 import { EventEmitter } from 'events';
 
 namespace InitializedNotifier {
@@ -11,7 +11,7 @@ class InitializedNotifier {
   private emitter = new EventEmitter<{ initialize: [InitializedNotifier.InitializeParams] }>();
   private initialized = false;
 
-  constructor() { }
+  constructor() {}
 
   public once(listener: (options: InitializedNotifier.InitializeParams) => void): void {
     this.emitter.once('initialize', listener);

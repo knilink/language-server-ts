@@ -1,7 +1,7 @@
-import { CopilotNeighboringTabs, BlockMode } from "../types.ts";
+import { CopilotNeighboringTabs, BlockMode } from '../types.ts';
 import type { ChatModelFamily } from '../conversation/modelMetadata.ts';
-import { Context } from "../context.ts";
-import { telemetryExpProblem, TelemetryData } from "../telemetry.ts";
+import { Context } from '../context.ts';
+import { telemetryExpProblem, TelemetryData } from '../telemetry.ts';
 
 class ExpConfig {
   constructor(
@@ -45,7 +45,7 @@ class ExpConfig {
     }>,
     public assignmentContext: string,
     public features: string
-  ) { }
+  ) {}
 
   static createFallbackConfig(ctx: Context, reason: string): ExpConfig {
     telemetryExpProblem(ctx, { reason });

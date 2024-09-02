@@ -1,16 +1,16 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from "../../cancellation.ts";
-import { type Context } from "../../../../lib/src/context.ts";
-import { getTextDocumentChecked } from "../../textDocument.ts";
-import { Conversations } from "../../../../lib/src/conversation/conversations.ts";
-import { WorkDoneProgressTokens } from "../../workDoneProgressTokens.ts";
-import { TurnProcessorFactory } from "../../conversation/turnProcessorFactory.ts";
-import { TestingOptions } from "../testingOptions.ts";
-import { DocumentSchema, ReferenceSchema } from "../../../../lib/src/conversation/schema.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
-import { Turn } from "../../../../lib/src/conversation/conversation.ts";
-import { TurnContext } from "../../../../lib/src/conversation/turnContext.ts";
-import { TextDocument } from "../../../../lib/src/textDocument.ts";
+import { type CancellationToken } from '../../cancellation.ts';
+import { type Context } from '../../../../lib/src/context.ts';
+import { getTextDocumentChecked } from '../../textDocument.ts';
+import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
+import { WorkDoneProgressTokens } from '../../workDoneProgressTokens.ts';
+import { TurnProcessorFactory } from '../../conversation/turnProcessorFactory.ts';
+import { TestingOptions } from '../testingOptions.ts';
+import { DocumentSchema, ReferenceSchema } from '../../../../lib/src/conversation/schema.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Turn } from '../../../../lib/src/conversation/conversation.ts';
+import { TurnContext } from '../../../../lib/src/conversation/turnContext.ts';
+import { TextDocument } from '../../../../lib/src/textDocument.ts';
 
 const Params = Type.Object({
   workDoneToken: Type.Union([Type.String(), Type.Number()]),

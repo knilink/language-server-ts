@@ -1,5 +1,5 @@
-import { StreamCopilotAnnotations } from "../openai/stream.ts";
-import { Unknown } from "../types.ts";
+import { StreamCopilotAnnotations } from '../openai/stream.ts';
+import { Unknown } from '../types.ts';
 
 class ConversationFinishCallback {
   readonly deltaApplier: (text: string, annotations: Unknown.Annotation[]) => void;

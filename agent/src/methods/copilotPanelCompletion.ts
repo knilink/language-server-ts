@@ -1,5 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
-import SHA256 from "crypto-js/sha256.js";
+import SHA256 from 'crypto-js/sha256.js';
 import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
 import { URI } from 'vscode-uri';
 import { WorkDoneProgress, ProtocolRequestType, ProgressType } from 'vscode-languageserver';
@@ -110,20 +110,20 @@ async function handleChecked(
   const onCompletion =
     partialResultToken === undefined
       ? async (solution: Completion) => {
-        items.push(solution);
-      }
+          items.push(solution);
+        }
       : async (solution: Completion) => {
-        await ctx.get(Service).connection.sendProgress(PanelCompletionRequest.partialResult, partialResultToken, {
-          items: [solution],
-        });
-      };
+          await ctx.get(Service).connection.sendProgress(PanelCompletionRequest.partialResult, partialResultToken, {
+            items: [solution],
+          });
+        };
 
   const solutionHandler = new SolutionHandler(ctx, params, onCompletion);
   let testingDocs;
 
   try {
     testingDocs = ctx.get(PanelCompletionDocuments);
-  } catch { }
+  } catch {}
 
   if (testingDocs) {
     const documents = testingDocs.documents;
@@ -197,7 +197,7 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
     readonly ctx: Context,
     readonly params: Static<typeof Params>,
     readonly onCompletion: (solution: Completion) => Promise<void>
-  ) { }
+  ) {}
 
   get service(): Service {
     return this.ctx.get(Service);

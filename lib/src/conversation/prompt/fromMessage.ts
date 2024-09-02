@@ -1,5 +1,5 @@
-import { elidableTextForSourceCode } from "../../../../prompt/src/elidableText/fromSourceCode.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 
 function fromMessage(message: string): ElidableText {
   const lines = message.split('\n');

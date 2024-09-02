@@ -1,8 +1,8 @@
-import { Turn } from "../../conversation/conversation.ts";
+import { Turn } from '../../conversation/conversation.ts';
 
-import { fromMessage } from "./fromMessage.ts";
-import { weighElidableList } from "./elidableList.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { fromMessage } from './fromMessage.ts';
+import { weighElidableList } from './elidableList.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 
 const MAX_TURNS_IN_HISTORY = 5;
 
@@ -22,9 +22,9 @@ function fromHistory(history: Turn[]): ElidableText | null {
 
   return elidableHistory.length > 0
     ? new ElidableText([
-      [new ElidableText(['Consider the following conversation history:']), 1],
-      [weighElidableList(elidableHistory, 'inverseLinear'), 1],
-    ])
+        [new ElidableText(['Consider the following conversation history:']), 1],
+        [weighElidableList(elidableHistory, 'inverseLinear'), 1],
+      ])
     : null;
 }
 

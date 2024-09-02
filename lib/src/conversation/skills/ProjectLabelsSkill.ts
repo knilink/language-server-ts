@@ -1,8 +1,8 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { Skill } from "../../types.ts";
-import { TurnContext } from "../turnContext.ts";
+import { Skill } from '../../types.ts';
+import { TurnContext } from '../turnContext.ts';
 
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 
 const ProjectLabelsSkillId: 'project-labels' = 'project-labels';
 
@@ -11,7 +11,7 @@ const ProjectLabelsSchema = Type.Object({ labels: Type.Array(Type.String()) });
 type ProjectLabelsType = Static<typeof ProjectLabelsSchema>;
 
 class ProjectLabelsSkillProcessor implements Skill.ISkillProcessor<ProjectLabelsType> {
-  constructor(private turnContext: TurnContext) { }
+  constructor(private turnContext: TurnContext) {}
 
   value(): number {
     return 1;
@@ -40,7 +40,7 @@ class ProjectLabelsSkill {
   readonly id = ProjectLabelsSkillId;
   readonly type = 'explicit';
 
-  constructor(private _resolver: Skill.ISkillResolver<ProjectLabelsType>) { }
+  constructor(private _resolver: Skill.ISkillResolver<ProjectLabelsType>) {}
 
   description(): string {
     return 'The characteristics of the project the developer is working on (languages, frameworks)';

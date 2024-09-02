@@ -1,9 +1,9 @@
 import { URI } from 'vscode-uri';
-import { Context } from "../../../../context.ts";
-import { getChunkingAlgorithm, ChunkingAlgorithmType } from "./ChunkingAlgorithms.ts";
-import { LRUCacheMap } from "../../../../common/cache.ts";
-import { ChunkingHandler } from "./ChunkingHandler.ts";
-import { Chunk, ChunkId } from "./IndexingTypes.ts";
+import { Context } from '../../../../context.ts';
+import { getChunkingAlgorithm, ChunkingAlgorithmType } from './ChunkingAlgorithms.ts';
+import { LRUCacheMap } from '../../../../common/cache.ts';
+import { ChunkingHandler } from './ChunkingHandler.ts';
+import { Chunk, ChunkId } from './IndexingTypes.ts';
 
 class ChunkingProvider {
   private workspaceChunkingProviders = new LRUCacheMap<string, ChunkingHandler>(25);

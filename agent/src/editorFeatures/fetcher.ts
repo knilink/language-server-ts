@@ -6,7 +6,7 @@ import {
   WorkDoneProgressBegin,
   WorkDoneProgressReport,
   WorkDoneProgressEnd,
-} from "vscode-languageserver/node.js";
+} from 'vscode-languageserver/node.js';
 
 import { Context } from '../../../lib/src/context.ts';
 import { BuildInfo } from '../../../lib/src/config.ts';

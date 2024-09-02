@@ -1,13 +1,13 @@
-import { BlockMode, TelemetryProperties } from "./types.ts";
-import { Context } from "./context.ts";
-import { LogLevel } from "./logger.ts";
+import { BlockMode, TelemetryProperties } from './types.ts';
+import { Context } from './context.ts';
+import { LogLevel } from './logger.ts';
 
-import { LanguageId } from "../../prompt/src/types.ts";
-import { TelemetryWithExp } from "./telemetry.ts";
+import { LanguageId } from '../../prompt/src/types.ts';
+import { TelemetryWithExp } from './telemetry.ts';
 
-import { isSupportedLanguageId } from "../../prompt/src/parse.ts";
-import { CopilotConfigPrefix } from "./constants.ts";
-import { Features } from "./experiments/features.ts";
+import { isSupportedLanguageId } from '../../prompt/src/parse.ts';
+import { CopilotConfigPrefix } from './constants.ts';
+import { Features } from './experiments/features.ts';
 import EventEmitter from 'events';
 
 function shouldDoParsingTrimming(blockMode: BlockMode) {
@@ -349,7 +349,7 @@ class EditorSession {
     readonly machineId: string,
     readonly remoteName = 'none',
     readonly uiKind = 'desktop'
-  ) { }
+  ) {}
 }
 
 namespace EditorAndPluginInfo {

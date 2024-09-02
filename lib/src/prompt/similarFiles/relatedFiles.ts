@@ -1,14 +1,14 @@
 import memoize from '@github/memoize';
 import { URI } from 'vscode-uri';
 
-import { type Context } from "../../context.ts";
+import { type Context } from '../../context.ts';
 
-import { LRUCacheMap } from "../../common/cache.ts";
-import { telemetry, TelemetryData } from "../../telemetry.ts";
-import { FileSystem } from "../../fileSystem.ts";
-import { CopilotContentExclusionManager } from "../../contentExclusion/contentExclusionManager.ts";
-import { shortCircuit } from "../../util/shortCircuit.ts";
-import { Logger, LogLevel } from "../../logger.ts";
+import { LRUCacheMap } from '../../common/cache.ts';
+import { telemetry, TelemetryData } from '../../telemetry.ts';
+import { FileSystem } from '../../fileSystem.ts';
+import { CopilotContentExclusionManager } from '../../contentExclusion/contentExclusionManager.ts';
+import { shortCircuit } from '../../util/shortCircuit.ts';
+import { Logger, LogLevel } from '../../logger.ts';
 
 const relatedFilesLogger = new Logger(LogLevel.INFO, 'relatedFiles');
 
@@ -92,7 +92,7 @@ class RelatedFilesProviderFailure extends Error {
 }
 
 abstract class RelatedFilesProvider {
-  constructor(readonly context: Context) { }
+  constructor(readonly context: Context) {}
 
   abstract getRelatedFileResponse(
     docInfo: DocumentInfo,

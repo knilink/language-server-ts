@@ -1,14 +1,14 @@
-import { Context } from "../context.ts";
+import { Context } from '../context.ts';
 
-import { parseVulnerabilitiesInstructions, DebugCodeVulnerability } from "./vulnerabilityDebugHandler.ts";
-import { CurrentEditorSkillId } from "./skills/CurrentEditorSkill.ts";
-import { exampleMarkdown } from "./markdownRenderingSpecification.ts";
-import { PromptTemplateResponse, IPromptTemplate } from "./promptTemplates.ts";
-import { ProjectLabelsSkillId } from "./skills/ProjectLabelsSkill.ts";
-import { getSkillsDump, getConversationDump, ConversationDumper } from "./dump.ts";
-import { TurnContext } from "./turnContext.ts";
-import { CancellationToken } from "../../../agent/src/cancellation.ts";
-import { SkillId } from "../types.ts";
+import { parseVulnerabilitiesInstructions, DebugCodeVulnerability } from './vulnerabilityDebugHandler.ts';
+import { CurrentEditorSkillId } from './skills/CurrentEditorSkill.ts';
+import { exampleMarkdown } from './markdownRenderingSpecification.ts';
+import { PromptTemplateResponse, IPromptTemplate } from './promptTemplates.ts';
+import { ProjectLabelsSkillId } from './skills/ProjectLabelsSkill.ts';
+import { getSkillsDump, getConversationDump, ConversationDumper } from './dump.ts';
+import { TurnContext } from './turnContext.ts';
+import { CancellationToken } from '../../../agent/src/cancellation.ts';
+import { SkillId } from '../types.ts';
 
 function getDebugTemplates() {
   return [

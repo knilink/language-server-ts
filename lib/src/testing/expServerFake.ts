@@ -1,8 +1,8 @@
 // import { } from '../auth/copilotTokenManager';
-import { type Fetcher, type Request, type Response } from "../networking.ts";
+import { type Fetcher, type Request, type Response } from '../networking.ts';
 // import { } from '../experiments/features';
 // import { } from './tokenManager';
-import { FakeFetcher, createFakeJsonResponse, createFakeResponse } from "./fetcher.ts";
+import { FakeFetcher, createFakeJsonResponse, createFakeResponse } from './fetcher.ts';
 // import { } from '../auth/copilotToken';
 // import { } from '../experiments/fetchExperiments';
 

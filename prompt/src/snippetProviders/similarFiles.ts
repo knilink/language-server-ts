@@ -1,6 +1,6 @@
-import { Snippet } from "../types.ts";
+import { Snippet } from '../types.ts';
 // import { } from '../snippetInclusion/similarFiles'; // circular // TODO unused
-import { SnippetProvider, SnippetContext } from "./snippetProvider.ts";
+import { SnippetProvider, SnippetContext } from './snippetProvider.ts';
 // import { } from '../lib'; // TODO unused
 
 class SimilarFilesProvider extends SnippetProvider {

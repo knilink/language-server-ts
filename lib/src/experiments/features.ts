@@ -1,26 +1,32 @@
 import { URI } from 'vscode-uri';
 
-import { FilterHeaders, RepoInfo, CopilotNeighboringTabs, FilterHeaderNames, BlockMode } from "../types.ts";
-import { Context } from "../context.ts";
+import { FilterHeaders, RepoInfo, CopilotNeighboringTabs, FilterHeaderNames, BlockMode } from '../types.ts';
+import { Context } from '../context.ts';
 
-import { ChatModelFamily } from "../conversation/modelMetadata.ts";
-import { EditorSession } from "../config.ts";
+import { ChatModelFamily } from '../conversation/modelMetadata.ts';
+import { EditorSession } from '../config.ts';
 import {
   DEFAULT_MAX_PROMPT_LENGTH,
   DEFAULT_MAX_COMPLETION_LENGTH,
   DEFAULT_SUFFIX_PERCENT,
   DEFAULT_SUFFIX_MATCH_THRESHOLD,
   DEFAULT_NUM_SNIPPETS,
-} from "../../../prompt/src/lib.ts";
-import { Clock } from "../clock.ts";
-import { ExpConfig } from "./expConfig.ts";
-import { TelemetryWithExp, TelemetryData } from "../telemetry.ts";
+} from '../../../prompt/src/lib.ts';
+import { Clock } from '../clock.ts';
+import { ExpConfig } from './expConfig.ts';
+import { TelemetryWithExp, TelemetryData } from '../telemetry.ts';
 // import { } from '../ghostText/contextualFilterConstants';
-import { extractRepoInfoInBackground, tryGetGitHubNWO, getDogFood, getUserKind, getFtFlag } from "../prompt/repository.ts";
-import { LRUCacheMap } from "../common/cache.ts";
-import { GranularityDirectory } from "./granularityDirectory.ts";
-import { FilterSettings } from "./filters.ts";
-import { ExpConfigMaker } from "./fetchExperiments.ts";
+import {
+  extractRepoInfoInBackground,
+  tryGetGitHubNWO,
+  getDogFood,
+  getUserKind,
+  getFtFlag,
+} from '../prompt/repository.ts';
+import { LRUCacheMap } from '../common/cache.ts';
+import { GranularityDirectory } from './granularityDirectory.ts';
+import { FilterSettings } from './filters.ts';
+import { ExpConfigMaker } from './fetchExperiments.ts';
 
 function isCompletionsFiltersInfo(info: object) {
   return 'uri' in info;
@@ -29,7 +35,7 @@ function isCompletionsFiltersInfo(info: object) {
 class FilterSettingsToExpConfigs {
   private cache = new LRUCacheMap<string, Task<ExpConfig>>(200);
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async fetchExpConfig(settings: FilterSettings): Promise<ExpConfig> {
     let task = this.cache.get(settings.stringify());
@@ -56,7 +62,7 @@ class Task<T> {
   constructor(
     readonly producer: () => Promise<T>,
     readonly expirationMs = Infinity
-  ) { }
+  ) {}
 
   async run(): Promise<T> {
     if (this.promise === undefined) {

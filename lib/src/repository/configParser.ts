@@ -2,12 +2,12 @@ import * as os from 'os';
 
 import { URI, Utils } from 'vscode-uri';
 
-import { Context } from "../context.ts";
-import { RepositoryManager } from "./repositoryManager.ts";
-import { FileSystem } from "../fileSystem.ts";
-import { resolveFilePath } from "../util/uri.ts";
-import { Logger, LogLevel } from "../logger.ts";
-import { GitConfigData, GitConfigLoader } from "./config.ts";
+import { Context } from '../context.ts';
+import { RepositoryManager } from './repositoryManager.ts';
+import { FileSystem } from '../fileSystem.ts';
+import { resolveFilePath } from '../util/uri.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { GitConfigData, GitConfigLoader } from './config.ts';
 
 const logger = new Logger(LogLevel.INFO, 'repository');
 const esc = '\\\\';
@@ -44,7 +44,7 @@ class GitConfigParser {
   linesWithErrors: number[] = [];
   configValueHandler?: (name: string, value: string) => void;
 
-  constructor(readonly content: string) { }
+  constructor(readonly content: string) {}
 
   parse(configValueHandler: (name: string, value: string) => void): void {
     this.stopped = false;

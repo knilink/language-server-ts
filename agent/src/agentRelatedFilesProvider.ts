@@ -5,16 +5,16 @@ import {
   EmptyRelatedFilesResponse,
   type DocumentInfo,
   type Entry,
-} from "../../lib/src/prompt/similarFiles/relatedFiles.ts";
+} from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
 // import { } from '../../lib/src/prompt/similarFiles/neighborFiles';
 
-import { type Context } from "../../lib/src/context.ts";
-import { Service } from "./service.ts";
-import { relatedFilesLogger } from "../../lib/src/prompt/similarFiles/relatedFiles.ts";
-import { CopilotCapabilitiesProvider } from "./editorFeatures/capabilities.ts";
-import { Features } from "../../lib/src/experiments/features.ts";
-import { ConfigKey, getConfig } from "../../lib/src/config.ts";
-import { telemetry, TelemetryData, TelemetryWithExp } from "../../lib/src/telemetry.ts";
+import { type Context } from '../../lib/src/context.ts';
+import { Service } from './service.ts';
+import { relatedFilesLogger } from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
+import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
+import { Features } from '../../lib/src/experiments/features.ts';
+import { ConfigKey, getConfig } from '../../lib/src/config.ts';
+import { telemetry, TelemetryData, TelemetryWithExp } from '../../lib/src/telemetry.ts';
 
 type RawResponse = { entries: Array<{ providerName: string; uris: string[] }> };
 

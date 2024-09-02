@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox';
 
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
-import { KerberosLoader } from "../../../lib/src/network/proxySockets.ts";
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { KerberosLoader } from '../../../lib/src/network/proxySockets.ts';
 
 const Params = Type.Object({});
 

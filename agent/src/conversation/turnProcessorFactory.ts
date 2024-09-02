@@ -1,15 +1,15 @@
-import { Unknown } from "../../../lib/src/types.ts";
-import { type TextDocument } from "../../../lib/src/textDocument.ts";
-import { type CancellationToken } from "../cancellation.ts";
-import { type TurnContext } from "../../../lib/src/conversation/turnContext.ts";
+import { Unknown } from '../../../lib/src/types.ts';
+import { type TextDocument } from '../../../lib/src/textDocument.ts';
+import { type CancellationToken } from '../cancellation.ts';
+import { type TurnContext } from '../../../lib/src/conversation/turnContext.ts';
 
-import { SyntheticTurns, SyntheticTurnProcessor } from "./syntheticTurnProcessor.ts";
-import { getAgents } from "../../../lib/src/conversation/agents/agents.ts";
+import { SyntheticTurns, SyntheticTurnProcessor } from './syntheticTurnProcessor.ts';
+import { getAgents } from '../../../lib/src/conversation/agents/agents.ts';
 import {
   InlineTurnProcessorStrategy,
   PanelTurnProcessorStrategy,
-} from "../../../lib/src/conversation/turnProcessorStrategy.ts";
-import { ModelTurnProcessor } from "../../../lib/src/conversation/turnProcessor.ts";
+} from '../../../lib/src/conversation/turnProcessorStrategy.ts';
+import { ModelTurnProcessor } from '../../../lib/src/conversation/turnProcessor.ts';
 
 interface ITurnProcessor {
   // ../methods/conversation/conversationCreate.ts

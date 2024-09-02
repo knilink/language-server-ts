@@ -1,7 +1,7 @@
 import { URI } from 'vscode-uri';
 import { describe, beforeEach, expect, it } from 'vitest';
 import { Position, Range } from 'vscode-languageserver-types';
-import { TextDocument } from "./textDocument.ts";
+import { TextDocument } from './textDocument.ts';
 
 describe('TextDocument', () => {
   const uri = URI.parse('file:///test.txt');

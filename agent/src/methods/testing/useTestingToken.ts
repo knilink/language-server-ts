@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { type CancellationToken } from "../../cancellation.ts";
-import { type AuthRecord } from "../../../../lib/src/auth/types.ts";
+import { type CancellationToken } from '../../cancellation.ts';
+import { type AuthRecord } from '../../../../lib/src/auth/types.ts';
 
-import { Context } from "../../../../lib/src/context.ts";
-import { getTestingCopilotTokenManager } from "../../../../lib/src/testing/copilotToken.ts";
-import { AuthManager } from "../../../../lib/src/auth/manager.ts";
-import { CopilotTokenManager } from "../../../../lib/src/auth/copilotTokenManager.ts";
-import { addMethodHandlerValidation } from "../../schemaValidation.ts";
+import { Context } from '../../../../lib/src/context.ts';
+import { getTestingCopilotTokenManager } from '../../../../lib/src/testing/copilotToken.ts';
+import { AuthManager } from '../../../../lib/src/auth/manager.ts';
+import { CopilotTokenManager } from '../../../../lib/src/auth/copilotTokenManager.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 
 const Params = Type.Object({
   options: Type.Optional(Type.Object({})),

@@ -1,17 +1,17 @@
-import { CopilotAuthStatus, TokenEnvelope, GitHubToken } from "./types.ts";
-import { Context } from "../context.ts";
-import { CopilotTokenManagerFromGitHubTokenBase } from "./copilotTokenManager.ts";
+import { CopilotAuthStatus, TokenEnvelope, GitHubToken } from './types.ts';
+import { Context } from '../context.ts';
+import { CopilotTokenManagerFromGitHubTokenBase } from './copilotTokenManager.ts';
 
-import { Logger, LogLevel } from "../logger.ts";
-import { telemetry, telemetryError, TelemetryData } from "../telemetry.ts";
-import { AvailableModelManager } from "../openai/model.ts";
-import { editorVersionHeaders, EditorAndPluginInfo } from "../config.ts";
-import { UserErrorNotifier } from "../error/userErrorNotifier.ts";
-import { NotificationSender } from "../notificationSender.ts";
-import { Fetcher, Response } from "../networking.ts";
-import { NetworkConfiguration } from "../networkConfiguration.ts";
-import { CopilotTokenNotifier } from "./copilotTokenNotifier.ts";
-import { UrlOpener } from "../util/opener.ts";
+import { Logger, LogLevel } from '../logger.ts';
+import { telemetry, telemetryError, TelemetryData } from '../telemetry.ts';
+import { AvailableModelManager } from '../openai/model.ts';
+import { editorVersionHeaders, EditorAndPluginInfo } from '../config.ts';
+import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
+import { NotificationSender } from '../notificationSender.ts';
+import { Fetcher, Response } from '../networking.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { CopilotTokenNotifier } from './copilotTokenNotifier.ts';
+import { UrlOpener } from '../util/opener.ts';
 
 const authLogger = new Logger(LogLevel.INFO, 'auth');
 const REFRESH_BUFFER_SECONDS: number = 60;

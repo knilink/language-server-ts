@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { Debouncer } from "./debounce.ts";
+import { Debouncer } from './debounce.ts';
 
 describe('Debouncer', () => {
   let debouncer: Debouncer;

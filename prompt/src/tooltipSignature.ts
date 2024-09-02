@@ -1,5 +1,5 @@
-import { commentBlockAsSingles } from "./languageMarker.ts";
-import { Document, Snippet } from "./types.ts";
+import { commentBlockAsSingles } from './languageMarker.ts';
+import { Document, Snippet } from './types.ts';
 
 function announceTooltipSignatureSnippet(snippet: string, targetDocLanguageId: string): string {
   const formattedSnippet = `Use ${snippet}`;

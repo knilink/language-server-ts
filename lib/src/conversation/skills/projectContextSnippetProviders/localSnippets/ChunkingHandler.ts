@@ -1,15 +1,15 @@
 import assert from 'node:assert';
 import { URI } from 'vscode-uri';
 
-import type { Model } from "../../../../types.ts";
-import type { Chunk, ChunkId, IChunking } from "./IndexingTypes.ts";
+import type { Model } from '../../../../types.ts';
+import type { Chunk, ChunkId, IChunking } from './IndexingTypes.ts';
 
-import { Context } from "../../../../context.ts";
-import { WorkspaceWatcherProvider } from "../../../../workspaceWatcherProvider.ts";
-import { FileReader } from "../../../../fileReader.ts";
-import { ModelConfigurationProvider } from "../../../modelConfigurations.ts";
-import { getSupportedModelFamiliesForPrompt } from "../../../modelMetadata.ts";
-import { WorkspaceChunks } from "./WorkspaceChunks.ts";
+import { Context } from '../../../../context.ts';
+import { WorkspaceWatcherProvider } from '../../../../workspaceWatcherProvider.ts';
+import { FileReader } from '../../../../fileReader.ts';
+import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt } from '../../../modelMetadata.ts';
+import { WorkspaceChunks } from './WorkspaceChunks.ts';
 
 class ChunkingHandler {
   status: 'notStarted' | 'started' | 'cancelled' | 'completed' = 'notStarted';
@@ -18,7 +18,7 @@ class ChunkingHandler {
   private needsDeletion = false;
   private modelConfig?: Model.Configuration;
 
-  constructor(private implementation: IChunking) { }
+  constructor(private implementation: IChunking) {}
 
   async chunk(ctx: Context, workspaceFolder: string): Promise<WorkspaceChunks['chunks']> {
     this.status = 'started';

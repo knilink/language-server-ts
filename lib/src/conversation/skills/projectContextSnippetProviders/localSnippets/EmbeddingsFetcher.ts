@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Model } from "../../../../types.ts";
+import type { Model } from '../../../../types.ts';
 
-import { Context } from "../../../../context.ts";
-import { CancellationToken } from "../../../../../../agent/src/cancellation.ts";
-import { getTokenizer } from "../../../../../../prompt/src/tokenization/tokenizer.ts";
-import { NetworkConfiguration } from "../../../../networkConfiguration.ts";
-import { CopilotTokenManager } from "../../../../auth/copilotTokenManager.ts";
-import { postRequest, Response } from "../../../../networking.ts";
+import { Context } from '../../../../context.ts';
+import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
+import { getTokenizer } from '../../../../../../prompt/src/tokenization/tokenizer.ts';
+import { NetworkConfiguration } from '../../../../networkConfiguration.ts';
+import { CopilotTokenManager } from '../../../../auth/copilotTokenManager.ts';
+import { postRequest, Response } from '../../../../networking.ts';
 
 type Input = {
   id: string;
@@ -80,7 +80,7 @@ async function sendEmbeddingsRequest(
         id: batch[embedding.index].id,
         embedding: embedding.embedding,
       }));
-    } catch (error) { }
+    } catch (error) {}
   }
 }
 

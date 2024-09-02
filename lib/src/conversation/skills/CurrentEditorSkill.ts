@@ -1,17 +1,17 @@
 import { type Static } from '@sinclair/typebox';
-import { Skill } from "../../types.ts";
-import { type TurnContext } from "../turnContext.ts";
+import { Skill } from '../../types.ts';
+import { type TurnContext } from '../turnContext.ts';
 
-import { DocumentSchema } from "../schema.ts";
+import { DocumentSchema } from '../schema.ts';
 
-import { FileReader, statusFromTextDocumentResult } from "../../fileReader.ts";
-import { isEmptyRange, ElidableDocument } from "./ElidableDocument.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { isEmptyRange, ElidableDocument } from './ElidableDocument.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 
 type Document = Static<typeof DocumentSchema>;
 
 class CurrentEditorSkillProcessor implements Skill.ISkillProcessor<Document> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value(): number {
     return 1;
@@ -48,7 +48,7 @@ class CurrentEditorSkillProcessor implements Skill.ISkillProcessor<Document> {
           selectionExcerpt = [
             [
               'The user is selecting' +
-              (startLine === endLine ? ` line ${startLine}:` : ` lines ${startLine} to ${endLine} (inclusive):`),
+                (startLine === endLine ? ` line ${startLine}:` : ` lines ${startLine} to ${endLine} (inclusive):`),
               1,
             ],
             [selectionText, 1],
@@ -75,7 +75,7 @@ class CurrentEditorSkill implements Skill.ISkill<typeof CurrentEditorSkillId, Do
   readonly id = CurrentEditorSkillId;
   readonly type = 'explicit';
 
-  constructor(private _resolver: Skill.ISkillResolver<Document>) { }
+  constructor(private _resolver: Skill.ISkillResolver<Document>) {}
 
   description(): string {
     return "The code from the user's currently open file";

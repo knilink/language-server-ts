@@ -1,7 +1,7 @@
-import { Context } from "../../context.ts";
+import { Context } from '../../context.ts';
 
-import { ProjectContextSkillId } from "../skills/ProjectContextSkill.ts";
-import { RemoteAgentRegistry, RemoteAgent } from "../extensibility/remoteAgents.ts";
+import { ProjectContextSkillId } from '../skills/ProjectContextSkill.ts';
+import { RemoteAgentRegistry, RemoteAgent } from '../extensibility/remoteAgents.ts';
 
 async function getAgents(ctx: Context): Promise<(ProjectAgent | RemoteAgent)[]> {
   let remoteAgents = await ctx.get(RemoteAgentRegistry).agents();

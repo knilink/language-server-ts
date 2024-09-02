@@ -1,12 +1,12 @@
-import { Context } from "../../context.ts";
+import { Context } from '../../context.ts';
 
-import { NetworkConfiguration } from "../../networkConfiguration.ts";
-import { logger } from "../../logger.ts";
-import { CopilotTokenManager } from "../../auth/copilotTokenManager.ts";
-import { Fetcher, Response } from "../../networking.ts";
-import { RemoteAgentTurnProcessor } from "./remoteAgentTurnProcessor.ts";
-import { TurnContext } from "../turnContext.ts";
-import { SkillId } from "../../types.ts";
+import { NetworkConfiguration } from '../../networkConfiguration.ts';
+import { logger } from '../../logger.ts';
+import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
+import { Fetcher, Response } from '../../networking.ts';
+import { RemoteAgentTurnProcessor } from './remoteAgentTurnProcessor.ts';
+import { TurnContext } from '../turnContext.ts';
+import { SkillId } from '../../types.ts';
 
 const GITHUB_PLATFORM_AGENT_ID = 'github';
 
@@ -70,7 +70,7 @@ class CapiRemoteAgentRegistry extends RemoteAgentRegistry {
     } catch (e: unknown) {
       if (
         (text.includes('access denied') || logger.warn(this.ctx, `Invalid remote agent response: ${text} (${e})`),
-          false)
+        false)
       ) {
         return [];
       }
@@ -90,7 +90,7 @@ class RemoteAgent {
     readonly name: string,
     readonly description: string,
     readonly avatarUrl: string
-  ) { }
+  ) {}
 
   async additionalSkills(ctx: Context): Promise<SkillId[]> {
     return [];

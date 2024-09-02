@@ -1,8 +1,8 @@
-import { Document } from "../types.ts";
-import { ITokenizer, getTokenizer } from "../tokenization/index.ts";
+import { Document } from '../types.ts';
+import { ITokenizer, getTokenizer } from '../tokenization/index.ts';
 
-import { elidableTextForSourceCode } from "./fromSourceCode.ts"; // circular deps
-import { LineWithValueAndCost } from "./lineWithValueAndCost.ts";
+import { elidableTextForSourceCode } from './fromSourceCode.ts'; // circular deps
+import { LineWithValueAndCost } from './lineWithValueAndCost.ts';
 
 function makePrompt(
   lines: LineWithValueAndCost[],

@@ -1,13 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from "../cancellation.ts";
-import { type Completion } from "../../../lib/src/types.ts";
-import { type SuggestionStatus } from "../../../lib/src/suggestions/partialSuggestions.ts";
+import { type CancellationToken } from '../cancellation.ts';
+import { type Completion } from '../../../lib/src/types.ts';
+import { type SuggestionStatus } from '../../../lib/src/suggestions/partialSuggestions.ts';
 
-import { Context } from "../../../lib/src/context.ts";
-import { CopilotCompletionCache } from "../copilotCompletionCache.ts";
-import { postInsertionTasks } from "../../../lib/src/postInsertion.ts";
-import { TestingOptions } from "./testingOptions.ts";
-import { addMethodHandlerValidation } from "../schemaValidation.ts";
+import { Context } from '../../../lib/src/context.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { postInsertionTasks } from '../../../lib/src/postInsertion.ts';
+import { TestingOptions } from './testingOptions.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
 
 const Params = Type.Object({
   uuid: Type.String({ minLength: 1 }),

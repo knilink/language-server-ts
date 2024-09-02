@@ -28,14 +28,14 @@ function makeXdgPersistenceManager(): PersistenceManager {
 }
 
 class PersistenceManager implements IPersistenceManager {
-  constructor(readonly directory: string) { }
+  constructor(readonly directory: string) {}
 
   async read(setting: string, key: string): Promise<unknown> {
     const configFile = `${this.directory}/${setting}.json`;
     try {
       const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
       return JSON.parse(contents)[key];
-    } catch (error) { }
+    } catch (error) {}
   }
 
   async update(setting: string, key: string, value: unknown): Promise<void> {
@@ -46,7 +46,7 @@ class PersistenceManager implements IPersistenceManager {
     try {
       const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
       contentsJSON = JSON.parse(contents);
-    } catch (error) { }
+    } catch (error) {}
 
     contentsJSON[key] = value;
     await fs.promises.writeFile(configFile, `${JSON.stringify(contentsJSON)}\n`, { encoding: 'utf8' });
@@ -65,14 +65,14 @@ class PersistenceManager implements IPersistenceManager {
       } else {
         await fs.promises.writeFile(configFile, contentsOut, { encoding: 'utf8' });
       }
-    } catch { }
+    } catch {}
   }
 
   async deleteSetting(setting: string): Promise<void> {
     const configFile = `${this.directory}/${setting}.json`;
     try {
       await fs.promises.rm(configFile);
-    } catch { }
+    } catch {}
   }
 
   async listSettings(): Promise<string[]> {

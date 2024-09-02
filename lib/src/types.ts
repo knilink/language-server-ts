@@ -1,12 +1,12 @@
 import { Position, Range } from 'vscode-languageserver-types';
 import { URI } from 'vscode-uri';
-import { Context } from "./context.ts";
-import { TelemetryData, TelemetryWithExp } from "./telemetry.ts";
-import { TurnContext } from "./conversation/turnContext.ts";
-import { ElidableText } from "../../prompt/src/elidableText/elidableText.ts";
-import { ChatRole } from "./conversation/openai/openai.ts";
+import { Context } from './context.ts';
+import { TelemetryData, TelemetryWithExp } from './telemetry.ts';
+import { TurnContext } from './conversation/turnContext.ts';
+import { ElidableText } from '../../prompt/src/elidableText/elidableText.ts';
+import { ChatRole } from './conversation/openai/openai.ts';
 import { TSchema } from '@sinclair/typebox';
-import { ChatModelFamily } from "./conversation/modelMetadata.ts";
+import { ChatModelFamily } from './conversation/modelMetadata.ts';
 
 // export { WorkspaceFolder } from 'vscode-languageserver-types';
 
@@ -304,11 +304,11 @@ export type UiKind =
 
 export type FetchResult =
   | {
-    type: 'success';
-    toolCalls: ToolCall[];
-    numTokens: number;
-    requestId: string;
-  }
+      type: 'success';
+      toolCalls: ToolCall[];
+      numTokens: number;
+      requestId: string;
+    }
   | { type: 'offTopic' }
   | { type: 'canceled' }
   | { type: 'filtered' }
@@ -317,9 +317,9 @@ export type FetchResult =
   | { type: 'successMultiple' }
   | { type: 'failed'; reason: string; code: number }
   | {
-    type: 'failure';
-    reason?: string;
-  }
+      type: 'failure';
+      reason?: string;
+    }
   | { type: 'successMultiple' }
   | { type: 'tool_calls' }
   | { type: 'unknown' };
@@ -338,12 +338,12 @@ export namespace Chat {
   export type ElidableChatMessage =
     | ChatMessage
     | {
-      role: ChatRole;
-      // ./conversation/prompt/conversationPromptEngine.ts
-      content: ElidableText;
-      // ../../agent/src/methods/testing/chatML.ts
-      name?: string;
-    };
+        role: ChatRole;
+        // ./conversation/prompt/conversationPromptEngine.ts
+        content: ElidableText;
+        // ../../agent/src/methods/testing/chatML.ts
+        name?: string;
+      };
 }
 
 // ./conversation/prompt/strategies/promptStrategyFactory.ts

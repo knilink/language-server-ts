@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LRUCacheMap } from "./cache.ts"; // Update with the correct path to your LRUCacheMap file
+import { LRUCacheMap } from './cache.ts'; // Update with the correct path to your LRUCacheMap file
 
 describe('LRUCacheMap', () => {
   let lru: LRUCacheMap<string, number>;

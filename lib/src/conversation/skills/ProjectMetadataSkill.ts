@@ -1,12 +1,12 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { Skill } from "../../types.ts";
+import { Skill } from '../../types.ts';
 
-import { IProjectMetadataLookup } from "./ProjectMetadataLookups.ts";
+import { IProjectMetadataLookup } from './ProjectMetadataLookups.ts';
 
-import { getMetadataLookup, determineProgrammingLanguage } from "./ProjectMetadata.ts";
-import { ElidableText } from "../../../../prompt/src/elidableText/elidableText.ts";
-import { TurnContext } from "../turnContext.ts";
+import { getMetadataLookup, determineProgrammingLanguage } from './ProjectMetadata.ts';
+import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
+import { TurnContext } from '../turnContext.ts';
 
 const ProjectMetadataSkillId: 'project-metadata' = 'project-metadata';
 
@@ -29,7 +29,7 @@ type Dependency = Static<typeof DependencySchema>;
 type ProjectMetadata = Static<typeof ProjectMetadataSchema>;
 
 class ProjectMetadataSkillProcessor implements Skill.ISkillProcessor<ProjectMetadata> {
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   value() {
     return 1;
@@ -95,7 +95,7 @@ class ProjectMetadataSkill implements Skill.ISkill<typeof ProjectMetadataSkillId
   readonly id = ProjectMetadataSkillId;
   readonly type = 'explicit';
 
-  constructor(private _resolver: Skill.ISkillResolver<ProjectMetadata>) { }
+  constructor(private _resolver: Skill.ISkillResolver<ProjectMetadata>) {}
 
   description(): string {
     return 'The characteristics of the project the developer is working on (languages, frameworks)';

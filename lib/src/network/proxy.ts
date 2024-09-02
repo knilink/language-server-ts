@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import net from 'net';
-import { type Fetcher } from "../networking.ts";
+import { type Fetcher } from '../networking.ts';
 
 const HttpSettings = Type.Object({
   proxy: Type.Optional(Type.String()),

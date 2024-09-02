@@ -1,14 +1,14 @@
-import { Context } from "./context.ts";
-import { isAbortError } from "./networking.ts";
-import { StatusReporter } from "./progress.ts";
-import { logger } from "./logger.ts";
+import { Context } from './context.ts';
+import { isAbortError } from './networking.ts';
+import { StatusReporter } from './progress.ts';
+import { logger } from './logger.ts';
 
 const oomCodes = new Set(['ERR_WORKER_OUT_OF_MEMORY', 'ENOMEM']);
 
 function isOomError(error: Error): boolean {
   return oomCodes.has(
     ((error as any).code ?? '') ||
-    (error.name === 'RangeError' && error.message === 'WebAssembly.Memory(): could not allocate memory')
+      (error.name === 'RangeError' && error.message === 'WebAssembly.Memory(): could not allocate memory')
   );
 }
 

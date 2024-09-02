@@ -1,4 +1,4 @@
-import { NotificationType } from "vscode-languageserver/node.js";
+import { NotificationType } from 'vscode-languageserver/node.js';
 
 import { Context } from '../../../lib/src/context.ts';
 import { TelemetryReporters } from '../../../lib/src/telemetry.ts';
@@ -18,7 +18,7 @@ export class RedirectTelemetryReporter {
   constructor(
     readonly ctx: Context,
     readonly codeSnippets = false
-  ) { }
+  ) {}
 
   get notificationName(): string {
     return this.codeSnippets ? 'codeSnippetTelemetry' : 'uedTelemetry';
@@ -41,5 +41,5 @@ export class RedirectTelemetryReporter {
     this.sendTelemetryEvent(eventName, properties, measurements);
   }
 
-  async dispose(): Promise<void> { }
+  async dispose(): Promise<void> {}
 }

@@ -1,11 +1,11 @@
 import { URI, Utils } from 'vscode-uri';
-import { type Context } from "../context.ts";
-import { type GitRemoteUrl } from "./gitRemoteUrl.ts";
+import { type Context } from '../context.ts';
+import { type GitRemoteUrl } from './gitRemoteUrl.ts';
 
-import { dirname, resolveFilePath } from "../util/uri.ts";
-import { FileSystem } from "../fileSystem.ts";
-import { GitRemoteResolver } from "./gitRemoteResolver.ts";
-import { LRUCacheMap } from "../common/cache.ts";
+import { dirname, resolveFilePath } from '../util/uri.ts';
+import { FileSystem } from '../fileSystem.ts';
+import { GitRemoteResolver } from './gitRemoteResolver.ts';
+import { LRUCacheMap } from '../common/cache.ts';
 import assert from 'assert';
 
 const maxRepoCacheSize: number = 100;
@@ -83,7 +83,7 @@ class RepositoryManager {
   readonly remoteResolver = new GitRemoteResolver();
   readonly cache = new LRUCacheMap<string, GitRepository | undefined>(maxRepoCacheSize);
 
-  constructor(readonly ctx: Context) { }
+  constructor(readonly ctx: Context) {}
 
   async getRepo(uri: URI): Promise<GitRepository | undefined> {
     let lastFsPath: URI | undefined;
@@ -137,7 +137,7 @@ class RepositoryManager {
       const configPath = Utils.joinPath(gitDir, 'config');
       await fs.stat(configPath);
       return configPath;
-    } catch { }
+    } catch {}
   }
 
   static async getConfigLocationForGitfile(fs: FileSystem, baseFolder: URI, gitFile: URI): Promise<URI | undefined> {
@@ -162,7 +162,7 @@ class RepositoryManager {
   static async tryStat(fs: FileSystem, path: URI) {
     try {
       return await fs.stat(path);
-    } catch { }
+    } catch {}
   }
 }
 

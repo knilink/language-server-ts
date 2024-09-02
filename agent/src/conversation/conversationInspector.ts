@@ -1,4 +1,4 @@
-import { NotificationType } from "vscode-languageserver/node.js";
+import { NotificationType } from 'vscode-languageserver/node.js';
 import { type Context } from '../../../lib/src/context.ts';
 import { isRunningInSimulation } from '../../../lib/src/testing/runtimeMode.ts';
 import { Service } from '../service.ts';

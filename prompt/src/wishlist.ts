@@ -333,8 +333,8 @@ class PromptWishlist {
       firstSuffixTokens.tokens.length > 0 &&
       completeOptions.suffixMatchThreshold > 0 &&
       100 *
-      findEditDistanceScore(firstSuffixTokens.tokens, cachedSuffix.tokens.slice(0, MAX_EDIT_DISTANCE_LENGTH))?.score <
-      completeOptions.suffixMatchThreshold * firstSuffixTokens.tokens.length
+        findEditDistanceScore(firstSuffixTokens.tokens, cachedSuffix.tokens.slice(0, MAX_EDIT_DISTANCE_LENGTH))?.score <
+        completeOptions.suffixMatchThreshold * firstSuffixTokens.tokens.length
     ) {
       useCachedSuffix = true;
     }

@@ -1,4 +1,4 @@
-import { MessageActionItem } from "vscode-languageserver/node.js";
+import { MessageActionItem } from 'vscode-languageserver/node.js';
 
 import { Context } from '../../lib/src/context.ts';
 import { Service } from './service.ts';

@@ -1,33 +1,33 @@
 import { Range, DocumentUri } from 'vscode-languageserver-types';
 
-import { type TextDocumentResultStatus } from "../fileReader.ts";
-import { type CancellationToken } from "../../../agent/src/cancellation.ts";
+import { type TextDocumentResultStatus } from '../fileReader.ts';
+import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 
-import { Skill, SkillId } from "../types.ts";
-import { Context } from "../context.ts";
-import { Conversation, Turn } from "./conversation.ts";
+import { Skill, SkillId } from '../types.ts';
+import { Context } from '../context.ts';
+import { Conversation, Turn } from './conversation.ts';
 
-import { conversationLogger } from "./logger.ts";
-import { ConversationSkillRegistry } from "./prompt/conversationSkill.ts";
-import { Conversations } from "./conversations.ts";
-import { ConversationProgress } from "./conversationProgress.ts";
-import { ConversationDumper } from "./dump.ts";
-import { Steps } from "./steps.ts";
-import { SkillMap } from "./skills/skillMap.ts";
+import { conversationLogger } from './logger.ts';
+import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
+import { Conversations } from './conversations.ts';
+import { ConversationProgress } from './conversationProgress.ts';
+import { ConversationDumper } from './dump.ts';
+import { Steps } from './steps.ts';
+import { SkillMap } from './skills/skillMap.ts';
 
 type Collectible =
   | {
-    type: 'file';
-    skillId: string;
-    uri: string;
-    status: TextDocumentResultStatus;
-    range?: Range;
-  }
+      type: 'file';
+      skillId: string;
+      uri: string;
+      status: TextDocumentResultStatus;
+      range?: Range;
+    }
   | {
-    type: 'label';
-    skillId: string;
-    label: string;
-  };
+      type: 'label';
+      skillId: string;
+      label: string;
+    };
 
 class TurnContext {
   readonly collector = new Collector();
@@ -78,7 +78,7 @@ class ConversationAbortError extends Error {
 class SkillResolver<T extends Record<keyof T & SkillId, any> = SkillMap> {
   resolveStack: SkillId[] = [];
 
-  constructor(readonly turnContext: TurnContext) { }
+  constructor(readonly turnContext: TurnContext) {}
 
   async resolve<K extends keyof T & SkillId>(skillId: K): Promise<T[K] | undefined>;
   async resolve(skillId: SkillId): Promise<unknown | undefined>;

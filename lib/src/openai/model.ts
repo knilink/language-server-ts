@@ -1,12 +1,12 @@
 import { type URI } from 'vscode-uri';
 
-import { CopilotToken } from "../auth/copilotToken.ts";
-import { Context } from "../context.ts";
-import { Logger } from "../logger.ts";
-import { CopilotTokenManager } from "../auth/copilotTokenManager.ts";
-import { ConfigKey, getConfig } from "../config.ts";
-import { Features } from "../experiments/features.ts";
-import { TelemetryWithExp } from "../telemetry.ts";
+import { CopilotToken } from '../auth/copilotToken.ts';
+import { Context } from '../context.ts';
+import { Logger } from '../logger.ts';
+import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { ConfigKey, getConfig } from '../config.ts';
+import { Features } from '../experiments/features.ts';
+import { TelemetryWithExp } from '../telemetry.ts';
 
 const DefaultModelId = 'copilot-codex';
 const modelLogger = new Logger(4, 'customModels');
