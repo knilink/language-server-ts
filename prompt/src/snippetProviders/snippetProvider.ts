@@ -42,6 +42,9 @@ abstract class SnippetProvider {
       return { snippets: snippets, providerType: this.type, runtime: endTime - startTime };
     } catch (error) {
       throw { error, providerType: this.type };
+    } finally {
+      // EDITED
+      signal.removeEventListener('abort', handleAbort);
     }
   }
 
