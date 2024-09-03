@@ -1,0 +1,106 @@
+{
+  "name": "local-copilot",
+  "version": "0.0.1",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c --watch",
+    "test": "vitest",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": "prettier --write",
+    "*.json": "prettier --write"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 120
+  },
+  "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint",
+      "prettier"
+    ],
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:prettier/recommended"
+    ],
+    "rules": {
+      "prettier/prettier": "error",
+      "@typescript-eslint/no-unused-vars": "error",
+      "quotes": [
+        "error",
+        "single"
+      ],
+      "semi": [
+        "error",
+        "always"
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/crypto-js": "^4.2.2",
+    "@types/diff": "^5.2.2",
+    "@types/git-url-parse": "^9.0.3",
+    "@types/node": "^20.14.12",
+    "@types/semver": "^7.5.8",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.4.0",
+    "@typescript-eslint/parser": "^8.4.0",
+    "eslint": "^9.9.1",
+    "husky": "^9.1.5",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "rollup": "^4.19.0",
+    "ts-dedent": "^2.2.0",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.6.3",
+    "tslint": "^6.1.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.4"
+  },
+  "dependencies": {
+    "@adobe/helix-fetch": "github:devm33/helix-fetch#1088e599270f36632703f138d88c2100cbe468db",
+    "@github/memoize": "^1.1.4",
+    "@microsoft/applicationinsights-common": "^3.3.0",
+    "@microsoft/applicationinsights-web-basic": "^3.3.0",
+    "@microsoft/tiktokenizer": "^1.0.8",
+    "@roamhq/mac-ca": "^1.0.7",
+    "@rollup/plugin-commonjs": "^26.0.1",
+    "@rollup/plugin-json": "^6.1.0",
+    "@sinclair/typebox": "^0.32.35",
+    "@types/js-yaml": "^4.0.9",
+    "@types/uuid": "^10.0.0",
+    "crypto-js": "^4.2.0",
+    "diff": "^5.2.0",
+    "dldr": "^0.0.10",
+    "git-url-parse": "^14.1.0",
+    "jhaystack": "^0.1.8",
+    "js-yaml": "^4.1.0",
+    "kerberos": "^2.1.2",
+    "minimatch": "^10.0.1",
+    "open": "^10.1.0",
+    "semver": "^7.6.3",
+    "source-map-support": "^0.5.21",
+    "uuid": "^10.0.0",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageserver-types": "^3.17.5",
+    "vscode-uri": "^3.0.8",
+    "web-tree-sitter": "^0.22.6",
+    "windows-ca-certs": "^0.1.0",
+    "ws": "^8.18.0",
+    "yargs": "^17.7.2"
+  }
+}
