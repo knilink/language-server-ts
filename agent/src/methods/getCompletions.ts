@@ -264,7 +264,7 @@ async function getGhostTextWithAbortHandling(
   isCycling: boolean,
   telemetryData: TelemetryData,
   token: CancellationToken,
-  ifInserted?: { text: string; end?: any }
+  ifInserted?: ParamsType['doc']['ifInserted']
 ): Promise<GhostTextResult> {
   try {
     return await getGhostText(requestCtx, textDocument, position, isCycling, telemetryData, token, ifInserted);
