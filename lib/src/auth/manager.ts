@@ -7,7 +7,7 @@ import { CopilotTokenManager } from './copilotTokenManager.ts'; // replace with 
 
 class AuthManager {
   private _copilotTokenManager: CopilotTokenManager;
-  private _pendingSignIn?: Promise<unknown>;
+  private _pendingSignIn?: Promise<AuthStatus>;
   private _transientAuthRecord?:
     | AuthRecord
     // ../../../agent/src/service.ts
@@ -25,11 +25,11 @@ class AuthManager {
   }
 
   // ../../../agent/src/methods/signInConfirm.ts
-  setPendingSignIn(promise: Promise<unknown> | undefined): void {
+  setPendingSignIn(promise: Promise<AuthStatus> | undefined): void {
     this._pendingSignIn = promise;
   }
 
-  getPendingSignIn(): Promise<unknown> | undefined {
+  getPendingSignIn(): Promise<AuthStatus> | undefined {
     return this._pendingSignIn;
   }
 
