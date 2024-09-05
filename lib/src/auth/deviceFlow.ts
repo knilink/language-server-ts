@@ -1,3 +1,4 @@
+import assert from 'node:assert';
 import { type Context } from '../context.ts';
 
 import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from '../telemetry/auth.ts';
@@ -60,7 +61,11 @@ async function requestDeviceFlowStage2(
     timeout: 30_000,
   };
   const r = await ctx.get(Fetcher).fetch(ctx.get(NetworkConfiguration).getDeviceFlowCompletionUrl(), request);
-  return r.json() as any;
+  // EDITED
+  const data: any = await r.json();
+  const access_token = data?.access_token;
+  if (typeof access_token === 'string') return { access_token };
+  return {};
 }
 
 async function requestUserInfo(ctx: Context, accessToken: string): Promise<{ login: string }> {
@@ -70,7 +75,11 @@ async function requestUserInfo(ctx: Context, accessToken: string): Promise<{ log
   const r = await fetcher.fetch(userInfoUrl, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
   });
-  return r.json() as any;
+  // EDITED
+  const data: any = await r.json();
+  const login = data?.login;
+  assert(typeof login === 'string'); // login required by AuthRecord
+  return { login };
 }
 
 export class GitHubDeviceFlow {
