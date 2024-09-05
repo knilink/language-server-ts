@@ -20,21 +20,21 @@ const OpenAIProxyUrl = 'https://copilot-proxy.githubusercontent.com';
 const OriginTrackerUrl = 'https://origin-tracker.githubusercontent.com';
 
 class DefaultNetworkConfiguration extends NetworkConfiguration {
-  private isEnterprise?: boolean;
-  private baseUrlObject?: URL;
-  private apiUrl?: string;
-  private tokenUrl?: string;
-  private notificationUrl?: string;
-  private contentRestrictionsUrl?: string;
-  private blackbirdIndexingStatusUrl?: string;
-  private loginReachabilityUrl?: string;
-  private deviceFlowStartUrl?: string;
-  private deviceFlowCompletionUrl?: string;
-  private userInfoUrl?: string;
-  private capiUrl?: string;
-  private telemetryUrl?: string;
-  private completionsUrl?: string;
-  private originTrackerUrl?: string;
+  isEnterprise?: boolean;
+  baseUrlObject?: URL;
+  apiUrl?: string;
+  tokenUrl?: string;
+  notificationUrl?: string;
+  contentRestrictionsUrl?: string;
+  blackbirdIndexingStatusUrl?: string;
+  loginReachabilityUrl?: string;
+  deviceFlowStartUrl?: string;
+  deviceFlowCompletionUrl?: string;
+  userInfoUrl?: string;
+  capiUrl?: string;
+  telemetryUrl?: string;
+  completionsUrl?: string;
+  originTrackerUrl?: string;
 
   constructor(
     ctx: Context,

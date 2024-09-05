@@ -7,7 +7,7 @@ class TelemetryUserConfig {
   sku?: string;
 
   constructor(
-    ctx: Context,
+    readonly ctx: Context,
     public trackingId?: string,
     public optedIn: boolean = false,
     public ftFlag: string = ''

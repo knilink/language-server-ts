@@ -201,7 +201,7 @@ class CopilotToken {
     return new CopilotToken({ ...defaultEnvelope, ...envelope });
   }
 
-  private parseToken(token?: string): Map<string, string> {
+  parseToken(token?: string): Map<string, string> {
     const result = new Map<string, string>();
     if (token) {
       const fields = token.split(':')[0].split(';');

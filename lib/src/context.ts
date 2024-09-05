@@ -1,7 +1,7 @@
 type ContextKey<T> = abstract new (...args: any[]) => T;
 
 class Context {
-  private instances = new Map<ContextKey<any>, any>();
+  readonly instances = new Map<ContextKey<any>, any>();
 
   get<T>(ctor: ContextKey<T>): T {
     const value = this.tryGet(ctor);
@@ -29,7 +29,7 @@ class Context {
     this.instances.set(ctor, instance);
   }
 
-  private assertIsInstance<T>(ctor: ContextKey<T>, instance: any): void {
+  assertIsInstance<T>(ctor: ContextKey<T>, instance: any): void {
     if (!(instance instanceof ctor)) {
       const inst = JSON.stringify(instance);
       throw new Error(`The instance you're trying to register for ${ctor.name} is not an instance of it (${inst}).`);
