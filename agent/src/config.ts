@@ -23,7 +23,7 @@ class AgentConfigProvider extends InMemoryConfigProvider {
     for (const prefix of ['AGENT_DEBUG_', 'GITHUB_COPILOT_', 'GH_COPILOT_']) {
       const _envKey = `${prefix}${envkey}`;
       if (_envKey in this.env) {
-        this.setConfig(key, formatter(this.env[envkey]));
+        this.setConfig(key, formatter(this.env[_envKey]));
       }
     }
   }
