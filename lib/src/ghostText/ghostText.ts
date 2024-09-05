@@ -279,14 +279,14 @@ async function getCompletionsFromNetwork(
           const redactedChoice = innerChoice.value;
           if (redactedChoice !== undefined) {
             ghostTextLogger.debug(ctx, `GhostText later completion: ${JSON.stringify(redactedChoice.completionText)}`);
-          }
-          if (redactedChoice.completionText.trimEnd()) {
-            if (
-              apiChoices.some((v) => v.completionText.trim() === redactedChoice.completionText.trim()) ||
-              redactedChoice.completionText.trim() === firstChoice.completionText.trim()
-            )
-              continue;
-            apiChoices.push(redactedChoice);
+            if (redactedChoice.completionText.trimEnd()) {
+              if (
+                apiChoices.some((v) => v.completionText.trim() === redactedChoice.completionText.trim()) ||
+                redactedChoice.completionText.trim() === firstChoice.completionText.trim()
+              )
+                continue;
+              apiChoices.push(redactedChoice);
+            }
           }
         }
         if (apiChoices.length > 0) {
