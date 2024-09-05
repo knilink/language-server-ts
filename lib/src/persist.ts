@@ -76,8 +76,11 @@ class PersistenceManager implements IPersistenceManager {
   }
 
   async listSettings(): Promise<string[]> {
-    const files = await fs.promises.readdir(this.directory);
-    return files.filter((file) => file.endsWith('.json')).map((file) => path.basename(file, '.json'));
+    try {
+      return (await fs.promises.readdir(this.directory)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
+    } catch {
+      return [];
+    }
   }
 
   async listKeys(setting: string): Promise<string[]> {
