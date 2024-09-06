@@ -26,11 +26,7 @@ class AvailableModelManager {
 }
 
 class AvailableModels {
-  private token: CopilotToken;
-
-  constructor(token: CopilotToken) {
-    this.token = token;
-  }
+  constructor(readonly token: CopilotToken) {}
 
   getModelIds(): string[] {
     return [...(this.token.getTokenValue('cml')?.split(',') ?? []), DefaultModelId];
@@ -51,13 +47,10 @@ class AvailableModels {
 }
 
 class ModelRequestInfo {
-  private modelId: string;
-  private forceBaseModel: boolean;
-
-  constructor(modelId: string, forceBaseModel = false) {
-    this.modelId = modelId;
-    this.forceBaseModel = forceBaseModel;
-  }
+  constructor(
+    readonly modelId: string,
+    readonly forceBaseModel = false
+  ) {}
 
   get path(): string {
     return `/v1/engines/${encodeURIComponent(this.modelId)}`;

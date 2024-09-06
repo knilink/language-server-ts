@@ -1,5 +1,5 @@
 import { WorkspaceFoldersChangeEvent } from 'vscode-languageserver';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { URI } from 'vscode-uri';
 
 type WorkspaceFoldersChangeUriEvent = {

@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { URI } from 'vscode-uri';
 import { Context } from './context.ts';
 

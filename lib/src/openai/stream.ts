@@ -1,4 +1,4 @@
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 import { Context } from '../context.ts';
 import { Response } from '../networking.ts';

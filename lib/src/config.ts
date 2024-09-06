@@ -8,7 +8,7 @@ import { TelemetryWithExp } from './telemetry.ts';
 import { isSupportedLanguageId } from '../../prompt/src/parse.ts';
 import { CopilotConfigPrefix } from './constants.ts';
 import { Features } from './experiments/features.ts';
-import EventEmitter from 'events';
+import { EventEmitter } from 'node:events';
 
 function shouldDoParsingTrimming(blockMode: BlockMode) {
   return ['parsing', 'parsingandserver'].includes(blockMode);

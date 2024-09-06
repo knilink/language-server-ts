@@ -1,6 +1,6 @@
 import { GitHubToken } from './types.ts';
 import { CopilotAuthStatus } from './types.ts';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 
 import { Context } from '../context.ts';
 import { telemetry } from '../telemetry.ts';

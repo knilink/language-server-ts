@@ -14,7 +14,7 @@ import { LanguageDetection } from '../../lib/src/language/languageDetection.ts';
 import { TextDocument } from '../../lib/src/textDocument.ts';
 import { Service } from './service.ts';
 import { FileSystem } from '../../lib/src/fileSystem.ts';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
 // import { Document } from '../../prompt/src/types';
 import { WorkspaceFolder } from '../../lib/src/types.ts';

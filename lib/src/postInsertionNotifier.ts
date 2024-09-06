@@ -1,7 +1,7 @@
 import { Position } from 'vscode-languageserver-types';
 import { URI } from 'vscode-uri';
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { Context } from './context.ts';
 import { TelemetryWithExp } from './telemetry.ts';
 

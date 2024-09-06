@@ -185,7 +185,7 @@ class Service {
         }
         ctx.get(InitializedNotifier).emit(options ?? {});
       });
-      ctx.get(CopilotCapabilitiesProvider).setCapabilities(copilotCapabilities != null ? copilotCapabilities : {});
+      ctx.get(CopilotCapabilitiesProvider).setCapabilities(copilotCapabilities ?? {});
       ctx.get(LspFileWatcher).init();
       if (copilotCapabilities?.token) {
         await ctx.get(AuthManager).setTransientAuthRecord(ctx, null);
