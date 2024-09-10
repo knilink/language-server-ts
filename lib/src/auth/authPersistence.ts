@@ -15,8 +15,8 @@ class AuthPersistence {
   ) {}
 
   async getAuthRecord(): Promise<AuthRecord> {
-    let authRecord = (await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx))) as AuthRecord;
-    return authRecord || (await this.legacyAuthRecordMaybe());
+    let authRecord = await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx));
+    return (authRecord || (await this.legacyAuthRecordMaybe())) as AuthRecord;
   }
 
   async legacyAuthRecordMaybe(): Promise<unknown> {

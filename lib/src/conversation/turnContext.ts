@@ -40,7 +40,7 @@ class TurnContext {
     readonly turn: Turn,
     readonly cancelationToken: CancellationToken
   ) {
-    this.steps = new Steps(ctx, conversation, turn, ctx.get<ConversationProgress>(ConversationProgress));
+    this.steps = new Steps(ctx, conversation, turn, ctx.get(ConversationProgress));
   }
 
   collectFile(skillId: SkillId, uri: DocumentUri, status: TextDocumentResultStatus, range?: Range): void {

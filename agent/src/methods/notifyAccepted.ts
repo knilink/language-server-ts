@@ -20,7 +20,7 @@ async function notifyAcceptedChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
-  const cache = ctx.get<CopilotCompletionCache>(CopilotCompletionCache);
+  const cache = ctx.get(CopilotCompletionCache);
   const completion = cache.get(params.uuid);
 
   if (completion) {

@@ -30,11 +30,11 @@ type Payload = {
   release?: string;
   deployed_to: string;
   catalog_service:
-  | 'CopilotCompletionsVSCode'
-  | 'CopilotLanguageServer'
-  | 'CopilotIntelliJ'
-  | 'CopilotVim'
-  | 'CopilotVS';
+    | 'CopilotCompletionsVSCode'
+    | 'CopilotLanguageServer'
+    | 'CopilotIntelliJ'
+    | 'CopilotVim'
+    | 'CopilotVS';
   context: {
     '#editor': string;
     '#editor_version': string;
@@ -121,8 +121,8 @@ function buildContext(ctx: Context, extraProperties?: Record<string, string>): P
 }
 
 function buildPayload(ctx: Context, redactedError: unknown) {
-  const buildInfo = ctx.get<BuildInfo>(BuildInfo);
-  const editorInfo = ctx.get<EditorAndPluginInfo>(EditorAndPluginInfo).getEditorInfo();
+  const buildInfo = ctx.get(BuildInfo);
+  const editorInfo = ctx.get(EditorAndPluginInfo).getEditorInfo();
 
   const payload: Payload = {
     app: 'copilot-client',

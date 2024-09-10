@@ -30,8 +30,8 @@ async function fetchEmbeddings(
   if (validInputs.length === 0) return;
 
   const output: Output[] = [];
-  const endpoint = ctx.get<NetworkConfiguration>(NetworkConfiguration).getEmbeddingsUrl(ctx);
-  const secretKey = (await ctx.get<CopilotTokenManager>(CopilotTokenManager).getCopilotToken(ctx)).token;
+  const endpoint = ctx.get(NetworkConfiguration).getEmbeddingsUrl(ctx);
+  const secretKey = (await ctx.get(CopilotTokenManager).getCopilotToken(ctx)).token;
   let idx = 0;
 
   while (idx < validInputs.length && !cancellationToken.isCancellationRequested) {

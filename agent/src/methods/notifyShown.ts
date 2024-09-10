@@ -17,7 +17,7 @@ async function notifyShownChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
-  const completion = ctx.get<CopilotCompletionCache>(CopilotCompletionCache).get(params.uuid);
+  const completion = ctx.get(CopilotCompletionCache).get(params.uuid);
   if (completion) {
     const fromCache = completion.resultType !== 0;
     telemetryShown(ctx, completion.triggerCategory, completion.telemetry, fromCache);

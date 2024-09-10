@@ -21,7 +21,7 @@ class TelemetryInitialization {
   }
 
   async initialize(ctx: Context, telemetryNamespace: string, telemetryEnabled: boolean): Promise<void> {
-    const deactivation = ctx.get<TelemetryReporters>(TelemetryReporters).deactivate();
+    const deactivation = ctx.get(TelemetryReporters).deactivate();
     this._args = {
       namespace: telemetryNamespace,
       enabled: telemetryEnabled,

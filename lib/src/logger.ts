@@ -44,8 +44,8 @@ class ConsoleLog extends LogTarget {
 
 class Logger {
   constructor(
-    private maxLoggedLevel: LogLevel = LogLevel.INFO,
-    private context: string = 'default'
+    public maxLoggedLevel: LogLevel = LogLevel.DEBUG,
+    readonly context: string = 'default'
   ) {}
 
   setLevel(level: LogLevel): void {

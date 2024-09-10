@@ -20,7 +20,7 @@ import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManage
 import { WorkspaceFolder } from '../../lib/src/types.ts';
 
 function wrapDoc(ctx: Context, doc: TextDocument): TextDocument {
-  const languageDetection = ctx.get<LanguageDetection>(LanguageDetection);
+  const languageDetection = ctx.get(LanguageDetection);
   const language = languageDetection.detectLanguage(
     TextDocument.create(doc.uri, doc.languageId, doc.version, doc.getText())
   );

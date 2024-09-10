@@ -98,7 +98,7 @@ function parseRepoUrl(url: string): RepoUrlInfo | undefined {
 }
 
 async function getRepoBaseFolder(ctx: Context, uri: string): Promise<string | undefined> {
-  const fs = ctx.get<FileSystem>(FileSystem);
+  const fs = ctx.get(FileSystem);
   let previousLength = Infinity;
   while (uri.length > 1 && uri.length < previousLength) {
     const configPath = path.join(uri, '.git', 'config');

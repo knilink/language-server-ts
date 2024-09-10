@@ -13,7 +13,7 @@ async function handleCheckFileStatusChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<[{ status: 'blocked' | 'notfound'; reason: string } | { status: 'included' | 'empty' }, null]> {
-  const fileReader = ctx.get<FileReader>(FileReader);
+  const fileReader = ctx.get(FileReader);
   const readFileResult = await fileReader.readFile(params.uri);
   // return [
   //   {

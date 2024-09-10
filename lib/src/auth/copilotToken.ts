@@ -83,13 +83,13 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
 }
 
 async function fetchCopilotToken(ctx: Context, githubToken: GitHubToken): Promise<Response> {
-  const copilotTokenUrl = ctx.get<NetworkConfiguration>(NetworkConfiguration).getTokenUrl(githubToken);
+  const copilotTokenUrl = ctx.get(NetworkConfiguration).getTokenUrl(githubToken);
   try {
-    return await ctx.get<Fetcher>(Fetcher).fetch(copilotTokenUrl, {
+    return await ctx.get(Fetcher).fetch(copilotTokenUrl, {
       headers: { Authorization: `token ${githubToken.token}`, ...editorVersionHeaders(ctx) },
     });
   } catch (err) {
-    ctx.get<UserErrorNotifier>(UserErrorNotifier).notifyUser(ctx, err);
+    ctx.get(UserErrorNotifier).notifyUser(ctx, err);
     throw err;
   }
 }
@@ -104,12 +104,12 @@ async function notifyUser(ctx: Context, notification: Notification, githubToken:
     const ackNotification = showUrl || response?.title === 'Dismiss';
 
     if (showUrl) {
-      const editorInfo = ctx.get<EditorAndPluginInfo>(EditorAndPluginInfo).getEditorPluginInfo();
+      const editorInfo = ctx.get(EditorAndPluginInfo).getEditorPluginInfo();
       const urlWithContext = notification.url.replace(
         '{EDITOR}',
         encodeURIComponent(`${editorInfo.name}_${editorInfo.version}`)
       );
-      await ctx.get<UrlOpener>(UrlOpener).open(urlWithContext);
+      await ctx.get(UrlOpener).open(urlWithContext);
     }
 
     if (ackNotification && notification.notification_id !== undefined) {
@@ -121,8 +121,8 @@ async function notifyUser(ctx: Context, notification: Notification, githubToken:
 }
 
 async function sendNotificationResultToGitHub(ctx: Context, notificationId: string, githubToken: GitHubToken) {
-  const notificationUrl = ctx.get<NetworkConfiguration>(NetworkConfiguration).getNotificationUrl(githubToken);
-  const response = await ctx.get<Fetcher>(Fetcher).fetch(notificationUrl, {
+  const notificationUrl = ctx.get(NetworkConfiguration).getNotificationUrl(githubToken);
+  const response = await ctx.get(Fetcher).fetch(notificationUrl, {
     headers: { Authorization: `token ${githubToken.token}`, ...editorVersionHeaders(ctx) },
     method: 'POST',
     body: JSON.stringify({ notification_id: notificationId }),
@@ -169,6 +169,7 @@ class CopilotToken {
   readonly tokenMap: Map<string, string>;
 
   constructor(
+    // optional except 'token' | 'refresh_in' | 'expires_at'
     envelope: Omit<Partial<TokenEnvelope>, 'token' | 'refresh_in' | 'expires_at'> &
       Pick<TokenEnvelope, 'token' | 'refresh_in' | 'expires_at'>
   ) {

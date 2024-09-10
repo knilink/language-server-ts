@@ -7,7 +7,8 @@ export type TokenEnvelope = {
   refresh_in: number;
   // ../prompt/repository.ts ['a5db0bcaae94032fe715fb34a5e4bce2', '7184f66dfcee98cb5f08a1cb936d5225', '4535c7beffc844b46bb1ed4aa04d759a']
   organization_list?: string[];
-  enterprise_list: unknown;
+  // maybe optional string[]
+  enterprise_list?: string[];
   // optional ../contentExclusion/contentExclusionManager.ts
   copilotignore_enabled?: boolean;
   copilot_ide_agent_chat_gpt4_small_prompt: boolean;
@@ -46,6 +47,7 @@ export type GitHubToken = {
 };
 
 export type AuthRecord = {
+  // required ../../../agent/src/notifications/github.ts
   user: 'codespace-user' | string;
   // ./auth/manager.ts
   oauth_token: string;

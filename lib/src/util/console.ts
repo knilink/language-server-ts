@@ -9,7 +9,7 @@ function createConsole(ctx: Context): Console {
 
   function logIt(level: number, ...args: unknown[]): void {
     if (getBuildType(ctx) === 'dev') {
-      return ctx.get<LogTarget>(LogTarget).logIt(ctx, level, '[console]', ...args);
+      return ctx.get(LogTarget).logIt(ctx, level, '[console]', ...args);
     }
   }
 

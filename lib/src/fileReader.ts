@@ -25,7 +25,7 @@ class FileReader {
   constructor(readonly ctx: Context) {}
 
   async getRelativePath(doc: TextDocument): Promise<string> {
-    const textDocumentManager = this.ctx.get<TextDocumentManager>(TextDocumentManager);
+    const textDocumentManager = this.ctx.get(TextDocumentManager);
     return (await textDocumentManager.getRelativePath(doc)) ?? path.basename((doc as any).vscodeUri.fsPath);
   }
 
@@ -36,7 +36,7 @@ class FileReader {
   }
 
   async readFromTextDocumentManager(uri: URI): Promise<DocumentValidationResult> {
-    const textDocumentManager = this.ctx.get<TextDocumentManager>(TextDocumentManager);
+    const textDocumentManager = this.ctx.get(TextDocumentManager);
     return await textDocumentManager.getTextDocumentWithValidation(uri);
   }
 
@@ -46,11 +46,10 @@ class FileReader {
       if (fileSizeMB > 1) return { status: 'notfound', message: 'File too large' };
 
       const text = await this.doReadFile(uri);
-      const copilotContentExclusionManager =
-        this.ctx.get<CopilotContentExclusionManager>(CopilotContentExclusionManager);
+      const copilotContentExclusionManager = this.ctx.get(CopilotContentExclusionManager);
       if (!(await copilotContentExclusionManager.evaluate(uri, text)).isBlocked) {
         const tmpDoc = TextDocument.create(uri, 'UNKNOWN', 0, text);
-        const languageDetection = this.ctx.get<LanguageDetection>(LanguageDetection);
+        const languageDetection = this.ctx.get(LanguageDetection);
         const languageId = languageDetection.detectLanguage(tmpDoc).languageId;
 
         return { status: 'valid', document: TextDocument.create(uri, languageId, 0, text) };
@@ -61,19 +60,19 @@ class FileReader {
   }
 
   async doReadFile(uri: URI): Promise<string> {
-    const fileSystem = this.ctx.get<FileSystem>(FileSystem);
+    const fileSystem = this.ctx.get(FileSystem);
     return await fileSystem.readFileString(uri);
   }
 
   async getFileSizeMB(uri: URI): Promise<number> {
-    const fileSystem = this.ctx.get<FileSystem>(FileSystem);
+    const fileSystem = this.ctx.get(FileSystem);
     const stats = await fileSystem.stat(uri);
     return stats.size / 1024 / 1024;
   }
 
   async fileExists(file: URI): Promise<boolean> {
     try {
-      const fileSystem = this.ctx.get<FileSystem>(FileSystem);
+      const fileSystem = this.ctx.get(FileSystem);
       await fileSystem.stat(file);
       return true;
     } catch {

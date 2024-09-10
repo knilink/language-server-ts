@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { extname } from 'path';
 import { type Connection, ProtocolRequestType } from 'vscode-languageserver/node.js';
 import { URI } from 'vscode-uri';
