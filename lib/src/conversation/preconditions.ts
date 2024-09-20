@@ -6,8 +6,9 @@ import { AuthManager } from '../auth/manager.ts';
 import { GitHubAppInfo } from '../config.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
 import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { Features } from '../experiments/features.ts';
 
-type PreconditionResult = { type: string; status: 'ok' | 'failed'; details?: URLReachability[] };
+type PreconditionResult = { type: string; status: 'ok' | 'failed'; details?: URLReachability[]; githubAppId?: string };
 
 type PreconditionsResultEvent = {
   status: PreconditionResult['status'];
@@ -16,24 +17,23 @@ type PreconditionsResultEvent = {
 
 class ReachabilityPreconditionCheck {
   async check(ctx: Context): Promise<PreconditionResult> {
-    const criticalReachability: URLReachability[] = (await checkReachability(ctx)).filter(
-      (r) => r.severity === 'critical'
-    );
+    const reachability = await checkReachability(ctx, 'critical');
     return {
       type: 'reachability',
-      status: criticalReachability.every((r) => r.status === 'reachable') ? 'ok' : 'failed',
-      details: criticalReachability,
+      status: reachability.every((r) => r.status === 'reachable') ? 'ok' : 'failed',
+      details: reachability,
     };
   }
 }
 class TokenPreconditionCheck {
   async check(ctx: Context): Promise<PreconditionResult> {
     const authRecord = await ctx.get(AuthManager).getAuthRecord();
-    const fallbackAppId = ctx.get(GitHubAppInfo).fallbackAppId();
+    const appInfo = ctx.get(GitHubAppInfo);
+    const fallbackAppId = appInfo.fallbackAppId();
 
     return authRecord && authRecord.githubAppId && authRecord.githubAppId !== fallbackAppId
       ? { type: 'token', status: 'ok' }
-      : { type: 'token', status: 'failed' };
+      : { type: 'token', status: 'failed', githubAppId: appInfo.experimentalJetBrainsAppId() };
   }
 }
 class ChatEnabledPreconditionCheck {
@@ -54,7 +54,7 @@ const preconditionsChangedEvent = 'onPreconditionsChanged';
 
 class PreconditionsCheck {
   readonly emitter = new EventEmitter<{ [preconditionsChangedEvent]: [PreconditionsResultEvent] }>();
-  private result?: { results: PreconditionResult[]; status: 'ok' | 'failed' };
+  private result?: Promise<{ results: PreconditionResult[]; status: 'ok' | 'failed' }>;
 
   constructor(
     readonly ctx: Context,
@@ -65,14 +65,34 @@ class PreconditionsCheck {
     });
   }
 
-  async check(forceCheck?: boolean): Promise<{ results: PreconditionResult[]; status: 'ok' | 'failed' }> {
-    if (forceCheck || !this.result) {
-      const results = await Promise.all(this.checks.map((check) => check.check(this.ctx)));
-      const status = results.every((p) => p.status === 'ok') ? 'ok' : 'failed';
-      this.result = { results, status };
-      this.emit(this.result);
+  check(forceCheck?: boolean): Promise<{ results: PreconditionResult[]; status: 'ok' | 'failed' }> {
+    if (forceCheck) {
+      this.result = undefined;
     }
-    return this.result!;
+
+    if (this.result === undefined) {
+      this.result = this.requestChecks();
+    }
+
+    return this.result;
+  }
+
+  async requestChecks() {
+    let results: PreconditionResult[] = [];
+    if (this.checks.length > 0) {
+      const features = this.ctx.get(Features);
+      const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
+      const extensibilityEnabled = features.ideChatEnableExtensibilityPlatform(telemetryDataWithExp);
+      results = await Promise.all(
+        this.checks
+          .filter((c) => (c instanceof TokenPreconditionCheck ? extensibilityEnabled : true))
+          .map((check) => check.check(this.ctx))
+      );
+    }
+    const status: 'ok' | 'failed' = results.every((p) => p.status === 'ok') ? 'ok' : 'failed';
+    const result = { results: results, status: status };
+    this.emit(result);
+    return result;
   }
 
   onChange(listener: (result: PreconditionsResultEvent) => void): void {

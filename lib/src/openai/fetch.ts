@@ -1,15 +1,5 @@
 import * as util from 'util';
-import {
-  Choice,
-  OpenAIRequestId,
-  TelemetryProperties,
-  JsonData,
-  UiKind,
-  FetchResult,
-  Chat,
-  ToolCall,
-  Tool,
-} from '../types.ts';
+import { OpenAIRequestId, TelemetryProperties, JsonData, UiKind, Chat, Tool } from '../types.ts';
 import { Prompt } from '../../../prompt/src/types.ts';
 import { CancellationToken } from '../../../agent/src/cancellation.ts';
 
@@ -29,7 +19,7 @@ import {
   TelemetryWithExp,
 } from '../telemetry.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
-import { Request, Response, postRequest, isAbortError } from '../networking.ts';
+import { Response, postRequest, isAbortError } from '../networking.ts';
 import { Features } from '../experiments/features.ts';
 import { SSEProcessor, prepareSolutionForReturn } from './stream.ts';
 import { StatusReporter } from '../progress.ts';
@@ -82,10 +72,7 @@ async function fetchWithInstrumentation(
 ): Promise<Response> {
   const statusReporter = ctx.get(StatusReporter);
   const uri = util.format('%s/%s', engineUrl, endpoint);
-  if (!secretKey) {
-    logger.error(ctx, `Failed to send request to ${uri} due to missing key`);
-    return Promise.reject(new Error('Secret key is missing'));
-  }
+  if (!secretKey) throw new Error(`Failed to send request to ${uri} due to missing key`);
   let telemetryData = TelemetryData.createAndMarkAsIssued(
     { endpoint, engineName: extractEngineName(ctx, engineUrl), ...(uiKind !== undefined ? { uiKind } : {}) },
     telemetrizePromptLength(prompt)
@@ -205,6 +192,12 @@ namespace OpenAIFetcher {
         code: number;
       }
     | {
+        type: 'failedDependency';
+        reason: string;
+        // no code ../conversation/openai/fetch.ts
+        // code: number;
+      }
+    | {
         type: 'canceled';
         reason: string;
       }
@@ -280,6 +273,7 @@ abstract class OpenAIFetcher {
 }
 
 class LiveOpenAIFetcher extends OpenAIFetcher {
+  private _rateLimited = false;
   async fetchAndStreamCompletions(
     ctx: Context,
     params: OpenAIFetcher.CompletionParams,
@@ -288,6 +282,7 @@ class LiveOpenAIFetcher extends OpenAIFetcher {
     cancel?: CancellationToken,
     telemetryProperties?: TelemetryProperties
   ): Promise<OpenAIFetcher.CompletionResponse> {
+    if (this._rateLimited) return { type: 'canceled', reason: 'rate limit in effect' };
     let statusReporter = ctx.get(StatusReporter);
     const endpoint = 'completions';
     const response = await this.fetchWithParameters(
@@ -307,13 +302,6 @@ class LiveOpenAIFetcher extends OpenAIFetcher {
         logger.exception(ctx, e, 'Error destroying stream');
       }
       return { type: 'canceled', reason: 'after fetch request' };
-    }
-    if (response === undefined) {
-      let telemetryData = this.createTelemetryData(endpoint, ctx, params);
-      statusReporter.setWarning();
-      telemetryData.properties.error = 'Response was undefined';
-      telemetry(ctx, 'request.shownWarning', telemetryData);
-      return { type: 'failed', reason: 'fetch response was undefined' };
     }
     if (response.status !== 200) {
       let telemetryData = this.createTelemetryData(endpoint, ctx, params);
@@ -396,7 +384,7 @@ class LiveOpenAIFetcher extends OpenAIFetcher {
     telemetryData: TelemetryData,
     response: Response
   ): Promise<{ type: 'failed'; reason: string }> {
-    statusReporter.setWarning();
+    statusReporter.setWarning(`Last response was a ${response.status} error`);
     telemetryData.properties.error = `Response status was ${response.status}`;
     telemetryData.properties.status = String(response.status);
     telemetry(ctx, 'request.shownWarning', telemetryData);
@@ -405,7 +393,14 @@ class LiveOpenAIFetcher extends OpenAIFetcher {
       ctx.get(CopilotTokenManager).resetCopilotToken(ctx, response.status);
       return { type: 'failed', reason: `token expired or invalid: ${response.status}` };
     }
-
+    if (response.status === 429) {
+      setTimeout(() => {
+        this._rateLimited = false;
+      }, 10_000);
+      this._rateLimited = true;
+      logger.warn(ctx, 'Rate limited by server. Denying completions for the next 10 seconds.');
+      return { type: 'failed', reason: 'rate limited' };
+    }
     if (response.status === 499) {
       logger.info(ctx, 'Cancelled by server');
       return { type: 'failed', reason: 'canceled by server' };

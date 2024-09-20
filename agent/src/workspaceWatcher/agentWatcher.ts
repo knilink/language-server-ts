@@ -1,16 +1,16 @@
-import { LspFileWatcher } from '../lspFileWatcher.ts';
-import { WorkspaceWatcher } from '../../../lib/src/workspaceWatcher.ts';
 import { type URI } from 'vscode-uri';
 
+import { LspFileWatcher } from '../lspFileWatcher.ts';
+import { WatchedFilesError, WorkspaceWatcher } from '../../../lib/src/workspaceWatcher.ts';
+
 class AgentWorkspaceWatcher extends WorkspaceWatcher {
-  async getWatchedFiles(): Promise<URI[]> {
-    return (
-      await this.ctx.get(LspFileWatcher).getWatchedFiles({
-        workspaceUri: this.workspaceFolder.toString(),
-        excludeGitignoredFiles: true,
-        excludeIDEIgnoredFiles: true,
-      })
-    ).watchedFiles;
+  async getWatchedFiles(): Promise<URI[] | WatchedFilesError> {
+    const files = await this.ctx.get(LspFileWatcher).getWatchedFiles({
+      workspaceUri: this.workspaceFolder.toString(),
+      excludeGitignoredFiles: true,
+      excludeIDEIgnoredFiles: true,
+    });
+    return files instanceof WatchedFilesError ? files : files.watchedFiles;
   }
 
   startWatching(): void {
@@ -27,19 +27,19 @@ class AgentWorkspaceWatcher extends WorkspaceWatcher {
 
   onDidChangeWatchedFilesHandler(event: LspFileWatcher.ChangeWatchedFilesEvent): void {
     if (event.workspaceFolder.fsPath !== this.workspaceFolder.fsPath) return;
-
-    const createdFiles = event.created.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
-    if (createdFiles.length > 0) {
-      this.onFilesCreated(createdFiles.map((file) => file.uri));
+    let createdFiles = event.created.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
+    if (createdFiles.length) {
+      let documents = createdFiles.map((file) => file.document).filter((doc) => doc !== undefined);
+      this.onFilesCreated(documents);
     }
-
-    const updatedFiles = event.changed.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
-    if (updatedFiles.length > 0) {
-      this.onFilesUpdated(updatedFiles.map((file) => file.uri));
+    let updatedFiles = event.changed.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
+    if (updatedFiles.length) {
+      let documents = updatedFiles.map((file) => file.document).filter((doc) => doc !== undefined);
+      this.onFilesUpdated(documents);
     }
+    let deletedFiles = event.deleted.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
 
-    const deletedFiles = event.deleted.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
-    if (deletedFiles.length > 0) {
+    if (deletedFiles.length) {
       this.onFilesDeleted(deletedFiles.map((file) => file.uri));
     }
   }

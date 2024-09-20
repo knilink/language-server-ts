@@ -1,5 +1,9 @@
 import { Unknown } from '../types.ts';
-import { Turn, Conversation } from '../conversation/conversation.ts';
+import type { Turn, Conversation } from '../conversation/conversation.ts';
+import type { DocumentUri, Range } from 'vscode-languageserver-types';
+import type { TextDocumentResultStatus } from '../fileReader.ts';
+import { Reference } from './schema.ts';
+import { CodeEdit } from './codeEdits.ts';
 
 // might be implementation of a lsp type
 abstract class ConversationProgress {
@@ -23,6 +27,11 @@ abstract class ConversationProgress {
       steps?: unknown[];
       // ./turnProcessor.ts
       hideText?: boolean;
+      // ./turnContext.ts
+      references?: Reference[];
+      // ./turnContext.ts
+      warnings?: unknown[];
+      codeEdits?: CodeEdit[];
     }
   ): Promise<void>;
 }

@@ -35,8 +35,8 @@ class ScoringProvider {
     // optional ../../ProjectContextSkill.ts
     type?: string
   ): void {
-    const implementation = this.getImplementation(ctx, workspaceFolder, type);
-    implementation.terminateScoring();
+    this.getImplementation(ctx, workspaceFolder, type).terminateScoring();
+    this.workspaceScoringProviders.delete(workspaceFolder);
   }
 }
 

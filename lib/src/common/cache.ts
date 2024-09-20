@@ -49,15 +49,7 @@ export class LRUCacheMap<K, V> {
   }
 
   delete(key: K): boolean {
-    if (this.has(key)) {
-      this.removeKeyFromLRU(key);
-      const value = this.valueMap.get(key);
-      if (value !== undefined) {
-        this.valueMap.delete(key);
-      }
-      return true;
-    }
-    return false;
+    return this.has(key) && this.deleteKey(key);
   }
 
   clear(): void {
@@ -99,6 +91,17 @@ export class LRUCacheMap<K, V> {
 
   peek(key: K): V | undefined {
     return this.valueMap.get(key);
+  }
+
+  deleteKey(key: K): boolean {
+    let result = false;
+    this.removeKeyFromLRU(key);
+
+    if (this.valueMap.get(key) !== undefined) {
+      result = this.valueMap.delete(key);
+    }
+
+    return result;
   }
 
   private removeKeyFromLRU(key: K): void {

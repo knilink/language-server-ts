@@ -9,11 +9,9 @@ import { InlineCompletionRequest } from 'vscode-languageserver/node.js';
 
 import { Context } from '../../../lib/src/context.ts';
 import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { verifyAuthenticated } from '../auth/authDecorator.ts';
 import { TelemetryData } from '../../../lib/src/telemetry.ts';
 import { getTestCompletions } from './testing/setCompletionDocuments.ts';
 import {
-  raiseVersionMismatchIfNotCanceled,
   positionAndContentForCompleting,
   logCompletionLocation,
   getGhostTextWithAbortHandling,
@@ -73,72 +71,42 @@ async function handleChecked(
   clientToken: CancellationToken,
   params: ParamsType
 ): Promise<[{ items: Item[] }, null] | [null, { code: number; message: string }]> {
-  const docResultPromise = getOpenTextDocumentChecked(ctx, params.textDocument.uri);
-  await verifyAuthenticated(ctx, clientToken);
-  const telemetryData = TelemetryData.createAndMarkAsIssued();
+  let telemetryData = TelemetryData.createAndMarkAsIssued();
 
   if (cancellationTokenSource) {
     cancellationTokenSource.cancel();
     cancellationTokenSource.dispose();
   }
 
-  const isCycling = params.context.triggerKind === 1;
+  let isCycling = params.context.triggerKind === 1;
   cancellationTokenSource = new CancellationTokenSource();
-  const serverToken = cancellationTokenSource.token;
-  const token = new MergedToken([clientToken, serverToken]);
-  const testCompletions = getTestCompletions(ctx, params.position, isCycling);
-
-  if (testCompletions) {
-    return [
-      {
-        items: testCompletions.map((completion) => ({
-          command: makeCommand(uuidv4()),
-          ...completion,
-        })),
-      },
-      null,
-    ];
-  }
-
-  const docResult = await docResultPromise;
-  if (docResult.status === 'notfound') {
-    return [null, { code: -32602, message: docResult.message }];
-  }
-  if (docResult.status === 'invalid') {
-    return [null, { code: 1002, message: docResult.reason }];
-  }
-
-  let textDocument = docResult.document;
-  if (params.textDocument.version !== undefined && textDocument.version !== params.textDocument.version) {
-    await new Promise(setImmediate);
-    const secondDocResult = await getOpenTextDocumentChecked(ctx, params.textDocument.uri);
-    if (secondDocResult.status === 'valid' && secondDocResult.document.version === params.textDocument.version) {
-      textDocument = secondDocResult.document;
-    }
-  }
-
-  if (params.textDocument.version !== undefined && textDocument.version !== params.textDocument.version) {
-    raiseVersionMismatchIfNotCanceled(ctx, token, textDocument, params.textDocument.version);
-    return [null, { code: -32801, message: 'Document Version Mismatch' }];
-  }
-
+  let serverToken = cancellationTokenSource.token;
+  let token = new MergedToken([clientToken, serverToken]);
+  let testCompletions = getTestCompletions(ctx, params.position, isCycling);
+  if (testCompletions)
+    return [{ items: testCompletions.map((completion) => ({ command: makeCommand(uuidv4()), ...completion })) }, null];
+  let textDocument = await getOpenTextDocumentChecked(ctx, params.textDocument, token);
   let completionInfo = params.context.selectedCompletionInfo;
   let position = params.position;
+  let lineLengthIncrease = 0;
 
   if (completionInfo) {
-    position = positionAndContentForCompleting(
+    ({
+      position: position,
+      textDocument: textDocument,
+      lineLengthIncrease: lineLengthIncrease,
+    } = positionAndContentForCompleting(
       ctx,
       telemetryData,
       textDocument,
       completionInfo.range.start,
       completionInfo.range.end,
       completionInfo
-    );
+    ));
   }
 
   logCompletionLocation(ctx, textDocument, position);
-
-  const resultWithTelemetry = await getGhostTextWithAbortHandling(
+  let resultWithTelemetry = await getGhostTextWithAbortHandling(
     ctx,
     textDocument,
     position,
@@ -147,33 +115,23 @@ async function handleChecked(
     token,
     completionInfo
   );
-
-  const result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
-
-  if (clientToken.isCancellationRequested) {
-    return [null, { code: -32800, message: 'Request was canceled' }];
-  }
-  if (serverToken.isCancellationRequested) {
+  let result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
+  if (clientToken.isCancellationRequested) return [null, { code: -32800, message: 'Request was canceled' }];
+  if (serverToken.isCancellationRequested)
     return [null, { code: -32802, message: 'Request was superseded by a new request' }];
-  }
-
-  if (!result) {
+  if (!result)
     switch (resultWithTelemetry.type) {
       case 'abortedBeforeIssued':
       case 'canceled':
-        logger.debug(ctx, `Aborted: ${resultWithTelemetry.reason}`);
-        return [{ items: [] }, null];
+        return logger.debug(ctx, `Aborted: ${resultWithTelemetry.reason}`), [{ items: [] }, null];
       case 'failed':
         return [null, { code: -32603, message: resultWithTelemetry.reason }];
       default:
         return [{ items: [] }, null];
     }
-  }
-
-  const [resultArray, resultType] = result;
+  let [resultArray, resultType] = result;
   setLastShown(ctx, textDocument, position, resultType);
-
-  const rawCompletions = completionsFromGhostTextResults(
+  let rawCompletions = completionsFromGhostTextResults(
     ctx,
     resultArray,
     resultType,
@@ -181,19 +139,15 @@ async function handleChecked(
     position,
     params.formattingOptions
   );
-
-  const cache = ctx.get(CopilotCompletionCache);
-  for (const completion of rawCompletions) {
-    cache.set(completion.uuid, { ...completion, triggerCategory: 'ghostText' });
-  }
-
+  let cache = ctx.get(CopilotCompletionCache);
+  for (let completion of rawCompletions) cache.set(completion.uuid, { ...completion, triggerCategory: 'ghostText' });
   return [
     {
-      items: rawCompletions.map((rawCompletion) => ({
-        command: makeCommand(rawCompletion.uuid),
-        insertText: rawCompletion.insertText,
-        range: rawCompletion.range,
-      })),
+      items: rawCompletions.map((rawCompletion) => {
+        let range = { ...rawCompletion.range, end: { ...rawCompletion.range.end } };
+        range.end.character -= lineLengthIncrease;
+        return { command: makeCommand(rawCompletion.uuid), insertText: rawCompletion.insertText, range: range };
+      }),
     },
     null,
   ];

@@ -29,8 +29,8 @@ class ReferencesSkillProcessor implements Skill.ISkillProcessor<Reference[]> {
     }
   }
 
-  async filterIncludedFiles<T extends { uri: DocumentUri }>(files: T[]): Promise<T[]> {
-    return files.filter((f) => !this.turnContext.isFileIncluded(f.uri));
+  async filterIncludedFiles<T extends Reference>(files: T[]): Promise<T[]> {
+    return files.filter((f) => f.type === 'file' && !this.turnContext.isFileIncluded(f.uri));
   }
 
   async toFileChunks(
@@ -39,18 +39,18 @@ class ReferencesSkillProcessor implements Skill.ISkillProcessor<Reference[]> {
   ): Promise<([ElidableText | string, number][] | undefined)[]> {
     return await Promise.all(
       references.map(async (ref) => {
-        if (ref.uri) return await this.elideReferencedFiles(fileReader, ref);
+        if (ref.type === 'file' && ref.uri) return await this.elideReferencedFiles(fileReader, ref);
       })
     );
   }
 
   async elideReferencedFiles(
     fileReader: FileReader,
-    ref: Reference
+    ref: Extract<Reference, { type: 'file' }>
   ): Promise<[ElidableText | string, number][] | undefined> {
     const documentResult = await fileReader.readFile(ref.uri);
     const fileStatus = statusFromTextDocumentResult(documentResult);
-    this.turnContext.collectFile('ReferencesSkillId', ref.uri, fileStatus);
+    await this.turnContext.collectFile(ReferencesSkillId, ref.uri, fileStatus);
     if (documentResult.status === 'valid') {
       const filePath = await fileReader.getRelativePath(documentResult.document);
       if (fileStatus === 'included') {
@@ -68,9 +68,8 @@ class ReferencesSkillProcessor implements Skill.ISkillProcessor<Reference[]> {
 
 class ReferencesSkillResolver implements Skill.ISkillResolver<Reference[]> {
   async resolveSkill(turnContext: TurnContext): Promise<Reference[] | undefined> {
-    if (turnContext.turn?.references && turnContext.turn.references.length > 0) {
-      return turnContext.turn.references;
-    }
+    if (turnContext.turn.request.references && turnContext.turn.request.references.length > 0)
+      return turnContext.turn.request.references;
   }
 }
 

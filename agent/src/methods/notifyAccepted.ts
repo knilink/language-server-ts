@@ -33,10 +33,9 @@ async function notifyAcceptedChecked(
       completion.triggerCategory,
       completion.insertText,
       completion.offset,
-      completion.file,
+      completion.uri,
       completion.telemetry,
       suggestionStatus,
-      completion.uuid,
       completion.range.start
     );
   }

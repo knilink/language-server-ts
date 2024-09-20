@@ -1,26 +1,32 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { IChunking } from './IndexingTypes.ts';
+import { IChunking, DocumentChunk } from './IndexingTypes.ts';
 import { getTokenizer } from '../../../../../../prompt/src/tokenization/index.ts';
 
 const chunkSize = 500;
 const overlap = Math.floor(0.25 * chunkSize);
 
 class FixedSizeChunking implements IChunking {
-  async chunk(doc: TextDocument, modelConfig: { tokenizer: string }): Promise<{ id: string; chunk: string }[]> {
+  async chunk(doc: TextDocument, modelConfig: { tokenizer: string }): Promise<DocumentChunk[]> {
     const tokenizer = getTokenizer(modelConfig.tokenizer);
-    const tokens: number[] = tokenizer.tokenize(doc.getText());
+    const text = doc.getText();
+    const tokens = tokenizer.tokenize(text);
     const length = tokens.length;
-    const chunks: { id: string; chunk: string }[] = [];
-    let start = 0;
+    const chunks: DocumentChunk[] = [];
 
-    while (start < length) {
-      const isLastChunk = start + chunkSize >= length;
-      const end = isLastChunk ? length : start + chunkSize;
-      const chunkTokens = tokens.slice(start, end);
+    let tokenStart = 0;
+    while (tokenStart < length) {
+      const isLastChunk = tokenStart + chunkSize >= length;
+      const tokenEnd = isLastChunk ? length : tokenStart + chunkSize;
+      const chunkTokens = tokens.slice(tokenStart, tokenEnd);
       const chunk = tokenizer.detokenize(chunkTokens);
-
-      chunks.push({ id: `${doc.uri.toString()}#${start}`, chunk });
-      start = isLastChunk ? end : end - overlap;
+      const chunkStart = text.indexOf(chunk);
+      chunks.push({
+        id: `${doc.uri.toString()}#${tokenStart}`,
+        chunk,
+        tokenCount: chunkTokens.length,
+        range: { start: chunkStart, end: chunkStart + chunk.length },
+      });
+      tokenStart = isLastChunk ? tokenEnd : tokenEnd - overlap;
     }
 
     return chunks;

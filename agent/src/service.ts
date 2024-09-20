@@ -1,3 +1,4 @@
+import * as semver from 'semver';
 import {
   CancellationToken,
   Connection,
@@ -16,27 +17,29 @@ import { Type, type Static } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { URI } from 'vscode-uri';
 
-import { Context } from '../../lib/src/context.ts';
-import { rejectLastShown } from '../../lib/src/ghostText/last.ts';
-import { PromiseQueue } from '../../lib/src/util/promiseQueue.ts';
-import { TelemetryReporters } from '../../lib/src/telemetry.ts';
-import { CopilotCapabilitiesParam, CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
-import { LogTarget, Logger, LogLevel } from '../../lib/src/logger.ts';
-import { registerNotifications } from './notifications/index.ts';
-import { BuildInfo, EditorAndPluginInfo, GitHubAppInfo } from '../../lib/src/config.ts';
-import { notifyChangeConfiguration } from './methods/notifyChangeConfiguration.ts';
-import { AgentTextDocumentManager } from './textDocumentManager.ts';
-import { WorkspaceNotifier } from '../../lib/src/workspaceNotifier.ts';
-import { registerDocumentTracker } from '../../lib/src/documentTracker.ts';
-import { InitializedNotifier } from './editorFeatures/initializedNotifier.ts';
-import { LspFileWatcher } from './lspFileWatcher.ts';
-import { AuthManager } from '../../lib/src/auth/manager.ts';
-import { setupRedirectingTelemetryReporters } from './editorFeatures/redirectTelemetryReporter.ts';
-import { setupTelemetryReporters } from '../../lib/src/telemetry/setupTelemetryReporters.ts';
+import type { Context } from '../../lib/src/context.ts';
+
 import { registerCommands } from './commands/index.ts';
-import { MethodHandlers } from './methods/methods.ts';
-import { SchemaValidationError } from './schemaValidation.ts';
+import { CopilotCapabilitiesParam, CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
+import { InitializedNotifier } from './editorFeatures/initializedNotifier.ts';
 import { NotificationLogger } from './editorFeatures/logTarget.ts';
+import { setupRedirectingTelemetryReporters } from './editorFeatures/redirectTelemetryReporter.ts';
+import { LspFileWatcher } from './lspFileWatcher.ts';
+import { MethodHandlers } from './methods/methods.ts';
+import { notifyChangeConfiguration } from './methods/notifyChangeConfiguration.ts';
+import { registerNotifications } from './notifications/index.ts';
+import { SchemaValidationError } from './schemaValidation.ts';
+import { AgentTextDocumentManager } from './textDocumentManager.ts';
+import { CopilotAuthError } from '../../lib/src/auth/error.ts';
+import { AuthManager } from '../../lib/src/auth/manager.ts';
+import { BuildInfo, EditorAndPluginInfo, GitHubAppInfo } from '../../lib/src/config.ts';
+import { registerDocumentTracker } from '../../lib/src/documentTracker.ts';
+import { rejectLastShown } from '../../lib/src/ghostText/last.ts';
+import { LogTarget, Logger, LogLevel } from '../../lib/src/logger.ts';
+import { setupTelemetryReporters } from '../../lib/src/telemetry/setupTelemetryReporters.ts';
+import { TelemetryReporters } from '../../lib/src/telemetry.ts';
+import { PromiseQueue } from '../../lib/src/util/promiseQueue.ts';
+import { WorkspaceNotifier } from '../../lib/src/workspaceNotifier.ts';
 
 const NameAndVersionParam = Type.Object({
   name: Type.String(),
@@ -147,8 +150,9 @@ class Service {
     );
 
     connection.onInitialize(async (params: InitializeParams) => {
+      if (this.initialized) throw new Error('initialize request sent after initialized notification');
       this._clientCapabilities = params.capabilities;
-      let copilotCapabilities: OptionsParamType['copilotCapabilities'] = (params.capabilities as any).copilot ?? {};
+      let copilotCapabilities: OptionsParamType['copilotCapabilities'] = (params.capabilities as any).copilot;
       const options = purgeNulls(params.initializationOptions);
       if (options) {
         if (!optionsTypeCheck.Check(options)) throw new SchemaValidationError(optionsTypeCheck.Errors(options));
@@ -165,14 +169,17 @@ class Service {
       }
       let clientWorkspace = params.capabilities.workspace?.workspaceFolders ?? false;
 
-      const added = (params.workspaceFolders ?? []).map((folder) => URI.parse(folder.uri));
-      ctx.get(AgentTextDocumentManager).init([...added]);
+      ctx.get(AgentTextDocumentManager).init(params.workspaceFolders ?? []);
       registerDocumentTracker(this.ctx);
       ctx.get(WorkspaceNotifier).emit({
-        added,
+        added: (params.workspaceFolders ?? []).map((folder) => URI.parse(folder.uri)),
         removed: [],
       });
       workspaceConfiguration = params.capabilities.workspace?.configuration;
+      if (copilotCapabilities) {
+        ctx.get(CopilotCapabilitiesProvider).setCapabilities(copilotCapabilities);
+      }
+
       connection.onInitialized(async () => {
         if (this.initialized) return;
         this.initialized = true;
@@ -183,9 +190,8 @@ class Service {
         if (workspaceConfiguration) {
           didChangeConfiguration(ctx, {});
         }
-        ctx.get(InitializedNotifier).emit(options ?? {});
+        ctx.get(InitializedNotifier).emit();
       });
-      ctx.get(CopilotCapabilitiesProvider).setCapabilities(copilotCapabilities ?? {});
       ctx.get(LspFileWatcher).init();
       if (copilotCapabilities?.token) {
         await ctx.get(AuthManager).setTransientAuthRecord(ctx, null);
@@ -193,11 +199,16 @@ class Service {
 
       if (copilotCapabilities?.redirectedTelemetry) await setupRedirectingTelemetryReporters(ctx);
       else await setupTelemetryReporters(ctx, 'agent', !0);
-      if (/^1[0-7]\./.test(process.versions.node))
-        logger.warn(ctx, `Node.js ${process.versions.node} is end-of-life. Please upgrade to Node.js 18 or newer.`);
+      if (semver.lt(process.versions.node, '18.5.0')) {
+        logger.warn(
+          ctx,
+          `Node.js ${process.versions.node} support is deprecated. Please upgrade to Node.js 20 or newer.`
+        );
+      }
       return {
         capabilities: {
           textDocumentSync: { openClose: true, change: TextDocumentSyncKind.Incremental },
+          notebookDocumentSync: { notebookSelector: [{ notebook: '*' }] },
           workspace: {
             workspaceFolders: { supported: clientWorkspace, changeNotifications: clientWorkspace },
           },
@@ -239,6 +250,7 @@ class Service {
       return maybeErr ? new ResponseError(maybeErr.code, maybeErr.message, (maybeErr as any).data) : maybeResult;
     } catch (e: any) {
       if (token.isCancellationRequested) return new ResponseError(-32800, 'Request was canceled');
+      if (e instanceof CopilotAuthError) return new ResponseError(1e3, `Not authenticated: ${e.message}`);
       throw (e instanceof ResponseError || logger.exception(this.ctx, e, `Request ${method} `), e);
     }
   }

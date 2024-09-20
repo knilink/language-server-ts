@@ -10,6 +10,10 @@ type CacheEntry = {
   timestamp: number;
 };
 
+type IndexingStatus = 'indexed' | 'indexing' | 'not_indexed';
+
+const IndexingStatusPriority: IndexingStatus[] = ['indexed', 'indexing', 'not_indexed'];
+
 class BlackbirdIndexingStatus {
   private _cache = new LRUCacheMap<string, CacheEntry>(100);
 
@@ -57,4 +61,4 @@ class BlackbirdIndexingStatus {
   }
 }
 
-export { BlackbirdIndexingStatus };
+export { BlackbirdIndexingStatus, IndexingStatusPriority };

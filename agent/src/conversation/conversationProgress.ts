@@ -27,7 +27,7 @@ class AgentConversationProgress extends ConversationProgress {
       title: `Conversation ${conversation.id} Turn ${turn.id}`,
       conversationId: conversation.id,
       turnId: turn.id,
-      agentId: turn.agent?.agentSlug,
+      agentSlug: turn.agent?.agentSlug,
     });
   }
 

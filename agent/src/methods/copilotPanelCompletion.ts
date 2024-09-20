@@ -1,7 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import SHA256 from 'crypto-js/sha256.js';
 import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
-import { URI } from 'vscode-uri';
 import { WorkDoneProgress, ProtocolRequestType, ProgressType } from 'vscode-languageserver';
 import { Range } from 'vscode-languageserver-types';
 import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
@@ -10,16 +9,13 @@ import { normalizeCompletionText, runSolutions, SolutionManager } from '../../..
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { solutionCountTarget, completionContextForDocument } from '../../../lib/src/copilotPanel/common.ts';
 import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { verifyAuthenticated } from '../auth/authDecorator.ts';
 import { Service } from '../service.ts';
 import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { Logger, LogLevel } from '../../../lib/src/logger.ts';
 import { didAcceptPanelCompletionItemCommand } from '../commands/panel.ts';
 
 // import { } from '../rpc';
 // import { } from '../../../lib/src/ghostText/ghostText';
-import { type TelemetryWithExp } from '../../../lib/src/telemetry.ts';
 
 type Completion = {
   range: Range;
@@ -55,8 +51,8 @@ function makeCompletion(
     offset: offset,
     uuid: id,
     range: unformattedSolution.range,
-    file: URI.parse(params.textDocument.uri),
-    telemetry: unformattedSolution.telemetryData,
+    uri: params.textDocument.uri,
+    telemetry: unformattedSolution.telemetryData.extendedBy({}, { rank: displayPosition - 1 }),
     index: unformattedSolution.choiceIndex,
     position: params.position,
     resultType: 0,
@@ -91,8 +87,7 @@ async function handleChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<[{ items: Completion[] }, null] | [null, { code: number; message: string }]> {
-  const docResultPromise = getOpenTextDocumentChecked(ctx, params.textDocument.uri);
-  await verifyAuthenticated(ctx, token);
+  const textDocument = await getOpenTextDocumentChecked(ctx, params.textDocument, token);
   let position = params.position;
 
   if (params.workDoneToken !== undefined) {
@@ -129,19 +124,6 @@ async function handleChecked(
     const documents = testingDocs.documents;
     runTestSolutions(position, documents, solutionHandler);
   } else {
-    let result = await docResultPromise;
-    if (result.status === 'notfound') return [null, { code: -32602, message: result.message }];
-    if (result.status === 'invalid') return [null, { code: 1002, message: result.reason }];
-
-    const textDocument = result.document;
-    if (params.textDocument.version !== undefined && params.textDocument.version !== textDocument.version) {
-      new Logger(LogLevel.DEBUG, type.method).debug(
-        ctx,
-        `Producing empty solutions due to document version mismatch. Panel completions requested for document version ${params.textDocument.version} but document version was ${textDocument.version}.`
-      );
-      return [null, { code: -32801, message: 'Document Version Mismatch' }];
-    }
-
     solutionHandler.offset = textDocument.offsetAt(position);
     const completionContext = completionContextForDocument(ctx, textDocument, position);
     const solutionManager = new SolutionManager(textDocument, position, completionContext, token, solutionCountTarget);

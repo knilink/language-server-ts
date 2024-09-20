@@ -12,6 +12,10 @@ export type TokenEnvelope = {
   // optional ../contentExclusion/contentExclusionManager.ts
   copilotignore_enabled?: boolean;
   copilot_ide_agent_chat_gpt4_small_prompt: boolean;
+  // ../../../agent/src/editorFeatures/featureFlagsNotifier.ts
+  xcode: boolean;
+  // ../../../agent/src/editorFeatures/featureFlagsNotifier.ts
+  xcode_chat: boolean;
 
   // ../defaultNetworkConfiguration.ts
   endpoints?: {

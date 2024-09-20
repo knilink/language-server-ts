@@ -9,7 +9,7 @@ import { GitHubDeviceFlow } from '../../../lib/src/auth/deviceFlow.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { CopilotAuthError } from '../../../lib/src/auth/error.ts';
 
-const Params = Type.Object({ options: Type.Optional(Type.Object({})) });
+const Params = Type.Object({ options: Type.Optional(Type.Object({})), githubAppId: Type.Optional(Type.String()) });
 
 async function handleSignInInitiateChecked(
   ctx: Context,

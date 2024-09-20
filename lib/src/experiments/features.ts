@@ -1,16 +1,12 @@
-import { URI } from 'vscode-uri';
-
-import { FilterHeaders, RepoInfo, CopilotNeighboringTabs, FilterHeaderNames, BlockMode } from '../types.ts';
+import { FilterHeaders, RepoInfo, FilterHeaderNames, BlockMode, LanguageId } from '../types.ts';
 import { Context } from '../context.ts';
 
-import { ChatModelFamily } from '../conversation/modelMetadata.ts';
 import { EditorSession } from '../config.ts';
 import {
   DEFAULT_MAX_PROMPT_LENGTH,
   DEFAULT_MAX_COMPLETION_LENGTH,
   DEFAULT_SUFFIX_PERCENT,
   DEFAULT_SUFFIX_MATCH_THRESHOLD,
-  DEFAULT_NUM_SNIPPETS,
 } from '../../../prompt/src/lib.ts';
 import { Clock } from '../clock.ts';
 import { ExpConfig } from './expConfig.ts';
@@ -27,6 +23,7 @@ import { LRUCacheMap } from '../common/cache.ts';
 import { GranularityDirectory } from './granularityDirectory.ts';
 import { FilterSettings } from './filters.ts';
 import { ExpConfigMaker } from './fetchExperiments.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 function isCompletionsFiltersInfo(info: object) {
   return 'uri' in info;
@@ -129,8 +126,8 @@ class Features {
   }
 
   async updateExPValuesAndAssignments(
-    ctx: any,
-    filtersInfo?: { languageId?: string; uri?: URI },
+    // ctx: any, // 1.40.0 removed
+    filtersInfo?: { languageId?: LanguageId; uri?: DocumentUri },
     telemetryData = TelemetryData.createAndMarkAsIssued()
   ): Promise<TelemetryWithExp> {
     if (telemetryData instanceof TelemetryWithExp) {
@@ -139,12 +136,12 @@ class Features {
 
     const repoInfo: RepoInfo | 0 | undefined =
       filtersInfo && isCompletionsFiltersInfo(filtersInfo) && filtersInfo.uri // MARK wtf
-        ? extractRepoInfoInBackground(ctx, filtersInfo.uri)
+        ? extractRepoInfoInBackground(this.ctx, filtersInfo.uri)
         : undefined;
     const repoNwo = tryGetGitHubNWO(repoInfo);
     const dogFood = getDogFood(repoInfo);
-    const userKind = await getUserKind(ctx);
-    const customModel = await getFtFlag(ctx);
+    const userKind = await getUserKind(this.ctx);
+    const customModel = await getFtFlag(this.ctx);
     const fileType = filtersInfo?.languageId ?? '';
 
     const requestFilters: FilterHeaders = {
@@ -295,41 +292,12 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotsuffixmatchthreshold ?? DEFAULT_SUFFIX_MATCH_THRESHOLD;
   }
 
-  numberOfSnippets(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotnumberofsnippets ?? DEFAULT_NUM_SNIPPETS;
-  }
-
-  similarFilesOption(telemetryWithExp: TelemetryWithExp): CopilotNeighboringTabs {
-    switch (telemetryWithExp.filtersAndExp.exp.variables.copilotneighboringtabs) {
-      case 'none':
-        return 'none';
-      case 'conservative':
-        return 'conservative';
-      case 'medium':
-        return 'medium';
-      // case 'eager':
-      //  return 'eager';
-      case 'eagerbutlittle':
-        return 'eagerButLittle';
-      case 'eagerbutmedium':
-        return 'eagerButMedium';
-      case 'eagerbutmuch':
-        return 'eagerButMuch';
-      default:
-        return 'eager';
-    }
-  }
-
   cppHeaders(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotcppheaders ?? false;
   }
 
   relatedFiles(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfiles ?? false;
-  }
-
-  cacheReferenceTokens(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotcachereferencetokens ?? false;
   }
 
   maxPromptCompletionTokens(telemetryWithExp: TelemetryWithExp): number {
@@ -357,54 +325,31 @@ class Features {
     }
   }
 
-  ideChatGpt4MaxTokens(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatgpt4maxtokens ?? -1;
-  }
-
-  ideChatGpt4MaxRequestTokens(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatgpt4maxrequesttokens ?? -1;
-  }
-
-  ideChatExpModelFamily(telemetryWithExp: TelemetryWithExp): ChatModelFamily | undefined {
-    const variables = telemetryWithExp.filtersAndExp.exp.variables;
-    switch (variables.idechatexpmodelfamily) {
-      case 'gpt-4':
-        return ChatModelFamily.Gpt4;
-      case 'gpt-4-turbo':
-        return ChatModelFamily.Gpt4turbo;
-      case 'gpt-4o':
-        return ChatModelFamily.Gpt4o;
-      case 'gpt-3.5-turbo':
-        return ChatModelFamily.Gpt35turbo;
-    }
+  ideChatMaxRequestTokens(telemetryWithExp: TelemetryWithExp): number {
+    return telemetryWithExp.filtersAndExp.exp.variables.idechatmaxrequesttokens ?? -1;
   }
 
   ideChatExpModelId(telemetryWithExp: TelemetryWithExp): string {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatexpmodelid ?? '';
   }
 
-  ideChatEnableProjectMetadata(telemetryWithExp: TelemetryWithExp): boolean {
+  ideChatEnableProjectMetadata(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectmetadata ?? false;
   }
-
-  ideChatMetaPromptVersion(telemetryWithExp: TelemetryWithExp): string {
+  ideChatMetaPromptVersion(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatmetapromptversion ?? '';
   }
-
-  ideChatIntentModel(telemetryWithExp: TelemetryWithExp): string {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatintentmodel ?? '';
-  }
-
-  ideChatIntentThresholdPercent(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatintentthresholdpercent ?? 0;
-  }
-
-  ideChatIntentTokenizer(telemetryWithExp: TelemetryWithExp): string {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatintenttokenizer ?? '';
-  }
-
-  ideChatEnableProjectContext(telemetryWithExp: TelemetryWithExp): boolean {
+  ideChatEnableProjectContext(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectcontext ?? false;
+  }
+  ideChatProjectContextFileCountThreshold(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.idechatprojectcontextfilecountthreshold ?? 0;
+  }
+  ideChatEnableInline(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.idechatenableinline ?? false;
+  }
+  ideChatEnableExtensibilityPlatform(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.idechatenableextensibilityplatform ?? false;
   }
 }
 

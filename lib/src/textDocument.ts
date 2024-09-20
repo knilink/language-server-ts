@@ -1,4 +1,6 @@
-import { URI } from 'vscode-uri';
+import type { URI } from 'vscode-uri';
+import { detectLanguage } from './language/languageDetection.ts';
+import { parseUri } from './util/uri.ts';
 import { TextDocument as LSPTextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
 import { Position, Range, DocumentUri } from 'vscode-languageserver-types';
 
@@ -19,38 +21,62 @@ class LocationFactory {
 }
 
 class TextDocument {
-  private _uri: URI;
-  private _textDocument: LSPTextDocument;
+  constructor(
+    private _uri: URI,
+    private _textDocument: LSPTextDocument,
+    readonly detectedLanguageId: LanguageId
+  ) {}
 
-  constructor(uri: URI | string, textDocument: LSPTextDocument) {
-    this._uri = typeof uri === 'string' ? URI.parse(uri) : uri;
-    this._textDocument = textDocument;
+  static withChanges(textDocument: TextDocument, changes: TextDocumentContentChangeEvent[], version: number) {
+    let lspDoc = TextDocument.create(
+      textDocument.clientUri,
+      textDocument.clientLanguageId,
+      version,
+      textDocument.getText()
+    );
+
+    LSPTextDocument.update(lspDoc, changes, version);
+    return new TextDocument(textDocument.vscodeUri, lspDoc, textDocument.detectedLanguageId);
   }
 
-  static create(uri: URI | string, languageId: LanguageId, version: number, text: string): TextDocument {
-    const lspTextDoc = LSPTextDocument.create(uri.toString(), languageId, version, text);
-    return new TextDocument(typeof uri === 'string' ? URI.parse(uri) : uri, lspTextDoc);
-  }
-
-  static wrap(textDocument: LSPTextDocument): TextDocument {
-    const uri = URI.parse(textDocument.uri);
-    return new TextDocument(uri, textDocument);
-  }
-
-  get lspTextDocument(): LSPTextDocument {
-    return this._textDocument;
+  static create(
+    uri: URI | string,
+    clientLanguageId: LanguageId,
+    version: number,
+    text: string,
+    detectedLanguageId = detectLanguage({ uri: uri.toString() }) ?? clientLanguageId
+  ): TextDocument {
+    return typeof uri == 'string'
+      ? new TextDocument(
+          parseUri(uri),
+          LSPTextDocument.create(uri, clientLanguageId, version, text),
+          detectedLanguageId
+        )
+      : new TextDocument(
+          uri,
+          LSPTextDocument.create(uri.toString(), clientLanguageId, version, text),
+          detectedLanguageId
+        );
   }
 
   get uri(): DocumentUri {
     return this._uri.toString();
   }
 
+  get clientUri(): DocumentUri {
+    return this._textDocument.uri;
+  }
+
   get vscodeUri(): URI {
     return this._uri;
   }
 
-  get languageId(): LanguageId {
+  get clientLanguageId(): LanguageId {
     return this._textDocument.languageId;
+  }
+
+  get languageId() {
+    return this.detectedLanguageId;
   }
 
   get version(): number {
@@ -82,10 +108,6 @@ class TextDocument {
     const isEmptyOrWhitespace = text.trim().length === 0;
 
     return { text, range, isEmptyOrWhitespace };
-  }
-
-  update(changes: TextDocumentContentChangeEvent[], version: number): void {
-    LSPTextDocument.update(this._textDocument, changes, version);
   }
 }
 

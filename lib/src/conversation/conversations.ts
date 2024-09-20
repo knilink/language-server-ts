@@ -43,9 +43,7 @@ class Conversations {
   async addTurn(conversationId: string, turn: Turn, references?: Reference[], workspaceFolder?: string): Promise<Turn> {
     let conversation = this.getHolder(conversationId).conversation;
 
-    if (references && references.length > 0) {
-      turn.references = references;
-    }
+    turn.request.references = references ?? [];
 
     if (workspaceFolder) {
       turn.workspaceFolder = workspaceFolder;
@@ -61,9 +59,9 @@ class Conversations {
   async determineAndApplyAgent(conversation: Conversation, turn: Turn): Promise<void> {
     if (conversation.source === 'panel' && turn.request.message.trim().startsWith('@')) {
       const [agentSlug, userQuestion] = this.extractKeywordAndQuestionFromRequest(turn.request.message, '@');
-      const agent = (await getAgents(this.ctx)).find((candidate) => candidate.slug === agentSlug);
-      if (agent) {
-        turn.request = { message: userQuestion, type: 'user' };
+      if ((await getAgents(this.ctx)).find((candidate) => candidate.slug === agentSlug)) {
+        turn.request.message = userQuestion;
+        turn.request.type = 'user';
         turn.agent = { agentSlug };
       }
     }
@@ -74,13 +72,15 @@ class Conversations {
       const [templateId, userQuestion] = this.extractKeywordAndQuestionFromRequest(turn.request.message, '/');
       const template = getPromptTemplates().find((template: { id: string }) => template.id === templateId);
       if (template) {
-        turn.request = { message: userQuestion, type: 'user' };
+        turn.request.message = userQuestion;
+        turn.request.type = 'user';
         await this.determineAndApplyAgent(conversation, turn);
         const templateInstructions = template.instructions
           ? template.instructions(this.ctx, turn.request.message, conversation.source)
           : userQuestion;
         turn.template = { templateId: templateId, userQuestion: turn.request.message };
-        turn.request = { message: templateInstructions, type: 'template' };
+        turn.request.message = templateInstructions;
+        turn.request.type = 'template';
       }
     }
   }

@@ -14,16 +14,33 @@ class AuthPersistence {
     readonly persistenceManager: PersistenceManager
   ) {}
 
-  async getAuthRecord(): Promise<AuthRecord> {
-    let authRecord = await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx));
-    return (authRecord || (await this.legacyAuthRecordMaybe())) as AuthRecord;
+  async getAuthRecord(): Promise<AuthRecord | undefined> {
+    let authRecord = await this.loadAuthRecord();
+    return authRecord || (await this.legacyAuthRecordMaybe());
   }
 
-  async legacyAuthRecordMaybe(): Promise<unknown> {
+  async loadAuthRecord(): Promise<AuthRecord | undefined> {
+    let authRecord: AuthRecord | undefined = await this.loadExperimentalJetBrainsAuthRecord();
+
+    authRecord ??= (await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx))) as AuthRecord;
+
+    return authRecord;
+  }
+
+  async loadExperimentalJetBrainsAuthRecord(): Promise<AuthRecord | undefined> {
+    let experimentalAppId = this.ctx.get(GitHubAppInfo).experimentalJetBrainsAppId();
+    let authRecord = await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx, experimentalAppId));
+    if (authRecord) {
+      this.ctx.get(GitHubAppInfo).githubAppId = experimentalAppId;
+      return authRecord as AuthRecord;
+    }
+  }
+
+  async legacyAuthRecordMaybe(): Promise<AuthRecord | undefined> {
     let legacyAuthRecord = await this.persistenceManager.read(LEGACY_AUTH_FILE, this.legacyAuthRecordKey(this.ctx));
     if (legacyAuthRecord) {
       const fallbackAppId = this.ctx.get(GitHubAppInfo).fallbackAppId();
-      return { ...legacyAuthRecord, githubAppId: fallbackAppId };
+      return { ...legacyAuthRecord, githubAppId: fallbackAppId } as AuthRecord;
     }
   }
 
@@ -47,10 +64,10 @@ class AuthPersistence {
     }
   }
 
-  authRecordKey(ctx: Context): string {
+  authRecordKey(ctx: Context, githubAppId?: string): string {
     const authAuthority = ctx.get(NetworkConfiguration).getAuthAuthority();
-    const githubAppId = ctx.get(GitHubAppInfo).findAppIdToAuthenticate();
-    return `${authAuthority}:${githubAppId}`;
+    const appId = githubAppId ?? ctx.get(GitHubAppInfo).findAppIdToAuthenticate();
+    return `${authAuthority}:${appId}`;
   }
 
   legacyAuthRecordKey(ctx: Context): string {

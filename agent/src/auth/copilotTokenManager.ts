@@ -24,8 +24,8 @@ class AgentClientCopilotTokenManager extends CopilotTokenManager {
     unknown
   >('copilot/token');
 
-  private copilotToken?: CopilotToken;
-  private didChangeToken?: Disposable;
+  copilotToken?: Promise<CopilotToken>;
+  didChangeToken?: Disposable;
 
   createCopilotEnvelope(ctx: Context, envelope: TokenEnvelope): CopilotToken {
     const copilotToken = new CopilotToken(envelope);
@@ -33,42 +33,44 @@ class AgentClientCopilotTokenManager extends CopilotTokenManager {
     return copilotToken;
   }
 
-  setCopilotEnvelope(ctx: Context, envelope: TokenEnvelope): void {
-    this.copilotToken = this.createCopilotEnvelope(ctx, envelope);
-  }
-
   async getCopilotToken(ctx: Context, force: boolean = false): Promise<CopilotToken> {
-    let connection = ctx.get(Service).connection;
-    if (!this.copilotToken || this.copilotToken.isExpired() || force) {
+    if (this.copilotToken && !force) {
+      let token = await this.copilotToken;
+      if (!token.isExpired()) return token;
+    }
+
+    this.copilotToken = (async () => {
+      let connection = ctx.get(Service).connection;
       try {
         this.didChangeToken ??= connection.onNotification('copilot/didChangeToken', () => {
           this.copilotToken = undefined;
         });
-
-        const response = await connection.sendRequest(AgentClientCopilotTokenManager.RequestType, { force });
-
+        let response = await connection.sendRequest(AgentClientCopilotTokenManager.RequestType, { force: force });
         if (!response?.envelope) {
           logger.debug(ctx, 'Envelope missing from copilot/token response');
           throw new CopilotAuthError('Editor did not return a token');
         }
+        const { accessToken: accessToken, handle: handle, githubAppId: githubAppId, envelope: envelope } = response;
         logger.debug(ctx, 'Retrieved envelope from copilot/token');
-        const { accessToken, handle, githubAppId, envelope } = response;
+        const copilotToken = new CopilotToken(envelope);
+        if (copilotToken.isExpired()) throw new CopilotAuthError('Expired token in copilot/token response');
         if (handle && accessToken) {
-          ctx.get(AuthManager).setTransientAuthRecord(ctx, {
-            user: handle,
-            oauth_token: accessToken,
-            githubAppId: githubAppId,
-          });
+          ctx
+            .get(AuthManager)
+            .setTransientAuthRecord(ctx, { user: handle, oauth_token: accessToken, githubAppId: githubAppId });
         } else if (!(await this.getGitHubSession(ctx))) {
           throw new CopilotAuthError('Not signed in');
         }
-
-        this.copilotToken = this.createCopilotEnvelope(ctx, envelope);
+        ctx.get(CopilotTokenNotifier).emit('onCopilotToken', copilotToken);
+        return copilotToken;
       } catch (e) {
         throw e instanceof Error ? new CopilotAuthError(e.message, e) : e;
       }
-    }
+    })();
 
+    this.copilotToken.catch(() => {
+      this.copilotToken = undefined;
+    });
     return this.copilotToken;
   }
 
@@ -116,11 +118,6 @@ class AgentCopilotTokenManager extends CopilotTokenManager {
 
   async getGitHubSession(ctx: Context): Promise<GitHubToken | undefined> {
     return await this.fallback.getGitHubSession(ctx);
-  }
-
-  setCopilotEnvelope(ctx: Context, envelope: TokenEnvelope): void {
-    if (!this.canGetToken(ctx)) throw new Error('Tried to set token with no token copilotCapability');
-    this.client.setCopilotEnvelope(ctx, envelope);
   }
 }
 

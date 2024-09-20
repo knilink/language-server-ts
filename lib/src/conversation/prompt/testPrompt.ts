@@ -6,6 +6,7 @@ import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { TestContextSkillId } from '../skills/TestContextSkill.ts';
 import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
 import { FileSystem } from '../../fileSystem.ts';
+import { parseUri } from '../../util/uri.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 import { TurnContext } from '../turnContext.ts';
 import { TextDocument } from '../../textDocument.ts';
@@ -20,7 +21,11 @@ class PromptForTestGeneration {
   async fromImplementationFile(implFile: TextDocument): Promise<ElidableText | undefined> {
     const workspaceFolder = await this.turnContext.ctx.get(TextDocumentManager).getWorkspaceFolder(implFile);
     // const fileExists = this.fileExistFn();
-    const finder = new TestFileFinder(this.turnContext.ctx, this.fileExists, workspaceFolder);
+    const finder = new TestFileFinder(
+      this.turnContext.ctx,
+      this.fileExists,
+      workspaceFolder && parseUri(workspaceFolder.uri)
+    );
     const correspondingTestFile = await finder.findTestFileForSourceFile(implFile.vscodeUri);
     const activeDocumentIsTest = await isTestFile(implFile.vscodeUri);
 

@@ -34,7 +34,7 @@ abstract class FakeFetcher extends Fetcher {
   }
 
   makeAbortController(): AbortController {
-    throw new Error('Method not implemented.');
+    return new FakeAbortController();
   }
 }
 
@@ -76,6 +76,14 @@ class FakeHeaders {
 
   [Symbol.iterator](): IterableIterator<[string, string]> {
     return this.headers.entries();
+  }
+}
+
+class FakeAbortController {
+  readonly signal: any = { aborted: false, addEventListener: () => {}, removeEventListener: () => {} };
+  constructor() {}
+  abort() {
+    this.signal.aborted = true;
   }
 }
 

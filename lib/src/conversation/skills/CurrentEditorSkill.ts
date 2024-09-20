@@ -21,7 +21,7 @@ class CurrentEditorSkillProcessor implements Skill.ISkillProcessor<Document> {
     const fileReader = this.turnContext.ctx.get(FileReader);
     const documentResult = await fileReader.readFile(skill.uri);
     const fileStatus = statusFromTextDocumentResult(documentResult);
-    this.turnContext.collectFile('current-editor', skill.uri, fileStatus);
+    await this.turnContext.collectFile(CurrentEditorSkillId, skill.uri, fileStatus);
     if (documentResult.status === 'valid') {
       const isInline = this.turnContext.conversation.source === 'inline';
       const elidableDoc = new ElidableDocument(documentResult.document, skill.selection, skill.visibleRange);
@@ -90,4 +90,4 @@ class CurrentEditorSkill implements Skill.ISkill<typeof CurrentEditorSkillId, Do
   }
 }
 
-export { CurrentEditorSkill, CurrentEditorSkillId, DocumentSchema as CurrentEditorSchema };
+export { CurrentEditorSkill, CurrentEditorSkillId, DocumentSchema as CurrentEditorSchema, Document as CurrentEditor };

@@ -26,16 +26,16 @@ function computeScore(a: Set<unknown>, b: Set<unknown>): number {
 class FixedWindowSizeJaccardMatcher extends WindowedMatcher {
   windowLength: number;
 
-  static FACTORY(windowLength: number, cacheReferenceTokens: boolean) {
+  static FACTORY(windowLength: number) {
     return {
       to(referenceDoc: Document): FixedWindowSizeJaccardMatcher {
-        return new FixedWindowSizeJaccardMatcher(referenceDoc, windowLength, cacheReferenceTokens);
+        return new FixedWindowSizeJaccardMatcher(referenceDoc, windowLength);
       },
     };
   }
 
-  constructor(referenceDoc: Document, windowLength: number, cacheReferenceTokens: boolean) {
-    super(referenceDoc, cacheReferenceTokens);
+  constructor(referenceDoc: Document, windowLength: number) {
+    super(referenceDoc);
     this.windowLength = windowLength;
   }
 

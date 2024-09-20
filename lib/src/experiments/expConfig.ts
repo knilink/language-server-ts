@@ -7,16 +7,21 @@ class ExpConfig {
   constructor(
     public variables: Partial<{
       maxpromptcompletionTokens: number;
-      idechatgpt4maxtokens: number;
-      idechatgpt4maxrequesttokens: number;
-      idechatexpmodelfamily: ChatModelFamily;
+      // idechatgpt4maxtokens: number;
+      // idechatgpt4maxrequesttokens: number;
+      // idechatexpmodelfamily: ChatModelFamily;
       idechatexpmodelid: string;
       idechatenableprojectmetadata: boolean;
       idechatmetapromptversion: string;
-      idechatintentmodel: string;
-      idechatintentthresholdpercent: number;
-      idechatintenttokenizer: string;
+      // idechatintentmodel: string;
       idechatenableprojectcontext: boolean;
+      // idechatintentthresholdpercent: number;
+      idechatprojectcontextfilecountthreshold: number;
+      // idechatintenttokenizer: string;
+      idechatenableinline: boolean;
+      // idechatenableprojectcontext: boolean;
+      idechatenableextensibilityplatform: boolean;
+      idechatmaxrequesttokens: number;
       copilotdebouncems: number;
       copilotdebouncepredict: boolean;
       copilotcontextualfilterenable: boolean;
@@ -34,14 +39,21 @@ class ExpConfig {
       CopilotSuffixPercent: number;
       copilotsuffixmatchthreshold: number;
       copilotnumberofsnippets: number;
-      copilotneighboringtabs: Lowercase<CopilotNeighboringTabs>;
+      // copilotneighboringtabs: Lowercase<CopilotNeighboringTabs>;
       copilotcppheaders: boolean;
       copilotrelatedfiles: boolean;
-      copilotcachereferencetokens: boolean;
+      // copilotcachereferencetokens: boolean;
       copilotpromptorderlistpreset: 'default';
       copilotpromptprioritypreset: 'office-exp';
       copilotbycallbuckets: number;
       copilottimeperiodsizeinh: number;
+
+      copilotsnippetswindowsizeforsimilarfiles: number;
+      copilotsimilarfilesnippetthreshold: number;
+      maxsnippetspersimilarfile: number;
+      maxtopsnippetsfromsimilarfiles: number;
+      maxsimilarfilesize: number;
+      maxsimilarfilescount: number;
     }>,
     public assignmentContext: string,
     public features: string

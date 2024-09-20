@@ -31,8 +31,7 @@ function convertToAPIChoice(
   choiceIndex: number,
   requestId: OpenAIRequestId,
   blockFinished: boolean,
-  telemetryData: TelemetryWithExp,
-  modelInfo?: Unknown.ModelInfo
+  telemetryData: TelemetryWithExp
 ): APIChoice {
   logEngineCompletion(ctx, completionText, jsonData, requestId, choiceIndex);
   return {
@@ -41,7 +40,6 @@ function convertToAPIChoice(
     meanAlternativeLogProb: calculateMeanAlternativeLogProb(ctx, jsonData),
     choiceIndex: choiceIndex,
     requestId: requestId,
-    modelInfo: modelInfo,
     blockFinished: blockFinished,
     tokens: jsonData.tokens,
     numTokens: jsonData.tokens.length,

@@ -29,7 +29,7 @@ async function notifyRejectedChecked(
       completionText: c.displayText,
       completionTelemetryData: c.telemetry,
     }));
-    postRejectionTasks(ctx, 'ghostText', completion.offset, completion.file, rejectionInput);
+    postRejectionTasks(ctx, 'ghostText', completion.offset, completion.uri, rejectionInput);
     ctx.get(LastGhostText).resetState();
   }
 

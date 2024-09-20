@@ -1,5 +1,5 @@
-import { EventEmitter } from 'node:events';
-import { CopilotToken } from './copilotToken.ts';
+import { default as EventEmitter } from 'node:events';
+import { type CopilotToken } from './copilotToken.ts';
 
 class CopilotTokenNotifier extends EventEmitter<{ onCopilotToken: [CopilotToken] }> {
   constructor() {

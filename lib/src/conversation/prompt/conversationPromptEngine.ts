@@ -3,8 +3,6 @@ import { Context } from '../../context.ts';
 
 import { TurnContext } from '../turnContext.ts';
 
-import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
-import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { ConversationInspector } from '../conversationInspector.ts';
 import { ConversationDumper } from '../dump.ts';
 import { countMessagesTokens } from '../openai/chatTokens.ts';
@@ -50,21 +48,17 @@ class ConversationPromptEngine {
   ) {}
 
   async toPrompt(turnContext: TurnContext, options: PromptOptions): Promise<Unknown.ConversationPrompt> {
-    const supportedModelFamilies = getSupportedModelFamiliesForPrompt(options.promptType);
-    const modelConfiguration = await this.ctx
-      .get(ModelConfigurationProvider)
-      .getBestChatModelConfig(supportedModelFamilies);
     const promptStrategy = await this.promptStrategyFactory.createPromptStrategy(
       this.ctx,
       options.promptType,
-      modelConfiguration.modelFamily
+      options.modelConfiguration.modelFamily
     );
     const [elidableChatMessages, skillResolutions] = await promptStrategy.promptContent(
       turnContext,
-      await this.safetyPrompt(modelConfiguration.uiName),
+      await this.safetyPrompt(options.modelConfiguration.uiName),
       options
     );
-    const [chatMessages, tokens] = await this.elideChatMessages(elidableChatMessages, modelConfiguration);
+    const [chatMessages, tokens] = await this.elideChatMessages(elidableChatMessages, options.modelConfiguration);
 
     this.ctx.get(ConversationInspector).inspectPrompt({
       type: options.promptType,

@@ -45,7 +45,7 @@ class RecentFilesSkillProcessor implements Skill.ISkillProcessor<RecentFiles> {
       const documentResult = await fileReader.readFile(file.uri);
       const fileStatus = statusFromTextDocumentResult(documentResult);
 
-      this.turnContext.collectFile('RecentFilesSkillId', file.uri, fileStatus);
+      await this.turnContext.collectFile('RecentFilesSkillId', file.uri, fileStatus);
       if (documentResult.status === 'valid' && fileStatus !== 'empty') {
         documents.push([documentResult.document, file]);
         if (documents.length === MAX_FILES) break;

@@ -1,11 +1,19 @@
 import { Type, type Static } from '@sinclair/typebox';
+import { WebSearchReferenceSchema } from './extensibility/references.ts';
 
-export const RangeSchema = Type.Object({
+const RangeSchema = Type.Object({
   start: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
   end: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
 });
 
-export const DocumentSchema = Type.Object({
+const FileStatusSchema = Type.Union([
+  Type.Literal('included'),
+  Type.Literal('blocked'),
+  Type.Literal('notfound'),
+  Type.Literal('empty'),
+]);
+
+const DocumentSchema = Type.Object({
   uri: Type.String(),
   position: Type.Optional(Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) })),
   visibleRange: Type.Optional(RangeSchema),
@@ -14,9 +22,20 @@ export const DocumentSchema = Type.Object({
   activeAt: Type.Optional(Type.String()),
 });
 
-export const FileReferenceSchema = DocumentSchema;
+const FileReferenceSchema = Type.Intersect([
+  Type.Object({
+    type: Type.Literal('file'),
+    status: Type.Optional(FileStatusSchema),
+    range: Type.Optional(RangeSchema),
+  }),
+  DocumentSchema,
+]);
+type FileReference = Static<typeof FileReferenceSchema>;
 
-export const ReferenceSchema = Type.Union([FileReferenceSchema]);
-export type Reference = Static<typeof ReferenceSchema>;
+const ReferenceSchema = Type.Union([FileReferenceSchema, WebSearchReferenceSchema]);
 
-export const ConversationSourceSchema = Type.Union([Type.Literal('panel'), Type.Literal('inline')]);
+type Reference = Static<typeof ReferenceSchema>;
+
+const ConversationSourceSchema = Type.Union([Type.Literal('panel'), Type.Literal('inline')]);
+
+export { ConversationSourceSchema, DocumentSchema, RangeSchema, ReferenceSchema, FileReference, Reference };

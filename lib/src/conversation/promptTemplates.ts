@@ -10,6 +10,7 @@ import { TurnContext } from './turnContext.ts';
 import { TestFailuresSkillId } from './skills/TestFailuresSkill.ts';
 import { TestContextSkillId } from './skills/TestContextSkill.ts';
 import { ProblemsInActiveDocumentSkillId } from './skills/ProblemInActiveDocumentSkill.ts';
+import { Reference } from './schema.ts';
 
 export type TemplateScope = 'editor' | 'chat-panel' | 'inline';
 
@@ -55,7 +56,10 @@ export class PromptTemplateResponse {
     readonly message: string,
     // ./promptDebugTemplates.ts
     readonly error?: unknown,
-    readonly annotations: Unknown.Annotation[] = []
+    readonly annotations: Unknown.Annotation[] = [],
+    // ./promptDebugTemplates.ts
+    readonly warnings: { message: string }[] = [],
+    readonly references: Reference[] = []
   ) {}
 }
 

@@ -2,11 +2,15 @@ import { URI } from 'vscode-uri';
 import { Context } from '../../../../context.ts';
 import { getChunkingAlgorithm, ChunkingAlgorithmType } from './ChunkingAlgorithms.ts';
 import { LRUCacheMap } from '../../../../common/cache.ts';
-import { ChunkingHandler } from './ChunkingHandler.ts';
-import { Chunk, ChunkId } from './IndexingTypes.ts';
+import { ChunkingError, ChunkingHandler } from './ChunkingHandler.ts';
+import { Chunk, ChunkId, DocumentChunk } from './IndexingTypes.ts';
+import { telemetryException } from '../../../../telemetry.ts';
+import { TextDocument } from '../../../../textDocument.ts';
 
+const MAX_WORKSPACES = 25;
 class ChunkingProvider {
-  private workspaceChunkingProviders = new LRUCacheMap<string, ChunkingHandler>(25);
+  readonly workspaceChunkingProviders = new LRUCacheMap<string, ChunkingHandler>(MAX_WORKSPACES);
+  workspaceCount = 0;
 
   createImplementation(type: ChunkingAlgorithmType): ChunkingHandler {
     const algorithmCtor = getChunkingAlgorithm(type);
@@ -15,17 +19,30 @@ class ChunkingProvider {
   }
 
   getImplementation(workspaceFolder: string, type: ChunkingAlgorithmType = 'default'): ChunkingHandler {
-    let provider = this.workspaceChunkingProviders.get(workspaceFolder);
+    const { fsPath } = workspaceFolder.startsWith('file://') ? URI.parse(workspaceFolder) : URI.file(workspaceFolder);
+    const parentFolder = this.getParentFolder(workspaceFolder);
+    if (parentFolder) return this.workspaceChunkingProviders.get(parentFolder)!;
+    let provider = this.workspaceChunkingProviders.get(fsPath);
+
     if (!provider) {
       provider = this.createImplementation(type);
-      this.workspaceChunkingProviders.set(workspaceFolder, provider);
+      this.workspaceChunkingProviders.set(fsPath, provider);
+      this.workspaceCount++;
     }
+
     return provider;
   }
 
   getParentFolder(workspaceFolder: string): string | undefined {
-    const folders = [...this.workspaceChunkingProviders.keys()];
-    return folders.find((folder) => workspaceFolder.toLowerCase().startsWith(folder.toLowerCase()));
+    let fsPath = (
+      workspaceFolder.startsWith('file://') ? URI.parse(workspaceFolder) : URI.file(workspaceFolder)
+    ).fsPath.toLowerCase();
+    for (const folder of this.workspaceChunkingProviders.keys()) {
+      const lowercase = folder.toLowerCase();
+      if (fsPath !== lowercase && fsPath.startsWith(lowercase)) {
+        return folder;
+      }
+    }
   }
 
   isChunked(workspaceFolder: string): boolean {
@@ -42,12 +59,26 @@ class ChunkingProvider {
     return this.getImplementation(workspaceFolder).chunkCount;
   }
 
+  fileCount(workspaceFolder: string) {
+    return this.getImplementation(workspaceFolder).fileCount;
+  }
+
   chunkId(workspaceFolder: string, chunk: Chunk): ChunkId | undefined {
     return this.getImplementation(workspaceFolder).chunkId(chunk);
   }
 
+  chunkingTimeMs(workspaceFolder: string) {
+    return this.getImplementation(workspaceFolder).chunkingTimeMs;
+  }
+
+  getChunks(workspaceFolder: string) {
+    return this.getImplementation(workspaceFolder).chunks;
+  }
+
   terminateChunking(workspaceFolder: string): void {
     this.getImplementation(workspaceFolder).terminateChunking();
+    this.workspaceChunkingProviders.delete(workspaceFolder);
+    this.workspaceCount--;
   }
 
   deleteSubfolderChunks(parentFolder: string, workspaceFolder: string): ChunkId[] {
@@ -66,41 +97,25 @@ class ChunkingProvider {
     return chunkIds;
   }
 
-  isMarkedForDeletion(workspaceFolder: string): boolean {
-    return this.getImplementation(workspaceFolder).isMarkedForDeletion();
-  }
-
-  markForDeletion(workspaceFolder: string): void {
-    this.getImplementation(workspaceFolder).markForDeletion();
-  }
-
-  cancelDeletion(workspaceFolder: string): void {
-    this.getImplementation(workspaceFolder).cancelDeletion();
-  }
-
   async chunk(
     ctx: Context,
     workspaceFolder: string,
     type: ChunkingAlgorithmType = 'default'
-  ): Promise<LRUCacheMap<ChunkId, Chunk>> {
-    return await this.getImplementation(workspaceFolder, type).chunk(ctx, workspaceFolder);
+  ): Promise<LRUCacheMap<ChunkId, DocumentChunk>> {
+    if (this.workspaceChunkingProviders.size === MAX_WORKSPACES) {
+      let error = new ChunkingError(`Workspace cache size reached, total workspace count: ${this.workspaceCount}`);
+      telemetryException(ctx, error, 'ChunkingProvider.chunk');
+    }
+    return this.getImplementation(workspaceFolder, type).chunk(ctx, workspaceFolder);
   }
 
   async chunkFiles(
     ctx: Context,
     workspaceFolder: string,
-    filepath: { fsPath: string }[],
+    documents: TextDocument[],
     type: ChunkingAlgorithmType = 'default'
-  ): Promise<Chunk[]> {
-    const impl = this.getImplementation(workspaceFolder, type);
-    if (!Array.isArray(filepath)) {
-      return await impl.chunkFile(ctx, filepath);
-    }
-    const chunks = [];
-    for (const file of filepath) {
-      chunks.push(...(await impl.chunkFile(ctx, file)));
-    }
-    return chunks;
+  ): Promise<DocumentChunk[]> {
+    return await this.getImplementation(workspaceFolder, type).chunkFiles(ctx, documents);
   }
 }
 

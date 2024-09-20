@@ -6,7 +6,7 @@ import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatURL } from './openai/config.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
-import { TelemetryData, telemetry } from '../telemetry.ts';
+import { telemetry, TelemetryWithExp } from '../telemetry.ts';
 import { asyncIterableMapFilter } from '../common/iterableHelpers.ts';
 import { conversationLogger } from './logger.ts';
 import { isRepetitive } from '../suggestions/anomalyDetection.ts';
@@ -45,6 +45,16 @@ namespace ChatMLFetcher {
         type: 'successMultiple';
         value: string[]; // messages[].content
         toolCalls: ToolCall[][];
+        requestId: string;
+      }
+    | {
+        type: 'no_finish_reason';
+        reason: string;
+        requestId: string;
+      }
+    | {
+        type: 'no_choices';
+        reason: string;
         requestId: string;
       }
     | {
@@ -115,6 +125,7 @@ class ChatMLFetcher {
   async fetchResponse(
     params: ChatMLFetcher.Params,
     cancellationToken: CancellationToken,
+    baseTelemetryWithExp: TelemetryWithExp,
     finishedCb?: SSEProcessor.FinishedCb
   ) {
     const ourRequestId = uuidv4();
@@ -150,41 +161,30 @@ class ChatMLFetcher {
       chatParams.tools = params.tools;
       chatParams.tool_choice = params.tool_choice ?? 'auto';
     }
-    return this.fetch(
-      chatParams,
-      finishedCb,
-      cancellationToken,
-      params.telemetryProperties,
-      params.telemetryMeasurements
-    );
+    return await this.fetch(chatParams, finishedCb, cancellationToken, baseTelemetryWithExp);
   }
 
   async fetch(
     chatParams: OpenAIFetcher.ConversationParams,
-    finishedCb?: SSEProcessor.FinishedCb,
-    cancellationToken?: CancellationToken,
-    telemetryProperties?: TelemetryProperties,
-    telemetryMeasurements?: TelemetryMeasurements
+    finishedCb: SSEProcessor.FinishedCb | undefined,
+    cancellationToken: CancellationToken,
+    baseTelemetryWithExp: TelemetryWithExp
   ): Promise<ChatMLFetcher.Response> {
     try {
-      let baseTelemetry = TelemetryData.createAndMarkAsIssued();
-      baseTelemetry = baseTelemetry.extendedBy(
-        { ...telemetryProperties, uiKind: chatParams.uiKind },
-        telemetryMeasurements
-      );
       const response: OpenAIFetcher.ConversationResponse = await this.fetcher.fetchAndStreamChat(
         this.ctx,
         chatParams,
-        baseTelemetry,
+        baseTelemetryWithExp.extendedBy({ uiKind: chatParams.uiKind }),
         finishedCb || (async () => undefined),
         cancellationToken
       );
       switch (response.type) {
         case 'success':
-          return await this.processSuccessfulResponse(response, chatParams.ourRequestId, telemetryProperties);
+          return await this.processSuccessfulResponse(response, chatParams.ourRequestId, baseTelemetryWithExp);
         case 'canceled':
           return this.processCanceledResponse(response, chatParams.ourRequestId);
         case 'failed':
+        case 'failedDependency':
           return this.processFailedResponse(response, chatParams.ourRequestId);
         case 'authRequired':
           return {
@@ -202,11 +202,11 @@ class ChatMLFetcher {
   async processSuccessfulResponse(
     response: Extract<OpenAIFetcher.ConversationResponse, { type: 'success' }>,
     requestId: string, // ourRequestId
-    telemetryProperties?: TelemetryProperties
+    baseTelemetryWithExp: TelemetryWithExp
   ): Promise<ChatMLFetcher.SuccessfulResponse> {
     const results: ChatCompletion[] = [];
     const postProcessed = asyncIterableMapFilter(response.chatCompletions, async (completion) =>
-      this.postProcess(completion, telemetryProperties)
+      this.postProcess(completion, baseTelemetryWithExp)
     );
     for await (const chatCompletion of postProcessed) {
       conversationLogger.debug(this.ctx, `Received choice: ${JSON.stringify(chatCompletion, null, 2)} `);
@@ -214,7 +214,7 @@ class ChatMLFetcher {
     }
     if (results.length === 1) {
       const result = results[0];
-      switch (result?.finishReason) {
+      switch (result.finishReason) {
         case 'stop':
           return {
             type: 'success',
@@ -229,6 +229,10 @@ class ChatMLFetcher {
           return { type: 'filtered', reason: 'Response got filtered.', requestId };
         case 'length':
           return { type: 'length', reason: 'Response too long.', requestId };
+        case 'DONE':
+          return { type: 'no_finish_reason', reason: 'No finish reason received.', requestId: requestId };
+        default:
+          return { type: 'unknown', reason: 'Unknown finish reason received.', requestId: requestId };
       }
     } else if (results.length > 1) {
       const filtered_results = results.filter((r) => r.finishReason === 'stop' || r.finishReason === 'tool_calls');
@@ -241,18 +245,16 @@ class ChatMLFetcher {
         };
       }
     }
-    return { type: 'unknown', reason: 'Response contained no choices.', requestId };
+    return { type: 'no_choices', reason: 'Response contained no choices.', requestId };
   }
 
   async postProcess(
     chatCompletion: ChatCompletion,
-    telemetryProperties?: TelemetryProperties
+    baseTelemetryWithExp: TelemetryWithExp
   ): Promise<ChatCompletion | undefined> {
     if (isRepetitive(chatCompletion.tokens)) {
-      const telemetryData = TelemetryData.createAndMarkAsIssued();
-      telemetryData.extendWithRequestId(chatCompletion.requestId);
-      const extended = telemetryData.extendedBy(telemetryProperties);
-      telemetry(this.ctx, 'conversation.repetition.detected', extended, TelemetryStore.RESTRICTED);
+      baseTelemetryWithExp.extendWithRequestId(chatCompletion.requestId);
+      telemetry(this.ctx, 'conversation.repetition.detected', baseTelemetryWithExp, TelemetryStore.RESTRICTED);
       conversationLogger.info(this.ctx, 'Filtered out repetitive conversation result');
       return;
     }

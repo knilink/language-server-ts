@@ -14,6 +14,7 @@ import {
   Token,
   ToolCall,
   Unknown,
+  FunctionCall,
 } from '../types.ts';
 
 import { Logger, LogLevel } from '../logger.ts';
@@ -21,6 +22,7 @@ import { telemetry, TelemetryData, TelemetryWithExp } from '../telemetry.ts';
 import { Features } from '../experiments/features.ts';
 import { convertToAPIChoice } from './openai.ts';
 import { getRequestId } from './fetch.ts';
+import { Reference } from '../conversation/schema.ts';
 
 interface IStreamingToolCall {
   name?: string;
@@ -54,6 +56,10 @@ type Completion = {
   index: number;
   reason: string;
   requestId: OpenAIRequestId;
+  // maybe optional
+  model?: string;
+  // maybe optional number
+  usage?: number;
 };
 
 const streamChoicesLogger = new Logger(LogLevel.INFO, 'streamChoices');
@@ -87,7 +93,8 @@ function prepareSolutionForReturn(ctx: Context, c: Completion, telemetryData: Te
 function convertToAPIJsonData(streamingData: IStreamingData): APIJsonData {
   const joinedText = streamingData.text.join('');
   const toolCalls = extractToolCalls(streamingData);
-  const out = { text: joinedText, tokens: streamingData.text, tool_calls: toolCalls };
+  const functionCall = extractFunctionCall(streamingData);
+  const out = { text: joinedText, tokens: streamingData.text, tool_calls: toolCalls, function_call: functionCall };
 
   if (streamingData.logprobs.length === 0) return out;
 
@@ -107,6 +114,15 @@ function convertToAPIJsonData(streamingData: IStreamingData): APIJsonData {
   };
 }
 
+type CopilotConfirmation = {
+  title: string;
+  message: string;
+  confirmation: boolean;
+};
+function isCopilotConfirmation(obj: Record<string, unknown>): obj is CopilotConfirmation {
+  return typeof obj.title == 'string' && typeof obj.message == 'string' && !!obj.confirmation;
+}
+
 function extractToolCalls(streamingData: IStreamingData): ToolCall[] {
   const toolCalls: ToolCall[] = [];
   for (let toolCall of streamingData.tool_calls)
@@ -121,6 +137,16 @@ function extractToolCalls(streamingData: IStreamingData): ToolCall[] {
   return toolCalls;
 }
 
+function extractFunctionCall(streamingData: any): { name: string; arguments: unknown[] } | undefined {
+  if (streamingData.function_call.name) {
+    const args =
+      streamingData.function_call.arguments.length > 0
+        ? JSON.parse(streamingData.function_call.arguments.join(''))
+        : [];
+    return { name: streamingData.function_call.name, arguments: args };
+  }
+}
+
 class APIJsonDataStreaming implements IStreamingData {
   logprobs: Logprob[][] = [];
   top_logprobs: TopLogprob[][] = [];
@@ -129,11 +155,12 @@ class APIJsonDataStreaming implements IStreamingData {
   text_offset: TextOffset[][] = [];
   copilot_annotations = new StreamCopilotAnnotations();
   tool_calls: StreamingToolCall[] = [];
+  function_call = new StreamingFunctionCall();
+  copilot_references: Reference[] = [];
 
   append(choice: Choice) {
     if (choice.text) this.text.push(choice.text);
-    const deltaContent = choice.delta?.content;
-    if (deltaContent) this.text.push(deltaContent);
+    if (choice.delta?.content && choice.delta.role !== 'function') this.text.push(choice.delta.content);
 
     const { logprobs } = choice;
     if (logprobs) {
@@ -159,7 +186,23 @@ class APIJsonDataStreaming implements IStreamingData {
         this.tool_calls[index] ??= new StreamingToolCall();
         this.tool_calls[index].update(toolCall);
       }
+      if (choice.delta?.function_call) {
+        this.function_call.update(choice.delta.function_call);
+      }
     }
+  }
+}
+
+class StreamingFunctionCall implements FunctionCall {
+  name?: string;
+  readonly arguments: unknown[] = [];
+  constructor() {}
+  update(functionCall: FunctionCall) {
+    if (functionCall.name) {
+      this.name = functionCall.name;
+    }
+
+    this.arguments.push(functionCall.arguments);
   }
 }
 
@@ -202,10 +245,14 @@ class StreamCopilotAnnotations {
 }
 
 namespace SSEProcessor {
-  export type FinishedCb = (
-    text: string,
-    annotations?: StreamCopilotAnnotations
-  ) => Promise<Completion['finishOffset']>;
+  export type FinishedCbDelta = {
+    text: string;
+    copilotConfirmation?: CopilotConfirmation;
+    copilotReferences?: Reference[];
+    annotations?: StreamCopilotAnnotations;
+    copilotErrors?: unknown[];
+  };
+  export type FinishedCb = (text: string, delta: FinishedCbDelta) => Promise<void>;
 }
 
 class SSEProcessor {
@@ -263,10 +310,12 @@ class SSEProcessor {
     }
   }
 
-  async *processSSEInner(
-    finishedCb: (text: string, annotations?: StreamCopilotAnnotations) => Promise<Completion['finishOffset']>
-  ): AsyncGenerator<Completion> {
+  async *processSSEInner(finishedCb: SSEProcessor.FinishedCb): AsyncGenerator<Completion> {
     let extraData: string = '';
+    let currentFinishReason: string | null = null;
+    let model: string | undefined;
+    let usage: number | undefined;
+
     networkRead: for await (const chunk of this.body) {
       if (this.maybeCancel('after awaiting body chunk')) return;
       streamChoicesLogger.debug(this.ctx, 'chunk', chunk.toString());
@@ -276,9 +325,10 @@ class SSEProcessor {
       for (const dataLine of dataLines) {
         let lineWithoutData = dataLine.slice(5).trim();
         if (lineWithoutData === '[DONE]') {
-          yield* this.finishSolutions();
+          yield* this.finishSolutions(currentFinishReason, model, usage);
           return;
         }
+        currentFinishReason = null;
 
         let json: any;
         try {
@@ -288,12 +338,27 @@ class SSEProcessor {
           continue;
         }
 
+        if (json.copilot_confirmation && isCopilotConfirmation(json.copilot_confirmation)) {
+          await finishedCb('', { text: '', copilotConfirmation: json.copilot_confirmation });
+        }
+
+        if (json.copilot_references) {
+          await finishedCb('', { text: '', copilotReferences: json.copilot_references });
+        }
+
         if (json.choices === undefined) {
-          if (json.error !== undefined) {
-            streamChoicesLogger.error(this.ctx, 'Error in response:', json.error.message);
-          } else {
-            streamChoicesLogger.error(this.ctx, 'Unexpected response with no choices or error: ' + lineWithoutData);
+          if (!json.copilot_references && !json.copilot_confirmation) {
+            if (json.error !== undefined) {
+              streamChoicesLogger.error(this.ctx, 'Error in response:', json.error.message);
+            } else {
+              streamChoicesLogger.error(this.ctx, 'Unexpected response with no choices or error: ' + lineWithoutData);
+            }
           }
+
+          if (json.copilot_errors) {
+            await finishedCb('', { text: '', copilotErrors: json.copilot_errors });
+          }
+
           continue;
         }
 
@@ -310,6 +375,14 @@ class SSEProcessor {
               this.requestId
             );
           }
+        }
+
+        if (model === undefined && json.model) {
+          model = json.model;
+        }
+
+        if (usage === undefined && json.usage) {
+          usage = json.usage;
         }
 
         if (this.allSolutionsDone() && this.fastCancellation) {
@@ -341,9 +414,18 @@ class SSEProcessor {
           // )
           //   return;
           if (choice.finish_reason || hasNewLine) {
-            finishOffset = await finishedCb(solution.text.join(''), solution.copilot_annotations);
-            // MARK `finishOffset =` does nothing
+            let text = solution.text.join('');
+            finishOffset = await finishedCb(text, {
+              text,
+              annotations: solution.copilot_annotations,
+              copilotReferences: solution.copilot_references,
+            });
             if (this.maybeCancel('after awaiting finishedCb')) return;
+          }
+
+          if (choice.finish_reason && solution.function_call.name !== undefined) {
+            currentFinishReason = choice.finish_reason;
+            continue;
           }
 
           if (!choice.finish_reason && finishOffset === undefined) continue;
@@ -352,7 +434,10 @@ class SSEProcessor {
           telemetry(
             this.ctx,
             'completion.finishReason',
-            this.telemetryData.extendedBy({ completionChoiceFinishReason: loggedReason })
+            this.telemetryData.extendedBy({
+              completionChoiceFinishReason: loggedReason,
+              engineName: model != null ? model : '',
+            })
           );
 
           if (this.dropCompletionReasons.includes(choice.finish_reason)) {
@@ -365,6 +450,8 @@ class SSEProcessor {
               reason: choice.finish_reason,
               requestId: this.requestId,
               index: choice.index,
+              model,
+              usage,
             };
           }
           if (this.maybeCancel('after yielding finished choice')) return;
@@ -375,17 +462,26 @@ class SSEProcessor {
 
     for (const [index, solution] of Object.entries(this.solutions)) {
       const solutionIndex = Number(index);
-      if (solution) {
-        this.stats.markYielded(solutionIndex);
-        yield {
-          solution,
-          finishOffset: undefined,
-          reason: 'Iteration Done',
-          requestId: this.requestId,
-          index: solutionIndex,
-        };
-        if (this.maybeCancel('after yielding after iteration done')) return;
-      }
+      if (!solution) continue;
+      telemetry(
+        this.ctx,
+        'completion.finishReason',
+        this.telemetryData.extendedBy({
+          completionChoiceFinishReason: 'Iteration Done',
+          engineName: model != null ? model : '',
+        })
+      );
+      this.stats.markYielded(solutionIndex);
+      yield {
+        solution,
+        finishOffset: undefined,
+        reason: 'Iteration Done',
+        requestId: this.requestId,
+        index: solutionIndex,
+        model,
+        usage,
+      };
+      if (this.maybeCancel('after yielding after iteration done')) return;
     }
 
     if (extraData.length > 0) {
@@ -400,17 +496,32 @@ class SSEProcessor {
     }
   }
 
-  async *finishSolutions(): AsyncGenerator<Completion> {
+  async *finishSolutions(
+    currentFinishReason: string | null,
+    model?: string,
+    usage?: number
+  ): AsyncGenerator<Completion> {
     for (const [index, solution] of Object.entries(this.solutions)) {
       const solutionIndex = Number(index);
       if (!solution) continue;
       this.stats.markYielded(solutionIndex);
+      telemetry(
+        this.ctx,
+        'completion.finishReason',
+        this.telemetryData.extendedBy({
+          completionChoiceFinishReason: currentFinishReason ?? 'DONE',
+          engineName: model ?? '',
+        })
+      );
+
       yield {
         solution,
         finishOffset: undefined,
         reason: 'DONE',
         requestId: this.requestId,
         index: solutionIndex,
+        model,
+        usage,
       };
       if (this.maybeCancel('after yielding on DONE')) return;
     }

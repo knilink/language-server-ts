@@ -30,7 +30,7 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
       if (skill.sourceFileUri !== skill.currentFileUri && skill.testFileUri !== skill.currentFileUri) return;
       if (skill.testFileUri === skill.currentFileUri) {
         const documentResult = await fileReader.readFile(skill.testFileUri);
-        this.turnContext.collectFile(
+        await this.turnContext.collectFile(
           TestContextSkillId,
           skill.testFileUri,
           statusFromTextDocumentResult(documentResult)
@@ -42,7 +42,7 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
           );
       } else if (skill.sourceFileUri === skill.currentFileUri) {
         const documentResult = await fileReader.readFile(skill.sourceFileUri);
-        this.turnContext.collectFile(
+        await this.turnContext.collectFile(
           TestContextSkillId,
           skill.sourceFileUri,
           statusFromTextDocumentResult(documentResult)
@@ -55,7 +55,7 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
       }
     } else if (skill.sourceFileUri && skill.sourceFileUri === skill.currentFileUri) {
       const documentResult = await fileReader.readFile(skill.sourceFileUri);
-      this.turnContext.collectFile(
+      await this.turnContext.collectFile(
         TestContextSkillId,
         skill.sourceFileUri,
         statusFromTextDocumentResult(documentResult)
@@ -64,7 +64,11 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
         return await promptGenerator.fromImplementationFile(documentResult.document);
     } else if (skill.testFileUri && skill.testFileUri === skill.currentFileUri) {
       const documentResult = await fileReader.readFile(skill.testFileUri);
-      this.turnContext.collectFile(TestContextSkillId, skill.testFileUri, statusFromTextDocumentResult(documentResult));
+      await this.turnContext.collectFile(
+        TestContextSkillId,
+        skill.testFileUri,
+        statusFromTextDocumentResult(documentResult)
+      );
       if (documentResult.status === 'valid') return await promptGenerator.fromTestFile(documentResult.document);
     }
   }

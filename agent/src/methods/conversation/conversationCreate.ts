@@ -34,7 +34,9 @@ async function handleConversationCreateChecked(
   ctx: Context,
   token: CancellationToken,
   params: Static<typeof Params>
-): Promise<[{ conversationId: string; turnId: string }, null] | [null, { code: number; message: string }]> {
+): Promise<
+  [{ conversationId: string; turnId: string; agentSlug?: string }, null] | [null, { code: number; message: string }]
+> {
   let textDocument;
   if (params.doc) {
     const result = await getTextDocumentChecked(ctx, params.doc.uri);
@@ -57,7 +59,14 @@ async function handleConversationCreateChecked(
     .get(TurnProcessorFactory)
     .createProcessor(turnContext, params.workDoneToken, params.computeSuggestions);
   await processor.process(params.workDoneToken, mergedToken, undefined, textDocument);
-  return [{ conversationId: conversation.id, turnId: lastTurn.id }, null];
+  return [
+    {
+      conversationId: conversation.id,
+      turnId: lastTurn.id,
+      agentSlug: lastTurn.agent?.agentSlug,
+    },
+    null,
+  ];
 }
 
 async function addTurns(ctx: Context, conversation: Conversation, params: Static<typeof Params>): Promise<void> {

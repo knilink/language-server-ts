@@ -53,7 +53,7 @@ class TestFailuresSkillProcessor implements Skill.ISkillProcessor<TestFailures> 
 
     for (const [fileUri, failuresInFile] of failuresByFile.entries()) {
       const documentResult = await fileReader.readFile(fileUri);
-      this.turnContext.collectFile(TestFailuresSkillId, fileUri, statusFromTextDocumentResult(documentResult));
+      await this.turnContext.collectFile(TestFailuresSkillId, fileUri, statusFromTextDocumentResult(documentResult));
       if (documentResult.status === 'valid') {
         const filePath = await fileReader.getRelativePath(documentResult.document);
         const elidableFailuresOfDocument = this.createElidableFailuresOfDoc(failuresInFile, filePath);

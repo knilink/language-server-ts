@@ -2,11 +2,10 @@ import { OpenAIFetcher } from '../../openai/fetch.ts';
 import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
 import { type Context } from '../../context.ts';
 import { StatusReporter } from '../../progress.ts';
-import { TelemetryData, telemetry, now, TelemetryWithExp } from '../../telemetry.ts';
+import { TelemetryData, TelemetryWithExp, now, telemetry } from '../../telemetry.ts';
 import { extractEngineName, getRequestId, getProcessingTime } from '../../openai/fetch.ts';
 import { uiKindToIntent, logEngineMessages } from '../telemetry.ts';
 import { postRequest, isAbortError, type Response } from '../../networking.ts';
-import { Features } from '../../experiments/features.ts';
 import { SSEProcessor } from '../../openai/stream.ts';
 import { asyncIterableMap } from '../../common/iterableHelpers.ts';
 import { prepareChatCompletionForReturn } from './stream.ts';
@@ -27,34 +26,27 @@ async function fetchWithInstrumentation(
   request: Record<string, any>,
   secretKey: string,
   uiKind: UiKind,
-  cancel: CancellationToken | undefined,
-  telemetryProperties: TelemetryProperties,
-  telemetryMeasurements: TelemetryMeasurements
+  telemetryWithExp: TelemetryWithExp,
+  cancel: CancellationToken | undefined
 ): Promise<Response | undefined> {
   const statusReporter = ctx.get(StatusReporter);
   const uri = `${engineUrl}/${endpoint}`;
 
-  if (!secretKey) {
-    logger.error(ctx, `Failed to send request to ${uri} due to missing key`);
-    return;
-  }
+  if (!secretKey) throw new Error(`Failed to send request to ${uri} due to missing key`);
 
-  let telemetryData = TelemetryData.createAndMarkAsIssued({
+  let extendedTelemetryWithExp = telemetryWithExp.extendedBy({
     endpoint: endpoint,
     engineName: extractEngineName(ctx, engineUrl),
     uiKind,
   });
 
-  telemetryData = telemetryData.extendedBy(telemetryProperties, telemetryMeasurements);
-
   for (const [key, value] of Object.entries(request)) {
     if (key !== 'messages') {
-      telemetryData.properties[`request.option.${key}`] = JSON.stringify(value) ?? 'undefined';
+      extendedTelemetryWithExp.properties[`request.option.${key}`] = JSON.stringify(value) ?? 'undefined';
     }
   }
-
-  telemetryData.properties.headerRequestId = ourRequestId;
-  telemetry(ctx, 'request.sent', telemetryData);
+  extendedTelemetryWithExp.properties.headerRequestId = ourRequestId;
+  telemetry(ctx, 'request.sent', extendedTelemetryWithExp);
 
   const requestStart = now();
   const intent = uiKindToIntent(uiKind);
@@ -62,38 +54,41 @@ async function fetchWithInstrumentation(
   try {
     const response = await postRequest(ctx, uri, secretKey, intent, ourRequestId, request, cancel);
     const modelRequestId = getRequestId(response, undefined);
-    telemetryData.extendWithRequestId(modelRequestId);
+    extendedTelemetryWithExp.extendWithRequestId(modelRequestId);
 
     const totalTimeMs = now() - requestStart;
+    extendedTelemetryWithExp.measurements.totalTimeMs = totalTimeMs;
+
     logger.info(ctx, `request.response: [${uri}] took ${totalTimeMs} ms`);
-    logger.debug(ctx, 'request.response properties', telemetryData.properties);
-    logger.debug(ctx, 'request.response measurements', telemetryData.measurements);
+    logger.debug(ctx, 'request.response properties', extendedTelemetryWithExp.properties);
+    logger.debug(ctx, 'request.response measurements', extendedTelemetryWithExp.measurements);
     logger.debug(ctx, 'messages:', JSON.stringify(messages));
-    telemetry(ctx, 'request.response', telemetryData);
+    telemetry(ctx, 'request.response', extendedTelemetryWithExp);
 
     return response;
   } catch (error: any) {
     if (isAbortError(error)) throw error;
 
     statusReporter.setWarning(error.message);
-    const warningTelemetry = telemetryData.extendedBy({ error: 'Network exception' });
+    const warningTelemetry = extendedTelemetryWithExp.extendedBy({ error: 'Network exception' });
+
     telemetry(ctx, 'request.shownWarning', warningTelemetry);
 
-    telemetryData.properties.message = String(error.name ?? '');
-    telemetryData.properties.code = String(error.code ?? '');
-    telemetryData.properties.errno = String(error.errno ?? '');
-    telemetryData.properties.type = String(error.type ?? '');
+    extendedTelemetryWithExp.properties.message = String(error.name ?? '');
+    extendedTelemetryWithExp.properties.code = String(error.code ?? '');
+    extendedTelemetryWithExp.properties.errno = String(error.errno ?? '');
+    extendedTelemetryWithExp.properties.type = String(error.type ?? '');
 
     const totalTimeMs = now() - requestStart;
-    telemetryData.measurements.totalTimeMs = totalTimeMs;
+    extendedTelemetryWithExp.measurements.totalTimeMs = totalTimeMs;
     logger.debug(ctx, `request.response: [${uri}] took ${totalTimeMs} ms`);
-    logger.debug(ctx, 'request.error properties', telemetryData.properties);
-    logger.debug(ctx, 'request.error measurements', telemetryData.measurements);
-    telemetry(ctx, 'request.error', telemetryData);
+    logger.debug(ctx, 'request.error properties', extendedTelemetryWithExp.properties);
+    logger.debug(ctx, 'request.error measurements', extendedTelemetryWithExp.measurements);
+    telemetry(ctx, 'request.error', extendedTelemetryWithExp);
 
     throw error;
   } finally {
-    logEngineMessages(ctx, messages, telemetryData);
+    logEngineMessages(ctx, messages, extendedTelemetryWithExp);
   }
 }
 
@@ -101,58 +96,33 @@ class OpenAIChatMLFetcher {
   async fetchAndStreamChat(
     ctx: Context,
     params: OpenAIFetcher.ConversationParams,
-    baseTelemetryData: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     finishedCb: SSEProcessor.FinishedCb,
     cancel?: CancellationToken
   ): Promise<OpenAIFetcher.ConversationResponse> {
-    const statusReporter = ctx.get(StatusReporter);
-    const response = await this.fetchWithParameters(
-      ctx,
-      params.endpoint,
-      params,
-      cancel,
-      baseTelemetryData.properties,
-      baseTelemetryData.measurements
-    );
-
+    let statusReporter = ctx.get(StatusReporter);
+    let response = await this.fetchWithParameters(ctx, params.endpoint, params, baseTelemetryWithExp, cancel);
     if (response === 'not-sent') return { type: 'canceled', reason: 'before fetch request' };
     if (cancel?.isCancellationRequested) {
-      // const body = await response.body(); MARK
-      const body = await response?.body();
+      let body = await response.body();
       try {
-        body?.destroy();
+        body.destroy();
       } catch (e) {
         logger.exception(ctx, e, 'Error destroying stream');
       }
       return { type: 'canceled', reason: 'after fetch request' };
     }
-    if (response === undefined) {
-      const telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
-      statusReporter.setWarning();
-      telemetryData.properties.error = 'Response was undefined';
-      telemetry(ctx, 'request.shownWarning', telemetryData);
-      return { type: 'failed', reason: 'fetch response was undefined', code: -1 };
-    }
     if (response.status !== 200) {
-      const telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
+      let telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
       return this.handleError(ctx, statusReporter, telemetryData, response);
     }
-
-    const fallbackFilters = await ctx.get(Features).getFallbackExpAndFilters();
-    const baseTelemetryWithExp = new TelemetryWithExp(
-      baseTelemetryData.properties,
-      baseTelemetryData.measurements,
-      baseTelemetryData.issuedTime,
-      fallbackFilters
-    );
-    const finishedCompletions = (
+    let finishedCompletions = (
       await SSEProcessor.create(ctx, params.count, response, baseTelemetryWithExp, [], cancel)
     ).processSSE(finishedCb);
-
     return {
       type: 'success',
       chatCompletions: asyncIterableMap(finishedCompletions, async (solution) =>
-        prepareChatCompletionForReturn(ctx, solution, baseTelemetryData)
+        prepareChatCompletionForReturn(ctx, solution, baseTelemetryWithExp)
       ),
       getProcessingTime: () => getProcessingTime(response),
     };
@@ -171,9 +141,8 @@ class OpenAIChatMLFetcher {
     ctx: Context,
     endpoint: string,
     params: OpenAIFetcher.ConversationParams,
-    cancel: CancellationToken | undefined,
-    telemetryProperties: TelemetryProperties,
-    telemetryMeasurements: TelemetryMeasurements
+    telemetryWithExp: TelemetryWithExp,
+    cancel: CancellationToken | undefined
   ): Promise<'not-sent' | Response | undefined> {
     const request: Partial<OpenAIFetcher.ConversationRequest> = {
       messages: params.messages,
@@ -209,9 +178,8 @@ class OpenAIChatMLFetcher {
           request,
           params.authToken,
           params.uiKind,
-          cancel,
-          telemetryProperties,
-          telemetryMeasurements
+          telemetryWithExp,
+          cancel
         );
   }
 
@@ -221,7 +189,7 @@ class OpenAIChatMLFetcher {
     telemetryData: TelemetryData,
     response: Response
   ): Promise<OpenAIFetcher.ConversationResponse> {
-    statusReporter.setWarning();
+    statusReporter.setWarning(`Last response was a ${response.status} error`);
     telemetryData.properties.error = `Response status was ${response.status}`;
     telemetryData.properties.status = String(response.status);
     telemetry(ctx, 'request.shownWarning', telemetryData);
@@ -251,6 +219,8 @@ class OpenAIChatMLFetcher {
         reason: 'filtered as off_topic by intent classifier: message was not programming related',
         code: response.status,
       };
+    } else if (response.status === 424) {
+      return { type: 'failedDependency', reason: text };
     } else {
       logger.error(ctx, 'Unhandled status from server:', response.status, text);
       return {

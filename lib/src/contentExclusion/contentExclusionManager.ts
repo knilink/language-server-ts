@@ -5,14 +5,16 @@ import { Context } from '../context.ts';
 
 import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from './constants.ts';
 import { TextDocumentManager } from '../textDocumentManager.ts';
-import { CopilotContentExclusion } from './contentExclusions.ts';
+import { CopilotContentExclusion, type Rules } from './contentExclusions.ts';
 import { StatusReporter } from '../progress.ts';
 import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
-import { isSupportedUriScheme } from '../util/uri.ts';
+import { isSupportedUriScheme, parseUri } from '../util/uri.ts';
 import { TelemetryData, telemetry } from '../telemetry.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 class CopilotContentExclusionManager {
   private _featureEnabled = false;
+
   private _contentExclusions: CopilotContentExclusion;
   private _evaluateResultCache = new Map<string, string>();
 
@@ -28,7 +30,7 @@ class CopilotContentExclusionManager {
 
   async onDidChangeActiveTextEditor(e: TextDocumentManager.DidFocusTextDocumentParams): Promise<void> {
     if (!this._featureEnabled || !e) return;
-    const result = await this.ctx.get(TextDocumentManager).getTextDocumentWithValidation(e.document.uri);
+    const result = await this.ctx.get(TextDocumentManager).getTextDocumentWithValidation(e.document);
     const isBlocked = result.status === 'invalid';
     const reason = result.status === 'invalid' ? result.reason : undefined;
     this.updateStatusIcon(isBlocked, reason);
@@ -38,10 +40,18 @@ class CopilotContentExclusionManager {
     return this._featureEnabled;
   }
 
-  async evaluate(uri: URI, fileContent: string, shouldUpdateStatusBar?: 'UPDATE'): Promise<DocumentEvaluateResult> {
-    if (!this._featureEnabled || !isSupportedUriScheme(uri.scheme)) {
+  async evaluate(
+    uri: URI | DocumentUri,
+    fileContent: string,
+    shouldUpdateStatusBar?: 'UPDATE'
+  ): Promise<DocumentEvaluateResult> {
+    if (!this._featureEnabled || !isSupportedUriScheme(uri)) {
       return { isBlocked: false };
     }
+    if (typeof uri == 'string') {
+      uri = parseUri(uri);
+    }
+
     const events: { key: string; result: DocumentEvaluateResult; elapsedMs: number }[] = [];
     const track = async (key: string, ev: CopilotContentExclusion): Promise<DocumentEvaluateResult> => {
       const startTimeMs = Date.now();
@@ -104,6 +114,15 @@ class CopilotContentExclusionManager {
     logger.debug(this.ctx, `[${key}] ${uri}`, result);
 
     return true;
+  }
+  setTestingRules(rules: Rules) {
+    this._contentExclusions.setTestingRules(rules);
+  }
+  set __contentExclusions(contentRestrictions: CopilotContentExclusion) {
+    this._contentExclusions = contentRestrictions;
+  }
+  get __contentExclusions() {
+    return this._contentExclusions;
   }
 }
 

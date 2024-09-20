@@ -1,64 +1,66 @@
-import { Document, Snippet } from '../types.ts';
+import { Document, Snippet, SimilarFilesOptions } from '../types.ts';
 import { FixedWindowSizeJaccardMatcher } from './jaccardMatching.ts';
 
-type Selection = {
-  snippetLength: number;
-  threshold: number;
-  numberOfSnippets: number;
-};
+function parseNumberFromEnv(envName: string, defaultValue: number) {
+  let env = process.env[envName];
+  if (env === undefined) return defaultValue;
+  let n = parseInt(env);
+  return isNaN(n) ? defaultValue : n;
+}
 
-function getMatcher(doc: Document, selection: Selection, cacheReferenceTokens: boolean): FixedWindowSizeJaccardMatcher {
-  return FixedWindowSizeJaccardMatcher.FACTORY(selection.snippetLength, cacheReferenceTokens).to(doc);
+function getMatcher(doc: Document, selection: SimilarFilesOptions): FixedWindowSizeJaccardMatcher {
+  return FixedWindowSizeJaccardMatcher.FACTORY(selection.snippetLength).to(doc);
 }
 
 async function getSimilarSnippets(
   doc: Document,
   similarFiles: Document[],
-  options: keyof typeof similarFileOptionToSelection,
-  cacheReferenceTokens: boolean
+  options: SimilarFilesOptions
 ): Promise<Snippet[]> {
-  const selection = { ...similarFileOptionToSelection[options] };
-  const matcher = getMatcher(doc, selection, cacheReferenceTokens);
+  const matcher = getMatcher(doc, options);
 
-  if (selection.numberOfSnippets === 0) return [];
+  if (options.maxTopSnippets === 0) return [];
 
-  const validFiles = similarFiles
-    .filter((similarFile) => similarFile.source.length < MAX_CHARACTERS_PER_FILE && similarFile.source.length > 0)
-    .slice(0, MAX_NUMBER_OF_FILES);
-
-  let acc: Snippet[] = [];
-
-  for (const similarFile of validFiles) {
-    const matches: Snippet[] = await matcher.findMatches(similarFile);
-    acc = [
-      ...acc,
-      ...matches.map((snippet) => ({
-        relativePath: similarFile.relativePath,
-        ...snippet,
-      })),
-    ];
-  }
-
-  return acc
-    .filter(
-      (similarFile: Snippet) => similarFile.score && similarFile.snippet && similarFile.score > selection.threshold
-    )
-    .sort((a: Snippet, b: Snippet) => a.score - b.score)
-    .slice(-selection.numberOfSnippets);
+  return (
+    await similarFiles
+      .filter((similarFile) => similarFile.source.length < options.maxCharPerFile && similarFile.source.length > 0)
+      .slice(0, options.maxNumberOfFiles)
+      .reduce<Promise<Snippet[]>>(
+        async (acc, similarFile) =>
+          (await acc).concat(
+            matcher
+              .findMatches(similarFile, options.maxSnippetsPerFile)
+              .map((snippet) => ({ relativePath: similarFile.relativePath, ...snippet }))
+          ),
+        Promise.resolve([])
+      )
+  )
+    .filter((similarFile) => similarFile.score && similarFile.snippet && similarFile.score > options.threshold)
+    .sort((a, b) => a.score - b.score)
+    .slice(-options.maxTopSnippets);
 }
 
-const similarFileOptionToSelection: Record<string, Selection> = {
-  none: { snippetLength: 1, threshold: -1, numberOfSnippets: 0 },
-  conservative: { snippetLength: 10, threshold: 0.3, numberOfSnippets: 1 },
-  medium: { snippetLength: 20, threshold: 0.1, numberOfSnippets: 2 },
-  eager: { snippetLength: 60, threshold: 0, numberOfSnippets: 4 },
-  eagerButLittle: { snippetLength: 10, threshold: 0, numberOfSnippets: 1 },
-  eagerButMedium: { snippetLength: 20, threshold: 0, numberOfSnippets: 4 },
-  eagerButMuch: { snippetLength: 60, threshold: 0, numberOfSnippets: 6 },
-  retrievalComparable: { snippetLength: 30, threshold: 0, numberOfSnippets: 4 },
+const DEFAULT_SNIPPET_THRESHOLD = 0;
+const DEFAULT_SNIPPET_WINDOW_SIZE = 60;
+const DEFAULT_MAX_TOP_SNIPPETS = 4;
+const DEFAULT_MAX_SNIPPETS_PER_FILE = 1;
+const DEFAULT_MAX_NUMBER_OF_FILES = 20;
+const DEFAULT_MAX_CHARACTERS_PER_FILE = 10_000;
+const defaultSimilarFilesOptions: SimilarFilesOptions = {
+  snippetLength: DEFAULT_SNIPPET_WINDOW_SIZE,
+  threshold: DEFAULT_SNIPPET_THRESHOLD,
+  maxTopSnippets: DEFAULT_MAX_TOP_SNIPPETS,
+  maxCharPerFile: DEFAULT_MAX_CHARACTERS_PER_FILE,
+  maxNumberOfFiles: DEFAULT_MAX_NUMBER_OF_FILES,
+  maxSnippetsPerFile: DEFAULT_MAX_SNIPPETS_PER_FILE,
+};
+const defaultCppSimilarFilesOptions: SimilarFilesOptions = {
+  snippetLength: parseNumberFromEnv('GH_COPILOT_CPP_SNIPPET_WINDOW_SIZE', DEFAULT_SNIPPET_WINDOW_SIZE),
+  threshold: parseNumberFromEnv('GH_COPILOT_CPP_SNIPPET_THRESHOLD', DEFAULT_SNIPPET_THRESHOLD),
+  maxTopSnippets: parseNumberFromEnv('GH_COPILOT_CPP_MAX_TOP_SNIPPETS', DEFAULT_MAX_TOP_SNIPPETS),
+  maxCharPerFile: parseNumberFromEnv('GH_COPILOT_CPP_MAX_CHARACTERS_PER_FILE', DEFAULT_MAX_CHARACTERS_PER_FILE),
+  maxNumberOfFiles: parseNumberFromEnv('GH_COPILOT_CPP_MAX_NUMBER_OF_FILES', DEFAULT_MAX_NUMBER_OF_FILES),
+  maxSnippetsPerFile: parseNumberFromEnv('GH_COPILOT_CPP_MAX_SNIPPETS_PER_FILE', DEFAULT_MAX_SNIPPETS_PER_FILE),
 };
 
-const MAX_CHARACTERS_PER_FILE = 10_000;
-const MAX_NUMBER_OF_FILES = 20;
-
-export { getSimilarSnippets };
+export { defaultCppSimilarFilesOptions, defaultSimilarFilesOptions, getSimilarSnippets, SimilarFilesOptions };

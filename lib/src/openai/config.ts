@@ -1,9 +1,11 @@
-import { URI, Utils } from 'vscode-uri';
+import type { URI } from 'vscode-uri';
 
 import { Context } from '../context.ts';
 import { NetworkConfiguration } from '../networkConfiguration.ts';
 import { AvailableModelManager } from './model.ts';
 import { TelemetryWithExp } from '../telemetry.ts';
+import { joinPath } from '../util/uri.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 function getProxyURLWithPath(ctx: Context, path: string): string {
   return ctx.get(NetworkConfiguration).getCompletionsUrl(ctx, path);
@@ -11,13 +13,13 @@ function getProxyURLWithPath(ctx: Context, path: string): string {
 
 function getCapiURLWithPath(ctx: Context, path: string): string {
   let capiUrl = ctx.get(NetworkConfiguration).getCAPIUrl(ctx);
-  return Utils.joinPath(URI.parse(capiUrl), path).toString();
+  return joinPath(capiUrl, path);
 }
 
 async function getEngineRequestInfo(
   ctx: Context,
   // ../ghostText/ghostText.ts document.vscodeUri
-  resource: URI, // resource uri
+  resource: DocumentUri, // resource uri
   telemetryData: TelemetryWithExp
 ): Promise<{ url: string; headers: Record<string, string> }> {
   const selectedModel = await (

@@ -11,7 +11,7 @@ import { Conversations } from '../conversations.ts';
 import { ProjectMetadataSkillId } from '../skills/ProjectMetadataSkill.ts';
 import { ConversationSkillRegistry } from './conversationSkill.ts';
 import { MetaPromptFetcher } from './metaPrompt.ts';
-import { getAgents } from '../agents/agents.ts';
+import { getAgents, localAgents } from '../agents/agents.ts';
 import { ReferencesSkillId } from '../skills/ReferencesSkill.ts';
 import { type ChatMLFetcher } from '../chatMLFetcher.ts';
 
@@ -38,7 +38,7 @@ class ConversationContextCollector {
   async collectContext(
     turnContext: TurnContext,
     token: CancellationToken,
-    baseUserTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryData,
     uiKind: UiKind,
     template?: Template,
     agent?: Agent
@@ -54,7 +54,7 @@ class ConversationContextCollector {
           turnContext,
           await this.selectableSkillDescriptors(turnContext.ctx, turnContext.conversation),
           token,
-          baseUserTelemetry,
+          baseTelemetryWithExp,
           uiKind
         )
       ).skillIds
@@ -92,6 +92,7 @@ class ConversationContextCollector {
 
   async getNonSelectableSkills(ctx: Context): Promise<string[]> {
     const agents = await getAgents(ctx);
+    agents.push(...localAgents);
     const agentSkills = (await Promise.all(agents.map((agent) => agent.additionalSkills(ctx)))).flat();
     return [...mandatorySkills(), ...agentSkills];
   }

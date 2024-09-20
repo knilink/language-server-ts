@@ -30,6 +30,7 @@ type Notification = {
 };
 
 async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Promise<CopilotAuthStatus> {
+  let resultTelemetryData = TelemetryData.createAndMarkAsIssued({}, {});
   telemetry(ctx, 'auth.new_login');
 
   const response = await fetchCopilotToken(ctx, githubToken);
@@ -45,7 +46,7 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
   if (notification && response.status === 401) {
     const message = 'Failed to get copilot token due to 401 status. Please sign out and try again.';
     authLogger.info(ctx, message);
-    telemetryError(ctx, 'auth.unknown_401');
+    telemetryError(ctx, 'auth.unknown_401', resultTelemetryData);
     return { kind: 'failure', reason: 'HTTP401', message };
   }
 
@@ -54,10 +55,7 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
     telemetryError(
       ctx,
       'auth.invalid_token',
-      TelemetryData.createAndMarkAsIssued({
-        status: response.status.toString(),
-        statusText: response.statusText,
-      })
+      resultTelemetryData.extendedBy({ status: response.status.toString(), status_text: response.statusText })
     );
 
     const errorDetails = tokenEnvelope.error_details;
@@ -72,7 +70,7 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
   telemetry(
     ctx,
     'auth.new_token',
-    TelemetryData.createAndMarkAsIssued(
+    resultTelemetryData.extendedBy(
       {},
       { adjusted_expires_at: tokenEnvelope.expires_at, expires_at, current: nowSeconds() }
     )
@@ -87,6 +85,7 @@ async function fetchCopilotToken(ctx: Context, githubToken: GitHubToken): Promis
   try {
     return await ctx.get(Fetcher).fetch(copilotTokenUrl, {
       headers: { Authorization: `token ${githubToken.token}`, ...editorVersionHeaders(ctx) },
+      timeout: 120_000,
     });
   } catch (err) {
     ctx.get(UserErrorNotifier).notifyUser(ctx, err);

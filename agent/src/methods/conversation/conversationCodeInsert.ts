@@ -6,6 +6,7 @@ import { Context } from '../../../../lib/src/context.ts';
 import { getTextDocumentChecked } from '../../textDocument.ts';
 import {
   conversationSourceToUiKind,
+  createTelemetryWithExpWithId,
   telemetryUserAction,
   telemetryPrefixForUiKind,
 } from '../../../../lib/src/conversation/telemetry.ts';
@@ -16,14 +17,17 @@ import { ensureAuthenticated } from '../../auth/authDecorator.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 import { TelemetryMeasurements } from '../../../../lib/src/types.ts';
 
+const SourceSchema = Type.Union([Type.Literal('keyboard'), Type.Literal('toolbar'), Type.Literal('diff')]);
 const Params = Type.Object({
   turnId: Type.String(),
+  source: SourceSchema,
   codeBlockIndex: Type.Number(),
+  acceptedLength: Type.Optional(Type.Number()),
   totalCharacters: Type.Number(),
   newFile: Type.Optional(Type.Boolean()),
   doc: Type.Optional(DocumentSchema),
   options: Type.Optional(TestingOptions),
-  source: Type.Optional(ConversationSourceSchema),
+  conversationSource: Type.Optional(ConversationSourceSchema),
 });
 
 async function handleConversationCodeInsertChecked(
@@ -40,12 +44,22 @@ async function handleConversationCodeInsertChecked(
     if (result.status === 'valid') textDocument = result.document;
   }
 
-  const measurements: TelemetryMeasurements = { totalCharacters: params.totalCharacters };
+  const measurements: TelemetryMeasurements = {
+    totalCharacters: params.totalCharacters,
+    acceptedLength: params.acceptedLength ?? params.totalCharacters,
+  };
   if (textDocument && params.doc?.position) {
-    measurements['cursorLocation'] = textDocument.offsetAt(params.doc.position);
+    measurements['insertionOffset'] = textDocument.offsetAt(params.doc.position);
+    measurements['currentLine'] = params.doc.position.line;
   }
 
-  const uiKind = conversationSourceToUiKind(params.source);
+  const uiKind = conversationSourceToUiKind(params.conversationSource);
+  const telemetryWithExp = await createTelemetryWithExpWithId(
+    ctx,
+    params.turnId,
+    ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '',
+    { languageId: textDocument?.languageId ?? '' }
+  );
   telemetryUserAction(
     ctx,
     textDocument,
@@ -57,7 +71,8 @@ async function handleConversationCodeInsertChecked(
       uiKind: uiKind,
     },
     measurements,
-    `${telemetryPrefixForUiKind(uiKind)}.acceptedInsert`
+    `${telemetryPrefixForUiKind(uiKind)}.acceptedInsert`,
+    telemetryWithExp
   );
   return ['OK', null];
 }

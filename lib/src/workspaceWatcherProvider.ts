@@ -48,11 +48,19 @@ abstract class WorkspaceWatcherProvider {
     this.getWatcher(workspaceFolder)?.stopWatching();
   }
 
-  async terminateWatching(workspaceFolder: URI): Promise<void> {
+  terminateSubfolderWatchers(workspaceFolder: URI) {
+    let fsPath = getFsPath(workspaceFolder) || '';
+    let subfolders = [...this.watchers.keys()].filter(
+      (watchedFolder) => watchedFolder !== fsPath && watchedFolder.startsWith(fsPath)
+    );
+    for (let subfolder of subfolders) this.terminateWatching(URI.file(subfolder));
+  }
+
+  terminateWatching(workspaceFolder: URI): void {
     const fsPath = getFsPath(workspaceFolder) || '';
     const watcher = this.getWatcher(workspaceFolder);
     if (watcher && watcher.status !== 'stopped') {
-      await this.stopWatching(workspaceFolder);
+      this.stopWatching(workspaceFolder);
     }
     this.watchers.delete(fsPath);
   }
@@ -61,7 +69,7 @@ abstract class WorkspaceWatcherProvider {
     this.getWatcher(workspaceFolder)?.onFileChange(listener);
   }
 
-  async getWatchedFiles(workspaceFolder: URI): Promise<URI[]> {
+  async getWatchedFiles(workspaceFolder: URI) {
     return (await this.getWatcher(workspaceFolder)?.getWatchedFiles()) ?? [];
   }
 

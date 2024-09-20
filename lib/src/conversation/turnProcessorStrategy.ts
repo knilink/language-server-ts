@@ -7,6 +7,8 @@ import { CurrentEditorSkillId, CurrentEditorSkill } from './skills/CurrentEditor
 import { FileReader } from '../fileReader.ts';
 import { extractEditsFromTaggedCodeblocks, codeEditModes, applyEditsToDocument, CodeEdit } from './codeEdits.ts';
 import { ConversationInspector } from './conversationInspector.ts';
+import { ModelConfigurationProvider } from './modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
 import { TextDocument } from '../textDocument.ts';
 import { TurnContext } from './turnContext.ts';
 import { IPromptTemplate } from './promptTemplates.ts';
@@ -43,7 +45,12 @@ class PanelTurnProcessorStrategy implements ITurnProcessorStrategy {
   }
 
   async buildConversationPrompt(turnContext: TurnContext, languageId: LanguageId): Promise<Unknown.ConversationPrompt> {
-    return await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, { promptType: 'user', languageId });
+    const promptType: 'user' = 'user';
+    const modelConfiguration = await turnContext.ctx
+      .get(ModelConfigurationProvider)
+      .getBestChatModelConfig(getSupportedModelFamiliesForPrompt(promptType));
+    const promptOptions = { promptType, modelConfiguration, languageId };
+    return await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
   }
 
   extractEditsFromResponse(response: string, doc: TextDocument): CodeEdit[] {
@@ -70,10 +77,11 @@ class InlineTurnProcessorStrategy implements ITurnProcessorStrategy {
     const currentDocument = await this.getDocumentIfValid(currentEditor.uri);
     if (!currentDocument) return;
 
-    const promptOptions: PromptOptions = {
-      promptType: template?.producesCodeEdits === false ? 'user' : 'inline',
-      languageId,
-    };
+    const promptType: 'user' | 'inline' = template?.producesCodeEdits === false ? 'user' : 'inline';
+    const modelConfiguration = await turnContext.ctx
+      .get(ModelConfigurationProvider)
+      .getBestChatModelConfig(getSupportedModelFamiliesForPrompt(promptType));
+    const promptOptions = { promptType: promptType, modelConfiguration: modelConfiguration, languageId: languageId };
 
     if (promptOptions.promptType === 'inline') this.currentDocument = currentDocument;
     return await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);

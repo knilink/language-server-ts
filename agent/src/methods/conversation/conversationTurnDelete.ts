@@ -4,6 +4,7 @@ import { Context } from '../../../../lib/src/context.ts';
 import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
 import {
   conversationSourceToUiKind,
+  createTelemetryWithExpWithId,
   telemetryUserAction,
   telemetryPrefixForUiKind,
 } from '../../../../lib/src/conversation/telemetry.ts';
@@ -26,13 +27,20 @@ async function handleConversationTurnDeleteChecked(
 ): Promise<['OK', null]> {
   ctx.get(Conversations).deleteTurn(params.conversationId, params.turnId);
   const uiKind = conversationSourceToUiKind(params.source);
+  const telemetryWithExp = await createTelemetryWithExpWithId(
+    ctx,
+    params.turnId,
+    ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '',
+    { languageId: '' }
+  );
 
   telemetryUserAction(
     ctx,
     undefined,
     { messageId: params.turnId, uiKind: uiKind, conversationId: params.conversationId },
     {},
-    `${telemetryPrefixForUiKind(uiKind)}.messageDelete`
+    `${telemetryPrefixForUiKind(uiKind)}.messageDelete`,
+    telemetryWithExp
   );
 
   return ['OK', null];

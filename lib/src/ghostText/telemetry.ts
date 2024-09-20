@@ -65,7 +65,7 @@ async function handleGhostTextResultTelemetry(
     telemetryRaw(ctx, 'ghostText.produced', result.telemetryData, {});
     return result.value;
   }
-  if (result.type !== 'abortedBeforeIssued') {
+  if (!(result.type === 'abortedBeforeIssued' || result.type === 'promptOnly')) {
     if (result.type === 'canceled') {
       telemetry(
         ctx,

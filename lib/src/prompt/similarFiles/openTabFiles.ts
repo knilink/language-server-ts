@@ -1,4 +1,4 @@
-import { URI } from 'vscode-uri';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 import { TextDocument } from '../../textDocument.ts';
 
@@ -17,8 +17,8 @@ class OpenTabFiles {
 
   async truncateDocs(
     docs: TextDocument[],
-    fileURI: URI,
-    languageId: string,
+    uri: DocumentUri,
+    languageId: LanguageId,
     maxNumNeighborFiles: number
   ): Promise<Map<string, Document>> {
     const openFiles: Map<string, Document> = new Map();
@@ -27,12 +27,9 @@ class OpenTabFiles {
     for (const doc of docs) {
       if (
         !(totalLen + doc.getText().length > NeighborSource.MAX_NEIGHBOR_AGGREGATE_LENGTH) &&
-        // doc.uri.scheme === 'file' && // MARK fuck this, doc.uri -> string
-        // fileURI.scheme === 'file' &&
-        // doc.uri.fsPath !== fileURI.fsPath &&
-        doc.vscodeUri.scheme === 'file' &&
-        fileURI.scheme === 'file' &&
-        doc.vscodeUri.fsPath !== fileURI.fsPath &&
+        doc.uri.startsWith('file:') &&
+        uri.startsWith('file:') &&
+        doc.uri !== uri &&
         considerNeighborFile(languageId, doc.languageId)
       ) {
         openFiles.set(doc.uri.toString(), {
@@ -49,25 +46,26 @@ class OpenTabFiles {
   }
 
   async getNeighborFiles(
-    uri: URI,
+    uri: DocumentUri,
     languageId: LanguageId,
     maxNumNeighborFiles: number
-  ): Promise<{ docs: Map<string, Document>; neighborSource: Map<string, string[]> }> {
-    const neighborFiles = new Map<string, any>();
+  ): Promise<{ docs: Map<string, Document>; neighborSource: Map<string, DocumentUri[]> }> {
+    // const neighborFiles = new Map<string, Documen[]>();
     const neighborSource = new Map<string, string[]>();
 
-    const sortedDocs = await this.truncateDocs(
+    const neighborFiles = await this.truncateDocs(
       sortByAccessTimes(await this.docManager.textDocuments()),
       uri,
       languageId,
       maxNumNeighborFiles
     );
-    neighborFiles.set(
+
+    neighborSource.set(
       'opentabs',
-      Array.from(sortedDocs.keys()).map((uri) => uri.toString())
+      Array.from(neighborFiles.keys()).map((uri) => uri.toString())
     );
 
-    return { docs: sortedDocs, neighborSource };
+    return { docs: neighborFiles, neighborSource };
   }
 }
 

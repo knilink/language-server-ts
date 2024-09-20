@@ -8,7 +8,8 @@ export abstract class NetworkConfiguration {
   abstract getTelemetryUrl(): string;
   abstract getNotificationUrl(githubToken: GitHubToken): string;
   abstract getLoginReachabilityUrl(): string;
-  abstract getAPIReachabilityUrl(): string;
+  // ./conversation/gitHubRepositoryApi.ts
+  abstract getAPIUrl(reponame: string): string;
   // ./auth/authPersistence.ts
   abstract getAuthAuthority(): string;
   abstract getEmbeddingsUrl(ctx: Context): string;
@@ -22,5 +23,6 @@ export abstract class NetworkConfiguration {
   abstract getContentRestrictionsUrl(session: GitHubToken): string;
   // ../../agent/src/methods/setEditorInfo.ts
   abstract updateBaseUrl(ctx: Context, authUrl?: string): void;
+  // ./reachability.ts
+  abstract getAPIUrl(): string;
 }
-export * from '@microsoft/applicationinsights-common';

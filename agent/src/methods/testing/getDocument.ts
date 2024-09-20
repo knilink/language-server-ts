@@ -1,5 +1,3 @@
-import { URI } from 'vscode-uri';
-
 import type { LanguageId } from '../../../../prompt/src/types.ts';
 import { Type, type Static } from '@sinclair/typebox';
 import { type CancellationToken } from '../../cancellation.ts';
@@ -22,7 +20,7 @@ async function handleGetDocumentChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<[Document, null]> {
-  const document = await ctx.get(TextDocumentManager).getTextDocument(URI.parse(params.uri));
+  const document = await ctx.get(TextDocumentManager).getTextDocument(params);
   return [
     {
       uri: params.uri,

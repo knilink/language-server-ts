@@ -90,6 +90,7 @@
     "jhaystack": "^0.1.8",
     "js-yaml": "^4.1.0",
     "kerberos": "^2.1.2",
+    "microjob": "^0.7.0",
     "minimatch": "^10.0.1",
     "open": "^10.1.0",
     "semver": "^7.6.3",

@@ -1,8 +1,8 @@
-import path from 'path';
 import { URI } from 'vscode-uri';
-import { Range } from 'vscode-languageserver-types';
+import type { DocumentUri, Range } from 'vscode-languageserver-types';
 import { Disposable, NotificationHandler } from 'vscode-languageserver/node.js';
 import { WorkspaceFolder } from './types.ts';
+import { basename, parseUri } from './util/uri.ts';
 
 import { Context } from './context.ts';
 import { TextDocument } from './textDocument.ts';
@@ -15,14 +15,15 @@ type NotebookCell = {
 };
 
 // ./prompt/prompt.ts
+// ../../agent/src/textDocumentManager.ts
 interface INotebook {
-  getCellFor(doc: TextDocument): NotebookCell;
+  getCellFor(doc: { uri: DocumentUri }): NotebookCell | undefined;
   getCells(): NotebookCell[];
 }
 
 namespace TextDocumentManager {
   // ../agent/src/textDocumentManager.ts
-  export type DidFocusTextDocumentParams = { document: { uri: URI } };
+  export type DidFocusTextDocumentParams = { document: { uri: DocumentUri } };
 
   // ./changeTracker.ts
   // ../../agent/src/textDocumentManager.ts
@@ -72,14 +73,13 @@ abstract class TextDocumentManager {
   }
 
   // uri: URI lib/src/conversation/dump.ts
-  async getTextDocument(uri: URI): Promise<TextDocument | undefined> {
-    const result = await this.getTextDocumentWithValidation(uri);
-    if (result.status === 'valid') {
-      return result.document;
-    }
+  async getTextDocument(arg: URI | { uri: DocumentUri }): Promise<TextDocument | undefined> {
+    const docId = 'uri' in arg ? arg : { uri: arg.toString() };
+    const result = await this.getTextDocumentWithValidation(docId);
+    if (result.status === 'valid') return result.document;
   }
 
-  async validateTextDocument(document: TextDocument, uri: URI): Promise<DocumentValidationResult> {
+  async validateTextDocument(document: TextDocument, uri: DocumentUri): Promise<DocumentValidationResult> {
     if (document) {
       try {
         const validationResult = await isDocumentValid(this.ctx, document);
@@ -92,33 +92,39 @@ abstract class TextDocumentManager {
     }
   }
 
-  async getTextDocumentWithValidation(uri: URI): Promise<DocumentValidationResult> {
+  async getTextDocumentWithValidation(docId: { uri: DocumentUri }): Promise<DocumentValidationResult> {
+    const uri = parseUri(docId.uri);
     try {
-      let document = this.getOpenTextDocuments().find((t) => t.vscodeUri.toString() === uri.toString());
+      let document = this.getOpenTextDocuments().find((t) => t.uri == uri.toString());
       if (!document) {
-        document = await this.openTextDocument(uri);
+        document = await this.openTextDocument(uri.toString());
         if (!document) {
-          return await this.notFoundResult(uri);
+          return await this.notFoundResult(docId.uri);
         }
       }
       return isDocumentValid(this.ctx, document);
     } catch {
-      return await this.notFoundResult(uri);
+      return await this.notFoundResult(docId.uri);
     }
   }
 
-  getOpenTextDocumentWithValidation(uri: URI): Promise<DocumentValidationResult> {
-    const document = this.getOpenTextDocuments().find((t) => t.vscodeUri.toString() === uri.toString());
+  getOpenTextDocumentWithValidation(docId: { uri: DocumentUri }): PromiseLike<DocumentValidationResult> {
+    const uri = parseUri(docId.uri);
+    const document = this.getOpenTextDocuments().find((t) => t.uri == uri.toString());
     if (document) {
-      return new Promise((resolve, reject) => {
-        this.validateTextDocument(document, uri).then(resolve, reject);
-      });
+      let memoized;
+      return {
+        then: (onFulfilled, onRejected) => {
+          memoized ??= this.validateTextDocument(document, docId.uri);
+          return memoized.then(onFulfilled, onRejected);
+        },
+      };
     } else {
-      return this.notFoundResult(uri);
+      return this.notFoundResult(docId.uri);
     }
   }
 
-  async notFoundResult(uri: URI): Promise<DocumentValidationResult> {
+  async notFoundResult(uri: DocumentUri): Promise<DocumentValidationResult> {
     const knownDocs = (await this.textDocuments()).map((doc) => doc.uri).join(', ');
     return {
       status: 'notfound',
@@ -126,27 +132,21 @@ abstract class TextDocumentManager {
     };
   }
 
-  async openTextDocument(uri: URI): Promise<TextDocument | undefined> {
+  async openTextDocument(_: DocumentUri): Promise<TextDocument | undefined> {
     throw new Error('Not found');
   }
 
   async getWorkspaceFolder(doc: TextDocument): Promise<WorkspaceFolder | undefined> {
-    const workspaceFolders = this.getWorkspaceFolders();
-    return workspaceFolders.find((folder) => doc.vscodeUri.toString().startsWith(folder.toString()));
+    return this.getWorkspaceFolders().find((f) => doc.clientUri.startsWith(f.uri));
   }
 
-  async getRelativePath(doc: TextDocument): Promise<string> {
-    if (doc.vscodeUri.scheme !== 'untitled') {
-      const workspaceFolders = this.getWorkspaceFolders();
-      for (const uri of workspaceFolders) {
-        const parentURI = uri.with({ query: '', fragment: '' }).toString().replace(/\/?$/, '/');
-        if (doc.uri.toString().startsWith(parentURI)) {
-          return doc.uri.toString().slice(parentURI.length);
-        }
+  async getRelativePath(doc: TextDocument): Promise<string | undefined> {
+    if (!doc.uri.startsWith('untitled:')) {
+      for (const folder of this.getWorkspaceFolders()) {
+        let parentURI = folder.uri.replace(/[#?].*/, '').replace(/\/?$/, '/');
+        if (doc.clientUri.startsWith(parentURI)) return doc.clientUri.slice(parentURI.length);
       }
-      return path.basename(doc.vscodeUri.fsPath);
-    } else {
-      throw new Error('Document is untitled');
+      return basename(doc.uri);
     }
   }
 }

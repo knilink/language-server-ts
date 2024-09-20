@@ -15,9 +15,10 @@ import { RankingProvider } from './projectContextSnippetProviders/localSnippets/
 import { ScoringProvider } from './projectContextSnippetProviders/localSnippets/ScoringProvider.ts';
 import { ElidableDocument } from './ElidableDocument.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
-import { BlackbirdSnippetProvider } from './projectContextSnippetProviders/BlackbirdSnippetProvider.ts';
+import { IndexingStatusPriority } from './projectContextSnippetProviders/indexingStatus.ts';
 import { LocalSnippetProvider } from './projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts';
 import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
 
 const ProjectContextSnippetSchema = Type.Object({
   path: Type.String(),
@@ -38,6 +39,9 @@ class ProjectContextSkillProcessor implements Skill.ISkillProcessor<Snippet.Snip
   }
 
   async processSkill(resolvedSkill: Snippet.Snippet[]): Promise<ElidableText | undefined> {
+    if (this.turnContext.cancelationToken.isCancellationRequested) {
+      this.turnContext.steps.cancel('collect-project-context');
+    }
     const chunks: ElidableText.Chunk[] = [];
     const fileReader = this.turnContext.ctx.get(FileReader);
     const uniqueSnippets = this.removeDuplicateSnippets(resolvedSkill);
@@ -50,8 +54,8 @@ class ProjectContextSkillProcessor implements Skill.ISkillProcessor<Snippet.Snip
         const elidableDoc = new ElidableDocument(documentResult.document, range, range);
         const elidableSnippet = new ElidableText([snippet]);
         const weight = (await isTestFile(fileURI)) ? 0.5 : 0.8;
-        chunks.push([`Snippet from the file \`${path}\`:`, 1], [elidableDoc.wrapInTicks(elidableSnippet, weight), 1]);
-        this.turnContext.collectFile(
+        chunks.push([`Code excerpt from file \`${path}\`:`, 1], [elidableDoc.wrapInTicks(elidableSnippet, weight), 1]);
+        await this.turnContext.collectFile(
           ProjectContextSkillId,
           uriPath,
           statusFromTextDocumentResult(documentResult),
@@ -61,9 +65,7 @@ class ProjectContextSkillProcessor implements Skill.ISkillProcessor<Snippet.Snip
     }
     if (chunks.length > 0) {
       chunks.unshift([
-        new ElidableText([
-          'The user wants you to consider the following snippets. Take your time to determine if they are relevant. If you decide they are relevant, consider them when computing your answer.',
-        ]),
+        new ElidableText(['The user wants you to consider the following snippets when computing your answer.']),
         1,
       ]);
       return new ElidableText(chunks);
@@ -87,7 +89,7 @@ class ProjectContextSkillResolver implements Skill.ISkillResolver<Snippet.Snippe
 
   constructor(
     readonly ctx: Context,
-    readonly snippetProviders = [new BlackbirdSnippetProvider(), new LocalSnippetProvider()]
+    readonly snippetProviders = [new LocalSnippetProvider()]
   ) {
     const workspaceNotifier = ctx.get(WorkspaceNotifier);
     workspaceNotifier.onChange((event) => {
@@ -97,12 +99,14 @@ class ProjectContextSkillResolver implements Skill.ISkillResolver<Snippet.Snippe
   }
 
   async isEnabled() {
-    if (this._isEnabled === undefined) {
-      const features = this.ctx.get(Features);
-      const telemetryDataWithExp = await features.updateExPValuesAndAssignments(this.ctx);
-      this._isEnabled = features.ideChatEnableProjectContext(telemetryDataWithExp);
+    try {
+      await this.ctx.get(CopilotTokenManager).getCopilotToken(this.ctx);
+    } catch {
+      return false;
     }
-    return this._isEnabled;
+    let features = this.ctx.get(Features);
+    let telemetryDataWithExp = await features.updateExPValuesAndAssignments();
+    return features.ideChatEnableProjectContext(telemetryDataWithExp);
   }
 
   async onWorkspacesAdded(folders: URI[], ctx: Context) {
@@ -114,22 +118,24 @@ class ProjectContextSkillResolver implements Skill.ISkillResolver<Snippet.Snippe
 
     for (const folder of folders) {
       const workspaceFolder = folder.fsPath;
-      if (chunkingProvider.isMarkedForDeletion(workspaceFolder)) {
-        chunkingProvider.cancelDeletion(workspaceFolder);
-      }
 
       if (!workspaceWatcherProvider.shouldStartWatching(folder)) continue;
 
       workspaceWatcherProvider.startWatching(folder);
+      workspaceWatcherProvider.terminateSubfolderWatchers(folder);
       const chunks = await chunkingProvider.chunk(ctx, workspaceFolder);
+      if (chunkingProvider.status(workspaceFolder) !== 'completed') {
+        workspaceWatcherProvider.terminateWatching(folder);
+        continue;
+      }
       rankingProvider.initialize(ctx, workspaceFolder, chunks);
-      workspaceWatcherProvider.onFileChange(folder, async ({ files, type }) => {
+      workspaceWatcherProvider.onFileChange(folder, async ({ uris: uris, documents: documents, type: type }) => {
         if (type === 'delete' || type === 'update') {
-          const deletedChunkIds = chunkingProvider.deleteFileChunks(workspaceFolder, files);
+          const deletedChunkIds = chunkingProvider.deleteFileChunks(workspaceFolder, uris);
           rankingProvider.deleteEmbeddings(ctx, workspaceFolder, deletedChunkIds);
         }
         if (type === 'create' || type === 'update') {
-          const newChunks = await chunkingProvider.chunkFiles(ctx, workspaceFolder, files);
+          const newChunks = await chunkingProvider.chunkFiles(ctx, workspaceFolder, documents);
           rankingProvider.addChunks(ctx, workspaceFolder, newChunks);
         }
       });
@@ -145,30 +151,48 @@ class ProjectContextSkillResolver implements Skill.ISkillResolver<Snippet.Snippe
       if (parentFolder) {
         const chunkIds = chunkingProvider.deleteSubfolderChunks(parentFolder, workspaceFolder);
         ctx.get(RankingProvider).deleteEmbeddings(ctx, parentFolder, chunkIds);
+        continue;
       }
 
-      if (chunkingProvider.isMarkedForDeletion(workspaceFolder)) continue;
-
-      chunkingProvider.markForDeletion(workspaceFolder);
-      ctx.get(WorkspaceWatcherProvider).stopWatching(folder);
-      setTimeout(() => {
-        const _chunkingProvider = ctx.get(ChunkingProvider);
-        if (_chunkingProvider.isMarkedForDeletion(workspaceFolder)) {
-          ctx.get(WorkspaceWatcherProvider).terminateWatching(folder);
-          _chunkingProvider.terminateChunking(workspaceFolder);
-          ctx.get(RankingProvider).terminateRanking(ctx, workspaceFolder);
-          ctx.get(ScoringProvider).terminateScoring(ctx, workspaceFolder);
-        }
-      }, EMBEDDINGS_DELETION_DELAY);
+      ctx.get(WorkspaceWatcherProvider).terminateWatching(folder);
+      chunkingProvider.terminateChunking(workspaceFolder);
+      ctx.get(RankingProvider).terminateRanking(ctx, workspaceFolder);
+      ctx.get(ScoringProvider).terminateScoring(ctx, workspaceFolder);
     }
   }
 
   async resolveSkill(turnContext: TurnContext) {
-    await turnContext.steps.start('check-indexing-status', 'Checking indexing status');
-    for (const snippetProvider of this.snippetProviders) {
-      if (await snippetProvider.canProvideSnippets(turnContext)) {
-        await turnContext.steps.finish('check-indexing-status');
-        return await snippetProvider.provideSnippets(turnContext);
+    await turnContext.steps.start('collect-project-context', 'Collecting relevant project context');
+    const statusPromises = this.snippetProviders.map(async (provider) => provider.snippetProviderStatus(turnContext));
+    const providerStatus = await Promise.all(statusPromises);
+    let bestSnippetProviderStatus = 'not_indexed';
+    let snippetProvider;
+    for (const indexingStatus of IndexingStatusPriority) {
+      let first = providerStatus.findIndex((status) => status === indexingStatus);
+      if (first !== -1) {
+        bestSnippetProviderStatus = indexingStatus;
+        snippetProvider = this.snippetProviders[first];
+        break;
+      }
+    }
+    switch (bestSnippetProviderStatus) {
+      case 'indexed': {
+        let { snippets, resolution } = await snippetProvider!.provideSnippets(turnContext);
+
+        if (resolution) {
+          turnContext.addSkillResolutionProperties(ProjectContextSkillId, resolution);
+        }
+
+        turnContext.steps.finish('collect-project-context');
+        return snippets;
+      }
+      case 'indexing': {
+        turnContext.steps.error('collect-project-context', 'Indexing repository, please try again later');
+        return;
+      }
+      case 'not_indexed': {
+        turnContext.steps.error('collect-project-context', 'No project context available');
+        return;
       }
     }
   }

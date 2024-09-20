@@ -13,6 +13,7 @@ import { SkillId } from '../types.ts';
 function getDebugTemplates() {
   return [
     DebugFailTemplate,
+    DebugWarnTemplate,
     DebugFilterTemplate,
     DebugChristmasTreeTemplate,
     DebugDumpTemplate,
@@ -21,6 +22,7 @@ function getDebugTemplates() {
     DebugSkillsTemplate,
     DebugVulnerabilityTemplate,
     DebugMarkdownRenderingTemplate,
+    DebugLongTemplate,
   ];
 }
 
@@ -42,6 +44,18 @@ class DebugFailPromptTemplate implements IPromptTemplate {
 }
 
 const DebugFailTemplate = new DebugFailPromptTemplate();
+
+class DebugWarnPromptTemplate implements IPromptTemplate {
+  id = 'debug.warn';
+  description = 'Warn for debugging purposes';
+  shortDescription = 'Warn';
+  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
+    let warnings = [{ message: userMessage.length > 0 ? userMessage : 'Some is really wrong' }];
+    return new PromptTemplateResponse("Alright, I'm producing a warning", undefined, [], warnings);
+  }
+}
+const DebugWarnTemplate = new DebugWarnPromptTemplate();
 
 class DebugFilterPromptTemplate implements IPromptTemplate {
   id = 'debug.filter';
@@ -136,7 +150,15 @@ class DebugSkillsPromptTemplate implements IPromptTemplate {
   shortDescription = 'Skills';
   scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
-    let skillId = userMessage.length > 0 ? userMessage : undefined;
+    let skillId;
+    let strippedMessage;
+    if (userMessage.length > 0) {
+      const split = userMessage.split(' ');
+      skillId = split[0];
+      strippedMessage = split.slice(1).join(' ');
+    }
+    turnContext.turn.request.message = strippedMessage ?? '';
+
     return new PromptTemplateResponse(await getSkillsDump(turnContext, cancellationToken, skillId));
   }
 }
@@ -168,5 +190,16 @@ class DebugMarkdownRenderingPromptTemplate implements IPromptTemplate {
 }
 
 const DebugMarkdownRenderingTemplate = new DebugMarkdownRenderingPromptTemplate();
+
+class DebugLongPromptTemplate implements IPromptTemplate {
+  id = 'debug.long';
+  description = 'Generate a long response';
+  shortDescription = 'Long';
+  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  instructions(ctx: Context, userMessage: string) {
+    return 'Write out the OWASP top 10 with code examples in java';
+  }
+}
+const DebugLongTemplate = new DebugLongPromptTemplate();
 
 export { getDebugTemplates };

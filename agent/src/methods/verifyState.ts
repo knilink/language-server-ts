@@ -18,7 +18,7 @@ async function handleVerifyStateChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<[{ status: boolean; message: string }, null]> {
-  const document = await ctx.get(TextDocumentManager).getTextDocument(URI.parse(params.uri));
+  const document = await ctx.get(TextDocumentManager).getTextDocument(params);
 
   if (document) {
     if (document.getText() !== params.source) {

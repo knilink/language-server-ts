@@ -36,7 +36,7 @@ type FetchProgress = WorkDoneProgressBegin | FetchProgressReport | FetchProgress
 
 type FetchResult = { status: number };
 
-const DEFAULT_TIMEOUT_MS = 300_000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
 const FetchRequestType = new ProtocolRequestType<FetchRequestParams, FetchResult, FetchProgress, unknown, unknown>(
   'copilot/fetch'
 );
@@ -106,7 +106,6 @@ class EditorFetcher extends Fetcher {
     if (!options.headers) options.headers = {};
     const { headers } = options;
     headers['user-agent'] = this.userAgent;
-    options.timeout ??= DEFAULT_TIMEOUT_MS;
 
     let { signal } = options;
     const connection = this.ctx.get(Service).connection;
@@ -148,9 +147,9 @@ class EditorFetcher extends Fetcher {
     let result: FetchResult;
     try {
       result = await new Promise<FetchResult>((resolve, reject) => {
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           reject(new EditorFetcherError('Request timed out from lsp server'));
-        }, options.timeout);
+        }, options.timeout ?? DEFAULT_CONNECT_TIMEOUT_MS);
 
         const rejectIfAborted = () => {
           reject(new AbortError('EditorFetcher request aborted'));
@@ -167,7 +166,10 @@ class EditorFetcher extends Fetcher {
             if (errorMessage) message += `: ${errorMessage}`;
             reject(new EditorFetcherError(message));
           })
-          .finally(() => signal?.removeEventListener('abort', rejectIfAborted));
+          .finally(() => {
+            signal?.removeEventListener('abort', rejectIfAborted);
+            clearTimeout(timeoutId);
+          });
       });
     } catch (error) {
       return Promise.reject(error);
@@ -187,11 +189,4 @@ class EditorFetcher extends Fetcher {
   }
 }
 
-export {
-  DEFAULT_TIMEOUT_MS,
-  FetchRequestType,
-  FetchCancelRequestType,
-  FetchDisconnectAllRequestType,
-  EditorFetcherError,
-  EditorFetcher,
-};
+export { FetchRequestType, FetchCancelRequestType, FetchDisconnectAllRequestType, EditorFetcherError, EditorFetcher };

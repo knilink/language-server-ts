@@ -13,6 +13,7 @@ import { ProviderTimeoutError, PromptChoices, PromptOptions } from '../../../pro
 
 import { Context } from '../context.ts';
 import { Features } from '../experiments/features.ts';
+import { getNumberOfSnippets, getSimilarFilesOptions } from '../experiments/similarFileOptionsProvider.ts';
 import { NeighborSource, considerNeighborFile } from './similarFiles/neighborFiles.ts';
 import { TelemetryData, telemetryException, telemetryRaw, TelemetryWithExp } from '../telemetry.ts';
 import {
@@ -27,7 +28,7 @@ import { CopilotContentExclusionManager } from '../contentExclusion/contentExclu
 import { TextDocumentManager, INotebook, NotebookCell } from '../textDocumentManager.ts';
 import { commentBlockAsSingles } from '../../../prompt/src/languageMarker.ts';
 import { getMaxSolutionTokens } from '../openai/openai.ts';
-import { Position } from 'vscode-languageserver-types';
+import { DocumentUri, Position } from 'vscode-languageserver-types';
 import { TextDocument } from '../textDocument.ts';
 
 type ExtractedPrompt =
@@ -52,7 +53,7 @@ async function getPromptForSource(
   source: string,
   offset: number,
   relativePath: string | undefined,
-  uri: URI,
+  uri: DocumentUri,
   languageId: LanguageId,
   telemetryData: TelemetryWithExp,
   ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
@@ -64,16 +65,7 @@ async function getPromptForSource(
     relativePath,
     languageId,
   };
-  let promptOptions = getPromptOptions(ctx, telemetryData);
-  const suffixPercent = ctx.get(Features).suffixPercent(telemetryData);
-  const suffixMatchThreshold = ctx.get(Features).suffixMatchThreshold(telemetryData);
-  if (suffixPercent > 0) {
-    promptOptions = {
-      ...promptOptions,
-      suffixPercent,
-      suffixMatchThreshold,
-    };
-  }
+  const promptOptions = getPromptOptions(ctx, telemetryData, languageId);
 
   const snippets: Snippet[] = [];
   let docs = new Map<string, Document>();
@@ -89,7 +81,7 @@ async function getPromptForSource(
       currentFile: docInfo,
       similarFiles: Array.from(docs.values()),
       tooltipSignature: ifInserted?.tooltipSignature,
-      options: new PromptOptions(promptOptions),
+      options: new PromptOptions(promptOptions, docInfo.languageId),
     };
     const snippetProviderResults = await ctx.get(SnippetOrchestrator).getSnippets(spContext);
     const orchestratorSnippets = providersSnippets(snippetProviderResults);
@@ -143,7 +135,7 @@ async function extractPromptForSource(
   source: string,
   offset: number,
   relativePath: string | undefined,
-  uri: URI,
+  uri: DocumentUri,
   languageId: LanguageId,
   telemetryData: TelemetryWithExp,
   ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
@@ -198,7 +190,7 @@ async function extractPromptForDocument(
     doc.getText(),
     doc.offsetAt(position),
     relativePath,
-    doc.vscodeUri,
+    doc.uri,
     doc.languageId,
     telemetryData,
     ifInserted
@@ -231,7 +223,7 @@ async function extractPromptForNotebook(
     const beforeSource =
       beforeCells.length > 0
         ? beforeCells.map((cell) => addNeighboringCellsToPrompt(cell, activeCell.document.languageId)).join(`\n\n`) +
-        `\n\n`
+          `\n\n`
         : '';
     const source = beforeSource + doc.getText();
     const offset = beforeSource.length + doc.offsetAt(position);
@@ -240,7 +232,7 @@ async function extractPromptForNotebook(
       source,
       offset,
       undefined,
-      doc.vscodeUri,
+      doc.uri,
       activeCell.document.languageId,
       telemetryData,
       ifInserted
@@ -263,24 +255,26 @@ function extractPrompt(
     : extractPromptForNotebook(ctx, doc, notebook, position, telemetryData, ifInserted);
 }
 
-function getPromptOptions(ctx: Context, telemetryData: TelemetryWithExp): Partial<PromptOptions> {
+function getPromptOptions(
+  ctx: Context,
+  telemetryData: TelemetryWithExp,
+  languageId: LanguageId
+): Partial<PromptOptions> {
   const features = ctx.get(Features);
   const maxPromptLength = features.maxPromptCompletionTokens(telemetryData) - getMaxSolutionTokens(ctx);
-  const similarFiles = features.similarFilesOption(telemetryData);
-  const numberOfSnippets = features.numberOfSnippets(telemetryData);
+  const numberOfSnippets = getNumberOfSnippets(telemetryData, languageId);
+  const similarFilesOptions = getSimilarFilesOptions(telemetryData, languageId);
   const promptOrderListPreset = features.promptOrderListPreset(telemetryData);
   const promptPriorityPreset = features.promptPriorityPreset(telemetryData);
-  const cacheReferenceTokens = features.cacheReferenceTokens(telemetryData);
   const suffixPercent = features.suffixPercent(telemetryData);
   const suffixMatchThreshold = features.suffixMatchThreshold(telemetryData);
 
   let promptOptions: Partial<PromptOptions> = {
     maxPromptLength,
-    similarFiles,
+    similarFilesOptions,
     numberOfSnippets,
     promptOrderListPreset,
     promptPriorityPreset,
-    cacheReferenceTokens,
   };
 
   if (suffixPercent > 0 && suffixMatchThreshold > 0) {

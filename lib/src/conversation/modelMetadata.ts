@@ -1,20 +1,19 @@
 import { Unknown, PromptType, Model } from '../types.ts';
 import { Context } from '../context.ts';
 
-import { NetworkConfiguration } from '../networkConfiguration.ts';
-import { logger } from '../logger.ts';
-import { HeaderContributors } from '../headerContributors.ts';
-import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { fetchCapiUrl } from './capiFetchUtilities.ts';
 import { conversationLogger } from './logger.ts';
-import { editorVersionHeaders } from '../config.ts';
-import { Fetcher, FetchResponseError, Response } from '../networking.ts';
 import { Features } from '../experiments/features.ts';
+import { logger } from '../logger.ts';
+import { FetchResponseError, type Response } from '../networking.ts';
 
 enum ChatModelFamily {
   Gpt35turbo = 'gpt-3.5-turbo',
   Gpt4 = 'gpt-4',
   Gpt4turbo = 'gpt-4-turbo',
   Gpt4o = 'gpt-4o',
+  TextEmbedding3Small = 'text-embedding-3-small',
+  TextEmbeddingAda002 = 'text-embedding-ada-002',
   Unknown = 'unknown',
 }
 
@@ -42,18 +41,6 @@ function pickModelMetadataProvider(ctx: Context): ModelMetadataProvider {
   return new ExpModelMetadataProvider(ctx, new CapiModelMetadataProvider(ctx));
 }
 
-function createChatModelMetadataFromExpValues(modelId: string, modelFamily: ChatModelFamily): Model.Metadata[] {
-  return [
-    {
-      id: modelId,
-      name: 'GPT Experimental Model',
-      version: `exp-${modelId}`,
-      capabilities: { type: 'chat', family: modelFamily },
-      isExperimental: true,
-    },
-  ];
-}
-
 abstract class ModelMetadataProvider {
   abstract getMetadata(): Promise<Model.Metadata[]>;
 }
@@ -73,14 +60,8 @@ class CapiModelMetadataProvider extends ModelMetadataProvider {
     return [...this._metadata];
   }
 
-  private async fetchMetadata() {
-    const modelsUrl = this.ctx.get(NetworkConfiguration).getCAPIUrl(this.ctx, '/models');
-    const headers = {
-      Authorization: `Bearer ${(await this.ctx.get(CopilotTokenManager).getCopilotToken(this.ctx)).token}`,
-      ...editorVersionHeaders(this.ctx),
-    };
-    this.ctx.get(HeaderContributors).contributeHeaders(modelsUrl, headers);
-    const response = await this.ctx.get(Fetcher).fetch(new URL(modelsUrl).href, { method: 'GET', headers: headers });
+  async fetchMetadata() {
+    const response = await fetchCapiUrl(this.ctx, '/models');
     if (!response.ok) {
       logger.error(this.ctx, 'Failed to fetch models from CAPI', {
         status: response.status,
@@ -91,9 +72,21 @@ class CapiModelMetadataProvider extends ModelMetadataProvider {
     await this.processModels(response);
   }
 
+  async fetchModel(modelId: string): Promise<Model.Metadata | undefined> {
+    const response = await fetchCapiUrl(this.ctx, `/models/${modelId}`);
+    if (!response.ok) {
+      logger.error(this.ctx, `Failed to fetch model ${modelId} from CAPI`, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return;
+    }
+    return (await response.json()) as Model.Metadata;
+  }
+
   async processModels(response: Response) {
     try {
-      let json = await response.json();
+      const json = await response.json();
       this._metadata = (json as any).data; // MARK
       this._lastFetchTime = Date.now();
     } catch (e) {
@@ -118,6 +111,9 @@ class StaticModelMetadataProvider extends ModelMetadataProvider {
   async getMetadata(): Promise<Model.Metadata[]> {
     return this.metadata;
   }
+  async fetchModel(modelId: string) {
+    throw new Error('StaticModelMetadataProvider cannot fetch models');
+  }
 }
 
 class ExpModelMetadataProvider extends ModelMetadataProvider {
@@ -130,16 +126,22 @@ class ExpModelMetadataProvider extends ModelMetadataProvider {
 
   async getMetadata(): Promise<Model.Metadata[]> {
     const features = this.ctx.get(Features);
-    const telemetryDataWithExp = await features.updateExPValuesAndAssignments(this.ctx);
+    const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
     const expModelId = features.ideChatExpModelId(telemetryDataWithExp);
-    const expModelFamily = features.ideChatExpModelFamily(telemetryDataWithExp);
-    let experimentalModels: Model.Metadata[] = [];
+    const experimentalModels = [];
+    if (expModelId) {
+      const expModelMetadata = await this.fetchModel(expModelId);
 
-    if (expModelId && expModelFamily) {
-      experimentalModels = createChatModelMetadataFromExpValues(expModelId, expModelFamily);
+      if (expModelMetadata !== undefined) {
+        expModelMetadata.isExperimental = true;
+        experimentalModels.push(expModelMetadata);
+      }
     }
+    return experimentalModels.concat(await this.delegate.getMetadata());
+  }
 
-    return [...experimentalModels, ...(await this.delegate.getMetadata())];
+  async fetchModel(modelId: string) {
+    return this.delegate.fetchModel(modelId);
   }
 }
 

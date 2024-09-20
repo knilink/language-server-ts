@@ -16,7 +16,7 @@ import { Features } from '../../lib/src/experiments/features.ts';
 import { ConfigKey, getConfig } from '../../lib/src/config.ts';
 import { telemetry, TelemetryData, TelemetryWithExp } from '../../lib/src/telemetry.ts';
 
-type RawResponse = { entries: Array<{ providerName: string; uris: string[] }> };
+type RawResponse = { entries: Array<{ providerName: string; uris: string[] }>; traits: never };
 
 class AgentRelatedFilesProvider extends RelatedFilesProvider {
   static getRelatedFilesRequestType = new ProtocolRequestType<
@@ -38,18 +38,28 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     return this.context.get(Service);
   }
 
-  static mapProviderNameToNeighboringFileType(providerName: string): 'related/csharp' | 'related/other' {
+  static mapProviderNameToNeighboringFileType(
+    providerName: string
+  ): 'related/csharp' | 'related/cpp' | 'related/cppsemanticcodecontext' | 'related/other' {
     const csharpProviderName = 'CSharpCopilotCompletionContextProvider';
+    const cppProviderName = 'CppCopilotCompletionContextProvider';
+    const cppSemanticCodeContextroviderName = 'CppCopilotCompletionSemanticCodeContextProvider';
+
     switch (providerName) {
       case csharpProviderName:
         return 'related/csharp';
+      case cppProviderName:
+        return 'related/cpp';
+      case cppSemanticCodeContextroviderName:
+        return 'related/cppsemanticcodecontext';
       default:
         return 'related/other';
     }
   }
 
   convert(rawResponse: RawResponse): { entries: Entry[] } {
-    const response: { entries: Entry[] } = { entries: [] };
+    const response: { entries: Entry[]; traits: RawResponse['traits'] } = { entries: [], traits: rawResponse.traits };
+
     for (const rawEntry of rawResponse.entries) {
       const entry: Entry = {
         type: AgentRelatedFilesProvider.mapProviderNameToNeighboringFileType(rawEntry.providerName),
@@ -65,11 +75,7 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     return response;
   }
 
-  async getRelatedFileResponse(
-    docInfo: DocumentInfo,
-    wksFolder: never,
-    telemetryData: TelemetryWithExp
-  ): Promise<{ entries: Entry[] }> {
+  async getRelatedFilesResponse(docInfo: DocumentInfo, telemetryData: TelemetryWithExp): Promise<{ entries: Entry[] }> {
     relatedFilesLogger.debug(this.context, `Fetching related files for ${docInfo.uri}`);
 
     const hasRelatedCapability = this.context.get(CopilotCapabilitiesProvider).getCapabilities().related ?? false;

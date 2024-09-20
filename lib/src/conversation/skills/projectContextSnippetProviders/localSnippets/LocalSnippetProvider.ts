@@ -1,96 +1,120 @@
-import type { Range } from 'vscode-languageserver-types';
-
 import type { Snippet } from '../../../../types.ts';
 
-import { RankingProvider } from './RankingProvider.ts';
-import { ChunkingProvider } from './ChunkingProvider.ts';
-import { parseUserQuery } from './UserQueryParser.ts';
-import { rerankSnippets } from './EmbeddingsReranker.ts';
-import { FileReader } from '../../../../fileReader.ts';
-import { conversationLogger } from '../../../logger.ts';
 import { type TurnContext } from '../../../turnContext.ts';
 
+import { ChunkingProvider } from './ChunkingProvider.ts';
+import { rerankSnippets, Snippet as SnippetType } from './EmbeddingsReranker.ts';
+import { RankingProvider } from './RankingProvider.ts';
+import { parseUserQuery } from './UserQueryParser.ts';
+import { conversationLogger } from '../../../logger.ts';
+import { FileReader } from '../../../../fileReader.ts';
+import { telemetryException } from '../../../../telemetry.ts';
+import { LocationFactory } from '../../../../textDocument.ts';
+import { URI } from 'vscode-uri';
+import { DocumentChunk } from './IndexingTypes.ts';
+
+class LocalSnippetProviderError extends Error {
+  readonly name = 'LocalSnippetProviderError';
+  constructor(message: string) {
+    super(message);
+  }
+}
+
 class LocalSnippetProvider implements Snippet.ISnippetProvider {
-  async canProvideSnippets(turnContext: TurnContext): Promise<boolean> {
-    if (!turnContext.turn.workspaceFolder) return false;
+  readonly rankingTimeHistory: Record<string, number> = {};
 
+  async snippetProviderStatus(turnContext: TurnContext): Promise<Snippet.SnippetProviderStatus> {
+    if (!turnContext.turn.workspaceFolder) return 'not_indexed';
     const ctx = turnContext.ctx;
+    const chunkingStatus = ctx.get(ChunkingProvider).status(turnContext.turn.workspaceFolder);
     const rankingStatus = ctx.get(RankingProvider).status(ctx, turnContext.turn.workspaceFolder);
-
-    return rankingStatus === 'completed';
+    return chunkingStatus === 'completed' && rankingStatus === 'completed'
+      ? 'indexed'
+      : chunkingStatus === 'started' || rankingStatus === 'started'
+        ? 'indexing'
+        : 'not_indexed';
   }
 
-  async collectLocalSnippets(turnContext: TurnContext): Promise<string[]> {
+  async collectLocalSnippets(turnContext: TurnContext): Promise<DocumentChunk[]> {
     const workspaceFolder = turnContext.turn.workspaceFolder;
     if (!workspaceFolder) return [];
-
-    await turnContext.steps.start('collect-snippets', 'Collecting relevant snippets');
-
+    const fsPath = URI.parse(workspaceFolder).fsPath;
     const ctx = turnContext.ctx;
     const userQuery = turnContext.turn.request.message;
-
-    if (ctx.get(ChunkingProvider).chunkCount(workspaceFolder) === 0) {
-      await turnContext.steps.finish('collect-snippets');
-      return [];
+    if (ctx.get(ChunkingProvider).chunkCount(fsPath) === 0) return [];
+    let keywords;
+    try {
+      keywords = await parseUserQuery(ctx, userQuery, turnContext.cancelationToken);
+    } catch (e) {
+      let error = new LocalSnippetProviderError((e as any).message);
+      telemetryException(ctx, error, 'LocalSnippetProvider.parseUserQuery');
     }
-
-    const keywords = await parseUserQuery(ctx, userQuery, turnContext.cancelationToken);
-    if (!keywords) {
-      await turnContext.steps.finish('collect-snippets');
-      return [];
+    if (keywords === undefined) return [];
+    const rankingProvider = ctx.get(RankingProvider);
+    let documentChunks: DocumentChunk[] = [];
+    try {
+      const { snippets, rankingTimeMs } = await rankingProvider.query(ctx, fsPath, keywords);
+      this.rankingTimeHistory[userQuery] = rankingTimeMs;
+      documentChunks = snippets;
+    } catch (e) {
+      let error = new LocalSnippetProviderError((e as any).message);
+      this.rankingTimeHistory[userQuery] = -1;
+      telemetryException(ctx, error, 'LocalSnippetProvider.rankingQuery');
     }
-
-    const snippets = await ctx.get(RankingProvider).query(ctx, workspaceFolder, keywords);
-
-    if (snippets.length === 0) {
-      await turnContext.steps.finish('collect-snippets'), [];
-      return [];
-    } else {
-      await turnContext.steps.finish('collect-snippets');
-      return snippets;
-    }
+    return documentChunks;
   }
 
-  async rerankLocalSnippets(turnContext: TurnContext, snippets: string[]): Promise<Snippet.Snippet[]> {
+  async rerankLocalSnippets(turnContext: TurnContext, snippets: SnippetType[]): Promise<Snippet.Snippet[]> {
     const workspaceFolder = turnContext.turn.workspaceFolder;
     if (!workspaceFolder) return [];
-
-    await turnContext.steps.start('rank-snippets', 'Ranking snippets');
-
     const ctx = turnContext.ctx;
     const userQuery = turnContext.turn.request.message;
-    const result = await rerankSnippets(ctx, workspaceFolder, userQuery, snippets, 5, turnContext.cancelationToken);
-
-    const projectContext: Snippet.Snippet[] = [];
+    const fsPath = URI.parse(workspaceFolder).fsPath;
+    let snippetIds: string[] = [];
+    try {
+      snippetIds = await rerankSnippets(ctx, fsPath, userQuery, snippets, 5, turnContext.cancelationToken);
+    } catch (e) {
+      let error = new LocalSnippetProviderError((e as any).message);
+      telemetryException(ctx, error, 'LocalSnippetProvider.rerankSnippets');
+    }
+    const projectContext = [];
     const fileReader = ctx.get(FileReader);
-
-    for (const snippet of result) {
-      const filepath = snippet.id.split('#')[0];
-      const file = await fileReader.readFile(filepath);
-
+    for (const snippetId of snippetIds) {
+      let filepath = snippetId.split('#')[0];
+      let file = await fileReader.readFile(filepath);
+      let snippet = snippets.find((s) => s.id === snippetId)!;
       if (file.status === 'valid') {
-        const offset = file.document.getText().indexOf(snippet.text);
-        const start = file.document.positionAt(offset);
-        const end = file.document.positionAt(offset + snippet.text.length);
-
-        projectContext.push({
-          path: file.document.vscodeUri.fsPath,
-          range: { start, end },
-          snippet: snippet.text,
-        });
+        let start = file.document.positionAt(snippet.range.start);
+        let end = file.document.positionAt(snippet.range.end);
+        let range = LocationFactory.range(start, end);
+        projectContext.push({ path: file.document.vscodeUri.fsPath, range: range, snippet: snippet.chunk });
       }
     }
-
-    await turnContext.steps.finish('rank-snippets');
     return projectContext;
   }
 
-  async provideSnippets(turnContext: TurnContext): Promise<Snippet.Snippet[]> {
+  async provideSnippets(
+    turnContext: TurnContext
+  ): Promise<{ snippets: Snippet.Snippet[]; resolution: Snippet.Resolution }> {
     const snippets = await this.collectLocalSnippets(turnContext);
     const ctx = turnContext.ctx;
-
     conversationLogger.debug(ctx, `LocalSnippetProvider: First pass: Found ${snippets.length} snippets.`);
-    return await this.rerankLocalSnippets(turnContext, snippets);
+    const rankedSnippets = await this.rerankLocalSnippets(turnContext, snippets);
+    const resolution = this.collectResolutionProperties(turnContext);
+    return { snippets: rankedSnippets, resolution };
+  }
+
+  collectResolutionProperties(turnContext: TurnContext): Snippet.Resolution {
+    const workspaceFolder = turnContext.turn.workspaceFolder;
+    const resolution: Snippet.Resolution = {};
+    if (!workspaceFolder) return resolution;
+    const fsPath = URI.parse(workspaceFolder).fsPath;
+    const chunkingProvider = turnContext.ctx.get(ChunkingProvider);
+    resolution.chunkCount = chunkingProvider.chunkCount(fsPath);
+    resolution.fileCount = chunkingProvider.fileCount(fsPath);
+    resolution.chunkingTimeMs = Math.floor(chunkingProvider.chunkingTimeMs(fsPath));
+    resolution.rankingTimeMs = Math.floor(this.rankingTimeHistory[turnContext.turn.request.message]);
+    return resolution;
   }
 }
 

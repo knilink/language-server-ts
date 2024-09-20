@@ -4,13 +4,14 @@ import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } f
 
 import { conversationLogger } from '../logger.ts';
 import { ConversationPromptEngine } from './conversationPromptEngine.ts';
-import { telemetry, TelemetryData } from '../../telemetry.ts';
+import { telemetry, TelemetryData, TelemetryWithExp } from '../../telemetry.ts';
 import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { ConversationInspector } from '../conversationInspector.ts';
 import { telemetryPrefixForUiKind } from '../telemetry.ts';
 import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
 import { TurnContext } from '../turnContext.ts';
 import { ChatMLFetcher } from '../chatMLFetcher.ts';
+import { PromptOptions } from './strategies/types.ts';
 
 const MAX_SKILLS = 4;
 const DEFAULT_PROMPT_CONTEXT: { skillIds: SkillId[] } = { skillIds: [] };
@@ -25,49 +26,53 @@ class MetaPromptFetcher {
     turnContext: TurnContext,
     selectableSkillDescriptors: Skill.ISkillDescriptor[],
     token: CancellationToken,
-    baseUserTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind
   ): Promise<Unknown.PromptContext> {
-    const userQuestion = turnContext.conversation.getLastTurn()!.request.message; // MARK getLastTurn() -> undefined
-
-    if (selectableSkillDescriptors.length === 0) return DEFAULT_PROMPT_CONTEXT;
-
-    const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, {
-      promptType: 'meta',
-      supportedSkillDescriptors: selectableSkillDescriptors,
-    });
-    baseUserTelemetry = baseUserTelemetry.extendedBy({}, { promptTokenLen: prompt.tokens });
-    const params: ChatMLFetcher.Params = {
-      modelConfiguration: await this.ctx
+    const userQuestion = turnContext.conversation.getLastTurn().request.message;
+    if (selectableSkillDescriptors.length > 0) {
+      const modelConfiguration = await this.ctx
         .get(ModelConfigurationProvider)
-        .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('meta')),
-      messages: prompt.messages,
-      uiKind,
-      telemetryProperties: { ...baseUserTelemetry.properties, messageSource: 'chat.metaprompt' },
-      telemetryMeasurements: baseUserTelemetry.measurements,
-    };
-    if (prompt.toolConfig === undefined) throw new Error('No tool call configuration found in meta prompt.');
-    params.tool_choice = prompt.toolConfig.tool_choice;
-    params.tools = prompt.toolConfig.tools;
+        .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('meta'), { tool_calls: true });
+      const promptOptions: PromptOptions = {
+        promptType: 'meta',
+        supportedSkillDescriptors: selectableSkillDescriptors,
+        modelConfiguration: modelConfiguration,
+      };
+      const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
+      const extendedTelemetryWithExp = baseTelemetryWithExp.extendedBy(
+        { messageSource: 'chat.metaprompt' },
+        { promptTokenLen: prompt.tokens }
+      );
+      const params: ChatMLFetcher.Params = {
+        modelConfiguration: modelConfiguration,
+        messages: prompt.messages,
+        uiKind: uiKind,
+      };
+      if (prompt.toolConfig === undefined) throw new Error('No tool call configuration found in meta prompt.');
+      params.tool_choice = prompt.toolConfig.tool_choice;
+      params.tools = prompt.toolConfig.tools;
+      let fetchResult = await this.chatFetcher.fetchResponse(params, token, extendedTelemetryWithExp);
 
-    let fetchResult = await this.chatFetcher.fetchResponse(params, token);
-    if (fetchResult.type !== 'success') {
-      conversationLogger.error(this.ctx, 'Failed to fetch prompt context, trying again...');
-      fetchResult = await this.chatFetcher.fetchResponse(params, token);
-    }
-    turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
-    return await this.handleResult(fetchResult, baseUserTelemetry, userQuestion, uiKind, prompt.toolConfig);
+      if (fetchResult.type !== 'success') {
+        conversationLogger.error(this.ctx, 'Failed to fetch prompt context, trying again...');
+        fetchResult = await this.chatFetcher.fetchResponse(params, token, extendedTelemetryWithExp);
+      }
+
+      turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
+      return await this.handleResult(fetchResult, extendedTelemetryWithExp, userQuestion, uiKind, prompt.toolConfig);
+    } else return DEFAULT_PROMPT_CONTEXT;
   }
 
   private async handleResult(
     fetchResult: ChatMLFetcher.Response,
-    baseUserTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     messageText: string,
     uiKind: UiKind,
     toolConfig: Unknown.ToolConfig
   ): Promise<Unknown.PromptContext> {
     if (fetchResult.type !== 'success') {
-      this.telemetryError(baseUserTelemetry, fetchResult);
+      this.telemetryError(baseTelemetryWithExp, fetchResult);
       return DEFAULT_PROMPT_CONTEXT;
     }
 
@@ -76,19 +81,17 @@ class MetaPromptFetcher {
       skillIds = toolConfig.extractArguments(fetchResult.toolCalls[0]).skillIds?.slice(0, MAX_SKILLS);
     } else
       return conversationLogger.error(this.ctx, 'Missing tool call in meta prompt response'), DEFAULT_PROMPT_CONTEXT;
-    let promptTelemetryData = baseUserTelemetry.extendedBy(
-        {
-          uiKind: uiKind,
-          skillIds: skillIds?.join(',') ?? '',
-        },
-        { numTokens: fetchResult.numTokens + fetchResult.toolCalls[0].approxNumTokens }
-      ),
-      promptTelemetryDataRestricted = promptTelemetryData.extendedBy({ messageText: messageText });
-    return (
-      telemetry(this.ctx, `${telemetryPrefixForUiKind(uiKind)}.metaPrompt`, promptTelemetryData, 0),
-      telemetry(this.ctx, `${telemetryPrefixForUiKind(uiKind)}.promptContext`, promptTelemetryDataRestricted, 1),
-      { skillIds: skillIds != null ? skillIds : [] }
+    const metapromptTelemetryData = baseTelemetryWithExp.extendedBy(
+      {
+        uiKind: uiKind,
+        skillIds: skillIds?.join(',') ?? '',
+      },
+      { numTokens: fetchResult.numTokens + fetchResult.toolCalls[0].approxNumTokens }
     );
+    const metapromptTelemetryDataRestricted = metapromptTelemetryData.extendedBy({ messageText: messageText });
+    telemetry(this.ctx, `${telemetryPrefixForUiKind(uiKind)}.metaPrompt`, metapromptTelemetryData, 0);
+    telemetry(this.ctx, `${telemetryPrefixForUiKind(uiKind)}.promptContext`, metapromptTelemetryDataRestricted, 1);
+    return { skillIds: skillIds ?? [] };
   }
 
   private telemetryError(
@@ -97,7 +100,7 @@ class MetaPromptFetcher {
   ) {
     const telemetryErrorData = baseUserTelemetry.extendedBy({
       resultType: fetchResult.type,
-      reason: (fetchResult as any).reason || '', // TODO to be resolved
+      reason: 'reason' in fetchResult ? fetchResult.reason : '',
     });
     telemetry(this.ctx, 'conversation.promptContextError', telemetryErrorData, TelemetryStore.RESTRICTED);
   }

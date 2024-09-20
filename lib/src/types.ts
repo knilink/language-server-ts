@@ -7,6 +7,7 @@ import { ElidableText } from '../../prompt/src/elidableText/elidableText.ts';
 import { ChatRole } from './conversation/openai/openai.ts';
 import { TSchema } from '@sinclair/typebox';
 import { ChatModelFamily } from './conversation/modelMetadata.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 // export { WorkspaceFolder } from 'vscode-languageserver-types';
 
@@ -66,14 +67,15 @@ export type RepoInfo = RepoUrlInfo & {
 };
 // | 0;
 
-export type CopilotNeighboringTabs =
-  | 'none'
-  | 'conservative'
-  | 'medium'
-  | 'eager'
-  | 'eagerButLittle'
-  | 'eagerButMedium'
-  | 'eagerButMuch';
+// remove 1.40.0
+// export type CopilotNeighboringTabs =
+//   | 'none'
+//   | 'conservative'
+//   | 'medium'
+//   | 'eager'
+//   | 'eagerButLittle'
+//   | 'eagerButMedium'
+//   | 'eagerButMuch';
 
 type TelemetryBaseProperties = {
   origin: string;
@@ -262,13 +264,23 @@ export type ToolCall = {
 
 export type AnnotationsMap = Record<string, Unknown.Annotation[]>;
 
+export type FunctionCall = {
+  name?: string;
+  arguments: unknown[];
+};
+
+export type Delta = {
+  content: string;
+  tool_calls: // indux:number ./openai/stream.ts
+  ({ index: number } & ToolCall)[];
+  copilot_annotations: AnnotationsMap;
+  // ./openai/stream.ts
+  role: 'function';
+  function_call: FunctionCall;
+};
+
 export type Choice = {
-  delta?: {
-    content: string;
-    tool_calls: // indux:number ./openai/stream.ts
-    ({ index: number } & ToolCall)[];
-    copilot_annotations: AnnotationsMap;
-  };
+  delta?: Delta;
   text: string;
   logprobs: Partial<{
     tokens: Token[];
@@ -333,6 +345,8 @@ export namespace Chat {
     content: string;
     // ../../agent/src/methods/testing/chatML.ts
     name?: string;
+
+    copilot_references?: ConversationReference.OutgoingReference[];
   };
 
   export type ElidableChatMessage =
@@ -351,7 +365,8 @@ export namespace Chat {
 export type PromptType = 'user' | 'inline' | 'meta' | 'suggestions';
 
 // ../agent/src/textDocumentManager.ts
-export type WorkspaceFolder = URI; // ../../lib/src/textDocumentManager.ts:URI
+// WorkspaceFolder from lsp
+// export type WorkspaceFolder = URI; // ../../lib/src/textDocumentManager.ts:URI
 
 //  ./ghostText/last.ts
 // ./ghostText/ghostText.ts
@@ -368,7 +383,8 @@ export type Completion = {
   uuid: string;
   insertText: string;
   range: Range;
-  file: URI;
+  // file: DocumentUri; // maybe removed
+  uri: DocumentUri;
   // TelemetryWithExp ./ghostText/last.ts
   telemetry: TelemetryWithExp;
   displayText: string;
@@ -382,16 +398,26 @@ export type Completion = {
 
 // ./conversation/modelMetadata.ts
 export namespace Model {
+  export type Supports = Record<string, boolean>;
+  export type Capabilities = {
+    type: 'chat' | 'embeddings';
+    family: ChatModelFamily;
+    limits?: {
+      // ./conversation/modelConfigurations.ts
+      max_prompt_tokens: number;
+      // ./conversation/modelConfigurations.ts
+      max_inputs: number;
+    };
+    // ./conversation/modelConfigurations.ts
+    supports?: Supports;
+  };
   export type Metadata = {
     id: string;
     name: string; // ui name
     version: string;
     // ./conversation/modelConfigurations.ts
     // omit ./conversation/modelMetadata.ts
-    capabilities: {
-      type: 'chat';
-      family: ChatModelFamily;
-    };
+    capabilities: Capabilities;
     // ./conversation/modelConfigurations.ts
     isExperimental: boolean;
   };
@@ -399,7 +425,8 @@ export namespace Model {
   // ./conversation/modelConfigurations.ts
   export type TokenConfiguration = {
     // ./conversation/skills/projectContextSnippetProviders/localSnippets/EmbeddingsFetcher.ts
-    maxTokens: number;
+    // removed 1.40.0 ./conversation/extensibility/remoteAgentTurnProcessor.ts
+    // maxTokens: number;
     maxRequestTokens: number;
     maxResponseTokens: number;
   };
@@ -479,6 +506,44 @@ export namespace SolutionHandler {
   }
 }
 
+export namespace ConversationReference {
+  type ReferenceBase<T extends string, D> = string extends T
+    ? never
+    : {
+        type: T;
+        id: string;
+        data: D;
+      };
+
+  type ClientFile = { content: string; language: LanguageId };
+  type ClientSelection = {
+    start: { line: number; col: number };
+    end: { line: number; col: number };
+    content: string;
+  };
+  type GithubRepository = {
+    type: 'repository';
+    name: string;
+    ownerLogin: string;
+    id: string;
+  };
+  // ./conversation/extensibility/references.ts
+  type GithubWebSearch = {
+    query: string;
+    type: string;
+    results?: { title: string; excerpt: string; url: string }[];
+  };
+
+  // outgoingReferences
+  export type OutgoingReference =
+    | ReferenceBase<'client.file', ClientFile>
+    | ReferenceBase<'client.selection', ClientSelection>
+    | ReferenceBase<'github.repository', GithubRepository>
+    | (ReferenceBase<'github.web-search', GithubWebSearch> & {
+        metadata?: { display_name?: string; display_icon?: string };
+      });
+}
+
 export namespace Unknown {
   // ./conversation/conversationFinishCallback.ts
   // DebugCodeVulnerability ./conversation/vulnerabilityDebugHandler.ts
@@ -540,10 +605,17 @@ export namespace Unknown {
     suggestedTitle: SuggestionsFetchResult['suggestedTitle'];
   };
 
-  // lib/src/conversation/extensibility/remoteAgentTurnProcessor.ts
-  // ** lib/src/conversation/extensibility/remoteAgents.ts
-  // ** lib/src/conversation/agents/agents.ts
-  export type Agent = { id: string; slug: string; name: string };
+  // ./conversation/extensibility/remoteAgentTurnProcessor.ts
+  // ** ./conversation/extensibility/remoteAgent.ts
+  // ** ./conversation/agents/agents.ts
+  // number
+  export type Agent = {
+    // number `super(0,...)` ./conversation/extensibility/remoteAgent.ts
+    id: number;
+    slug: string;
+    name: string;
+    endpoint?: string;
+  };
 
   // lib/src/conversation/conversationProgress.ts
   // string(uuid) lsp-type
@@ -558,7 +630,12 @@ export namespace Unknown {
     tokensPreEliding?: number;
     resolutionTimeMs?: number;
     processingTimeMs?: number;
-    labels: string[]; // ./conversation/prompt/fromSkills.ts
+    // 1.40.0 removed
+    // labels: string[]; // ./conversation/prompt/fromSkills.ts
+    fileCount?: number;
+    chunkCount?: number;
+    chunkingTimeMs?: number;
+    rankingTimeMs?: number;
   };
 
   export interface ToolConfig {
@@ -586,7 +663,9 @@ export namespace Unknown {
     // ./conversation/extensibility/remoteAgentTurnProcessor.ts:226
     tokens: number;
     skillResolutions: SkillResolution[];
-    toolConfig?: ToolConfig;
+
+    // required ./conversation/turnSuggestions.ts
+    toolConfig: ToolConfig;
   };
 
   // ../lib/src/conversation/prompt/metaPrompt.ts
@@ -594,6 +673,14 @@ export namespace Unknown {
 }
 
 export namespace Snippet {
+  export type SnippetProviderStatus = 'not_indexed' | 'indexed' | 'indexing';
+
+  export type Resolution = Partial<{
+    chunkCount: number;
+    fileCount: number;
+    chunkingTimeMs: number;
+    rankingTimeMs: number;
+  }>;
   // schema ./conversation/skills/ProjectContextSkill.ts
   export type Snippet = {
     path: string;
@@ -601,7 +688,7 @@ export namespace Snippet {
     snippet: string;
   };
   export interface ISnippetProvider {
-    provideSnippets(turnContext: TurnContext): Promise<Snippet[]>;
-    canProvideSnippets(turnContext: TurnContext): Promise<boolean>;
+    provideSnippets(turnContext: TurnContext): Promise<{ snippets: Snippet[]; resolution: Resolution }>;
+    snippetProviderStatus(turnContext: TurnContext): Promise<SnippetProviderStatus>;
   }
 }

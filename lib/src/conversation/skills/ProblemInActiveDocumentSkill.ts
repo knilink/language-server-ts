@@ -34,7 +34,7 @@ class ProblemsInActiveDocumentSkillProcessor implements Skill.ISkillProcessor<Pr
     const fileReader = this.turnContext.ctx.get(FileReader);
     const documentResult = await fileReader.readFile(skill.uri);
 
-    this.turnContext.collectFile(
+    await this.turnContext.collectFile(
       ProblemsInActiveDocumentSkillId,
       skill.uri,
       statusFromTextDocumentResult(documentResult)

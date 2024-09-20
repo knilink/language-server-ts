@@ -19,7 +19,6 @@ async function handleTestingOverrideExpFlagsChecked(
   if (params.expFlags) {
     const expConfig = { AssignmentContext: 'assignmentcontext', Parameters: { ...params.expFlags } };
     ctx.forceSet(Fetcher, new ExpConfigFetcherWithDelegate(expConfig, ctx.get(Fetcher)));
-    ctx.forceSet(ExpConfigMaker, new ExpConfigFromTAS());
   }
   return ['OK', null];
 }

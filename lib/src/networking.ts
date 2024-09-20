@@ -33,8 +33,6 @@ type Request = {
     }
 );
 
-const requestTimeoutMs = 30_000;
-
 const networkErrorCodes = new Set([
   'ECONNABORTED',
   'ECONNRESET',
@@ -54,7 +52,13 @@ const networkErrorCodes = new Set([
 ]);
 
 function isAbortError(e: any) {
-  return e instanceof AbortError || e.name === 'AbortError' || (e instanceof FetchError && e.code === 'ABORT_ERR');
+  if (!e || typeof e != 'object') return false;
+  return (
+    e instanceof HttpTimeoutError ||
+    e instanceof AbortError ||
+    ('name' in e && e.name === 'AbortError') ||
+    (e instanceof FetchError && e.code === 'ABORT_ERR')
+  );
 }
 
 function isNetworkError(e: any, checkCause = true) {
@@ -81,7 +85,8 @@ async function postRequest(
   requestId?: string,
   body?: unknown,
   cancelToken?: CancellationToken,
-  extraHeaders: Record<string, string> = {}
+  extraHeaders: Record<string, string> = {},
+  timeout?: number
 ): Promise<Response> {
   let headers: Record<string, string> = {
     ...extraHeaders,
@@ -99,7 +104,7 @@ async function postRequest(
     headers['OpenAI-Intent'] = intent;
   }
 
-  let request: Request = { method: 'POST', headers, json: body as any, timeout: requestTimeoutMs };
+  let request: Request = { method: 'POST', headers, json: body as any, timeout };
   const fetcher = ctx.get(Fetcher);
 
   if (cancelToken) {
@@ -178,6 +183,16 @@ abstract class Fetcher {
   }
 }
 
+class HttpTimeoutError extends Error {
+  readonly name = 'HttpTimeoutError';
+  constructor(
+    message: string,
+    readonly cause: unknown
+  ) {
+    super(message);
+  }
+}
+
 class JsonParseError extends SyntaxError {
   readonly name = 'JsonParseError';
   constructor(
@@ -238,7 +253,7 @@ class Response {
       return JSON.parse(text);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        const posMatch = e.message.match(/^(.*?) in JSON at position (\d+)$/);
+        const posMatch = e.message.match(/^(.*?) in JSON at position (\d+)(?: \(line \d+ column \d+\))?$/);
         if ((posMatch && parseInt(posMatch[2], 10) == text.length) || e.message === 'Unexpected end of JSON input') {
           const actualLength = new TextEncoder().encode(text).length;
           const headerLength = this.headers.get('content-length');
@@ -260,4 +275,4 @@ class Response {
   }
 }
 
-export { Fetcher, Request, Response, isNetworkError, FetchResponseError, postRequest, isAbortError };
+export { FetchResponseError, Fetcher, HttpTimeoutError, Response, isAbortError, isNetworkError, postRequest, Request };

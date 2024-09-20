@@ -1,6 +1,7 @@
 import { Context } from '../../../lib/src/context.ts';
 import { InitializedNotifier } from '../editorFeatures/initializedNotifier.ts';
 import { AgentConfigProvider } from '../config.ts';
+import { CopilotCapabilitiesProvider } from '../editorFeatures/capabilities.ts';
 import { getConfig, ConfigKey, ConfigValueType } from '../../../lib/src/config.ts';
 import { Logger, LogLevel } from '../../../lib/src/logger.ts';
 import { HelixFetcher } from '../../../lib/src/network/helix.ts';
@@ -14,7 +15,6 @@ class AgentDelegatingFetcher extends Fetcher {
   currentFetcher: Fetcher;
   fallbackFetcher: FallbackFetcher;
   fetchStrategy: ConfigValueType[ConfigKey.FetchStrategy];
-  editorFetcherCapability = false;
 
   constructor(
     readonly ctx: Context,
@@ -28,8 +28,7 @@ class AgentDelegatingFetcher extends Fetcher {
       this.currentFetcher = this.editorFetcher;
     });
 
-    ctx.get(InitializedNotifier).once((options) => {
-      this.editorFetcherCapability = !!options.copilotCapabilities?.fetch;
+    ctx.get(InitializedNotifier).once(() => {
       this.updateFetcher();
     });
 
@@ -42,35 +41,43 @@ class AgentDelegatingFetcher extends Fetcher {
     this.fetchStrategy = getConfig(ctx, ConfigKey.FetchStrategy);
   }
 
+  get editorFetcherCapability() {
+    return this.ctx.get(CopilotCapabilitiesProvider).getCapabilities().fetch ?? false;
+  }
+
   updateFetcher(): void {
+    let newFetcher;
+    let message;
     if (!this.editorFetcherCapability) {
-      logger.debug(this.ctx, 'Using Helix fetcher, editor does not have fetch capability.');
-      this.currentFetcher = this.helixFetcher;
-      return;
+      message = 'Using Helix fetcher, editor does not have fetch capability.';
+      newFetcher = this.helixFetcher;
+    } else if (this.fetchStrategy === 'client') {
+      message = 'Using editor fetcher, fetch strategy set to client.';
+      newFetcher = this.editorFetcher;
+    } else if (this.fetchStrategy === 'native') {
+      message = 'Using Helix fetcher, fetch strategy set to native.';
+      newFetcher = this.helixFetcher;
+    } else {
+      let debugUseEditorFetcher = getConfig(this.ctx, ConfigKey.DebugUseEditorFetcher);
+
+      if (debugUseEditorFetcher?.toString() === 'true') {
+        message = 'Using editor fetcher, debug flag is enabled.';
+        newFetcher = this.editorFetcher;
+      } else {
+        if (debugUseEditorFetcher?.toString() === 'false') {
+          message = 'Using Helix fetcher, debug flag is disabled.';
+          newFetcher = this.helixFetcher;
+        } else {
+          message = 'Editor fetcher capability available, will fallback if needed.';
+          newFetcher = this.fallbackFetcher;
+        }
+      }
     }
-    if (this.fetchStrategy === 'client') {
-      logger.debug(this.ctx, 'Using editor fetcher, fetch strategy set to client.');
-      this.currentFetcher = this.editorFetcher;
-      return;
+
+    if (this.currentFetcher !== newFetcher) {
+      logger.debug(this.ctx, message);
+      this.currentFetcher = newFetcher;
     }
-    if (this.fetchStrategy === 'native') {
-      logger.debug(this.ctx, 'Using Helix fetcher, fetch strategy set to native.');
-      this.currentFetcher = this.helixFetcher;
-      return;
-    }
-    const debugUseEditorFetcher = getConfig(this.ctx, ConfigKey.DebugUseEditorFetcher);
-    if (debugUseEditorFetcher?.toString() === 'true') {
-      logger.debug(this.ctx, 'Using editor fetcher, debug flag is enabled.');
-      this.currentFetcher = this.editorFetcher;
-      return;
-    }
-    if (debugUseEditorFetcher?.toString() === 'false') {
-      logger.debug(this.ctx, 'Using Helix fetcher, debug flag is disabled.');
-      this.currentFetcher = this.helixFetcher;
-      return;
-    }
-    logger.debug(this.ctx, 'Editor fetcher capability available, will fallback if needed.');
-    this.currentFetcher = this.fallbackFetcher;
   }
 
   get name(): string {

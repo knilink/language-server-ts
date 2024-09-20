@@ -41,8 +41,7 @@ function prepareChatCompletionForReturn(ctx: Context, c: CompletionDetails, tele
     c.requestId,
     blockFinished,
     c.reason ?? '',
-    telemetryData,
-    undefined
+    telemetryData
   );
 }
 

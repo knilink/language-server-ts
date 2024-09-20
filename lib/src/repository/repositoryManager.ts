@@ -1,12 +1,13 @@
-import { URI, Utils } from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { type Context } from '../context.ts';
 import { type GitRemoteUrl } from './gitRemoteUrl.ts';
 
-import { dirname, resolveFilePath } from '../util/uri.ts';
 import { FileSystem } from '../fileSystem.ts';
 import { GitRemoteResolver } from './gitRemoteResolver.ts';
 import { LRUCacheMap } from '../common/cache.ts';
 import assert from 'assert';
+import { dirname, joinPath, parseUri, resolveFilePath } from '../util/uri.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 const maxRepoCacheSize: number = 100;
 
@@ -18,7 +19,7 @@ class GitRepository {
 
   constructor(
     readonly baseFolder: URI,
-    readonly remote: GitRemoteUrl
+    readonly remote?: GitRemoteUrl
   ) {
     this.setNWO();
   }
@@ -85,8 +86,8 @@ class RepositoryManager {
 
   constructor(readonly ctx: Context) {}
 
-  async getRepo(uri: URI): Promise<GitRepository | undefined> {
-    let lastFsPath: URI | undefined;
+  async getRepo(uri: URI | DocumentUri): Promise<GitRepository | undefined> {
+    let lastFsPath: URI | DocumentUri | undefined;
     const testedPaths: string[] = [];
     const uriString = uri.toString();
     do {
@@ -111,15 +112,16 @@ class RepositoryManager {
     paths.forEach((path) => this.cache.set(path, repo));
   }
 
-  async tryGetRepoForFolder(uri: URI): Promise<GitRepository | undefined> {
+  async tryGetRepoForFolder(uri: URI | DocumentUri): Promise<GitRepository | undefined> {
     if (await this.isBaseRepoFolder(uri)) {
-      const repoUrl = await this.repoUrl(uri);
-      assert(repoUrl); // guess isBaseRepoFolder(uri) should assert it's not nil
-      return new GitRepository(uri, repoUrl);
+      if (typeof uri === 'string') {
+        uri = parseUri(uri, true);
+      }
+      return new GitRepository(uri, await this.repoUrl(uri));
     }
   }
 
-  async isBaseRepoFolder(uri: URI): Promise<boolean> {
+  async isBaseRepoFolder(uri: URI | DocumentUri): Promise<boolean> {
     return (await RepositoryManager.getRepoConfigLocation(this.ctx, uri)) !== undefined;
   }
 
@@ -127,43 +129,56 @@ class RepositoryManager {
     return await this.remoteResolver.resolveRemote(this.ctx, baseFolder);
   }
 
-  static async getRepoConfigLocation(ctx: Context, baseFolder: URI): Promise<URI | undefined> {
+  static async getRepoConfigLocation(ctx: Context, baseFolder: DocumentUri): Promise<DocumentUri | undefined>;
+  static async getRepoConfigLocation(ctx: Context, baseFolder: URI): Promise<URI | undefined>;
+  static async getRepoConfigLocation(
+    ctx: Context,
+    baseFolder: URI | DocumentUri
+  ): Promise<URI | DocumentUri | undefined>;
+  static async getRepoConfigLocation(
+    ctx: Context,
+    baseFolder: URI | DocumentUri
+  ): Promise<URI | DocumentUri | undefined> {
     try {
       const fs = ctx.get(FileSystem);
-      const gitDir = Utils.joinPath(baseFolder, '.git');
+      const gitDir = joinPath(baseFolder, '.git');
       if ((await fs.stat(gitDir)).type & 1) {
         return await RepositoryManager.getConfigLocationForGitfile(fs, baseFolder, gitDir);
       }
-      const configPath = Utils.joinPath(gitDir, 'config');
+      const configPath = joinPath(gitDir, 'config');
       await fs.stat(configPath);
       return configPath;
     } catch {}
   }
 
-  static async getConfigLocationForGitfile(fs: FileSystem, baseFolder: URI, gitFile: URI): Promise<URI | undefined> {
+  static async getConfigLocationForGitfile(
+    fs: FileSystem,
+    baseFolder: URI | DocumentUri,
+    gitFile: URI | DocumentUri
+  ): Promise<URI | DocumentUri | undefined> {
     const match = (await fs.readFileString(gitFile)).match(/^gitdir:\s+(.+)$/m);
     if (!match) return;
     let gitDir = resolveFilePath(baseFolder, match[1]);
-    const configPath = Utils.joinPath(gitDir, 'config');
+    const configPath = joinPath(gitDir, 'config');
     if (await RepositoryManager.tryStat(fs, configPath)) {
       return configPath;
     }
-    const worktreeConfigPath = Utils.joinPath(gitDir, 'config.worktree');
+    const worktreeConfigPath = joinPath(gitDir, 'config.worktree');
     if (await RepositoryManager.tryStat(fs, worktreeConfigPath)) {
       return worktreeConfigPath;
     }
-    const commonDirPath = Utils.joinPath(gitDir, 'commondir');
+    const commonDirPath = joinPath(gitDir, 'commondir');
     gitDir = resolveFilePath(gitDir, (await fs.readFileString(commonDirPath)).trimEnd());
-    const commonConfigPath = Utils.joinPath(gitDir, 'config');
+    const commonConfigPath = joinPath(gitDir, 'config');
     await fs.stat(commonConfigPath);
     return commonConfigPath;
   }
 
-  static async tryStat(fs: FileSystem, path: URI) {
+  static async tryStat(fs: FileSystem, path: URI | DocumentUri) {
     try {
       return await fs.stat(path);
     } catch {}
   }
 }
 
-export { GitRepository, RepositoryManager };
+export { RepositoryManager };

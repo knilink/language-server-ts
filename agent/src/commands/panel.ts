@@ -23,10 +23,9 @@ class DidAcceptPanelCompletionItemCommand extends AbstractCommand {
         completion.triggerCategory,
         completion.insertText, //
         completion.offset,
-        completion.file,
+        completion.uri,
         completion.telemetry,
         { compType: 'full' },
-        completion.uuid,
         completion.range.start
       );
       return true;

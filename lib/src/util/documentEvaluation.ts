@@ -25,7 +25,7 @@ async function isDocumentValid(ctx: Context, document: TextDocument): Promise<Do
 
   if (isDocumentTooLarge(document)) return { status: 'invalid', reason: 'Document is too large' };
 
-  let rcmResult = await copilotContentExclusionManager.evaluate(document.vscodeUri, document.getText());
+  let rcmResult = await copilotContentExclusionManager.evaluate(document.uri, document.getText());
 
   if (rcmResult.isBlocked) {
     return {

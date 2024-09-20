@@ -4,6 +4,7 @@ import { type HandlerFunction } from '../schemaValidation.ts';
 import * as inlineCompletion from './inlineCompletion.ts';
 import { handleGetCompletions, handleGetCompletionsCycling } from './getCompletions.ts';
 import { handleGetPanelCompletions } from './getPanelCompletions.ts';
+import { handleGetPrompt } from './getPrompt.ts';
 import * as copilotPanelCompletion from './copilotPanelCompletion.ts';
 import { handleGetVersion } from './getVersion.ts';
 import { handleSetEditorInfo } from './setEditorInfo.ts';
@@ -26,6 +27,7 @@ import { handleTestingAlwaysAuth } from './testing/alwaysAuth.ts';
 import { handleTestingNeverAuth } from './testing/neverAuth.ts';
 import { handleTestingUseTestingToken } from './testing/useTestingToken.ts';
 import { handleTestingSetCompletionDocuments } from './testing/setCompletionDocuments.ts';
+import { handleTestingSetContentExclusionRules } from './testing/setContentExclusionRules.ts';
 import { handleTestingSetPanelCompletionDocuments } from './testing/setPanelCompletionDocuments.ts';
 import { handleTriggerShowMessage } from './testing/triggerShowMessage.ts';
 import { handleTestingGetTelemetry } from './testing/getTelemetry.ts';
@@ -68,6 +70,7 @@ function getAllMethods(): MethodHandlers {
   methods.set(inlineCompletion.type.method, inlineCompletion.handle);
   methods.set('getCompletions', handleGetCompletions);
   methods.set('getCompletionsCycling', handleGetCompletionsCycling);
+  methods.set('getPrompt', handleGetPrompt);
   methods.set('getPanelCompletions', handleGetPanelCompletions);
   methods.set(copilotPanelCompletion.type.method, copilotPanelCompletion.handle);
   methods.set('getVersion', handleGetVersion);
@@ -97,6 +100,9 @@ function getAllMethods(): MethodHandlers {
   methods.set('testing/setTelemetryCapture', handleTestingSetTelemetryCapture);
   methods.set('testing/getDocument', handleGetDocument);
   methods.set('testing/chatml', handleChatML);
+  methods.set('testing/setSyntheticTurns', handleTestingSetSyntheticTurns);
+  methods.set('testing/fetch', handleTestingFetch);
+  methods.set('testing/setContentExclusionRules', handleTestingSetContentExclusionRules);
   methods.set('uninstall', handleUninstall);
   methods.set('debug/diagnostics', handleDiagnostics);
   methods.set('debug/listCertificates', handleListCertificates);
@@ -115,10 +121,8 @@ function getAllMethods(): MethodHandlers {
   methods.set('conversation/insertCode', handleConversationCodeInsert);
   methods.set('conversation/templates', handleConversationTemplates);
   methods.set('conversation/agents', handleConversationAgents);
-  methods.set('testing/setSyntheticTurns', handleTestingSetSyntheticTurns);
   methods.set('snippy/match', handleMatch);
   methods.set('snippy/filesForMatch', handleFilesForMatch);
-  methods.set('testing/fetch', handleTestingFetch);
 
   return new MethodHandlers(methods);
 }

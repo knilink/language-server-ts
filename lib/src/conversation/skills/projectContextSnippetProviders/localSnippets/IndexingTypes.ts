@@ -1,5 +1,5 @@
 import { Model } from '../../../../types.ts';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import { type TextDocument } from 'vscode-languageserver-textdocument';
 
 interface IScoring {
   score(vector1: number[], vector2: number[]): number;
@@ -12,9 +12,10 @@ type Chunk = string;
 type ChunkId = string;
 
 // named DocumentChunk because ./ChunkingHandler.ts const docChunks =
-type DocumentChunk = { id: ChunkId; chunk: Chunk };
+type DocumentChunk = { id: ChunkId; chunk: Chunk; tokenCount: number; range: { start: number; end: number } };
+type ScoredDocumentChunk = DocumentChunk & { score: number };
 
-interface IRanking<T = Chunk> {
+interface IRanking<T = DocumentChunk> {
   initialize(chunks: T[]): Promise<void>;
   get status(): RankingAlgorithmStatus;
   addChunks(chunks: T[]): void;
@@ -28,4 +29,4 @@ interface IChunking {
   chunk(doc: TextDocument, modelConfig: Model.Configuration): Promise<DocumentChunk[]>;
 }
 
-export { RankingAlgorithmStatus, Chunk, ChunkId, IScoring, IRanking, IChunking, DocumentChunk };
+export { RankingAlgorithmStatus, Chunk, ChunkId, IScoring, IRanking, IChunking, DocumentChunk, ScoredDocumentChunk };

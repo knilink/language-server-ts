@@ -1,70 +1,66 @@
-import { URI } from 'vscode-uri';
+import { EventEmitter } from 'node:events';
 import {
-  TextDocumentContentChangeEvent,
+  NotebookDocuments,
+  TextDocumentContentChangeEvent as LspEvent,
   WorkspaceFoldersChangeEvent,
   TextDocuments,
   WorkspaceFolder as LSPWorkspaceFolder,
   NotificationHandler,
+  NotebookCell,
 } from 'vscode-languageserver';
-import { TextDocument as LSPTextDocument, Range } from 'vscode-languageserver-textdocument';
 // import { Disposable } from 'vscode-jsonrpc';
 
 import { Context } from '../../lib/src/context.ts';
-import { LanguageDetection } from '../../lib/src/language/languageDetection.ts';
 import { TextDocument } from '../../lib/src/textDocument.ts';
 import { Service } from './service.ts';
 import { FileSystem } from '../../lib/src/fileSystem.ts';
-import { EventEmitter } from 'node:events';
+import { Logger, LogLevel } from '../../lib/src/logger.ts';
 import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
 // import { Document } from '../../prompt/src/types';
-import { WorkspaceFolder } from '../../lib/src/types.ts';
+import { DocumentUri, WorkspaceFolder } from 'vscode-languageserver-types';
 
-function wrapDoc(ctx: Context, doc: TextDocument): TextDocument {
-  const languageDetection = ctx.get(LanguageDetection);
-  const language = languageDetection.detectLanguage(
-    TextDocument.create(doc.uri, doc.languageId, doc.version, doc.getText())
-  );
-  return TextDocument.create(doc.uri, language.languageId, doc.version, doc.getText());
-}
+const configLogger = new Logger(LogLevel.DEBUG, 'AgentTextDocumentConfiguration');
 
 class AgentTextDocumentsConfiguration {
   readonly emitter = new EventEmitter<{ change: [TextDocumentManager.DidChangeTextDocumentParams] }>();
 
   constructor(readonly ctx: Context) {}
 
-  create(uri: string, languageId: string, version: number, content: string): LSPTextDocument {
-    const doc = TextDocument.create(URI.parse(uri), languageId, version, content);
-    const language = this.ctx.get(LanguageDetection).detectLanguage(doc);
-    return TextDocument.create(URI.parse(uri), language.languageId, version, content).lspTextDocument;
+  create(uri: string, languageId: string, version: number, content: string): TextDocument {
+    try {
+      return TextDocument.create(uri, languageId, version, content);
+    } catch (e) {
+      throw (configLogger.exception(this.ctx, e, '.create'), e);
+    }
   }
 
-  update(document: TextDocument, changes: TextDocumentContentChangeEvent[], version: number): LSPTextDocument {
-    const updates = [];
-
-    for (const change of changes) {
-      if (TextDocumentContentChangeEvent.isIncremental(change)) {
-        const update = {
-          range: change.range,
-          rangeOffset: document.offsetAt(change.range.start),
-          rangeLength: document.offsetAt(change.range.end) - document.offsetAt(change.range.start),
-          text: change.text,
-        };
-        updates.push(update);
-      }
+  update(document: TextDocument, changes: LspEvent[], version: number): TextDocument {
+    try {
+      const updates = [];
+      for (let change of changes)
+        if (LspEvent.isIncremental(change)) {
+          let update = {
+            range: change.range,
+            rangeOffset: document.offsetAt(change.range.start),
+            rangeLength: document.offsetAt(change.range.end) - document.offsetAt(change.range.start),
+            text: change.text,
+          };
+          updates.push(update);
+        }
+      let event = { document: document, contentChanges: updates };
+      this.emitter.emit('change', event);
+      return TextDocument.withChanges(document, changes, version);
+    } catch (e) {
+      throw (configLogger.exception(this.ctx, e, '.update'), e);
     }
-
-    const agentTextDocument = wrapDoc(this.ctx, document);
-    const event = { document: agentTextDocument, contentChanges: updates };
-    this.emitter.emit('change', event);
-    agentTextDocument['update'](changes, version);
-    return agentTextDocument.lspTextDocument;
   }
 }
 
 class AgentTextDocumentManager extends TextDocumentManager {
   readonly workspaceFolders: WorkspaceFolder[] = [];
-  private _textDocumentConfiguration = new AgentTextDocumentsConfiguration(this.ctx);
-  private _textDocumentListener = new TextDocuments(this._textDocumentConfiguration);
+  readonly _textDocumentConfiguration = new AgentTextDocumentsConfiguration(this.ctx);
+  readonly _textDocumentListener = new TextDocuments(this._textDocumentConfiguration);
+  readonly _notebookDocuments = new NotebookDocuments(this._textDocumentListener);
 
   constructor(ctx: Context) {
     super(ctx);
@@ -80,13 +76,12 @@ class AgentTextDocumentManager extends TextDocumentManager {
     };
   }
 
-  // EDITED
+  // EDITED this.onDidFocusTextDocument = (listener, thisArgs, disposables)
   onDidFocusTextDocument(listener: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams>) {
-    this.connection.onNotification('textDocument/didFocus', (event) => {
-      const uri = URI.parse(event.textDocument?.uri ?? event.uri);
-      listener({ document: { uri } });
+    return this.connection.onNotification('textDocument/didFocus', (event) => {
+      let uri = event.textDocument?.uri ?? event.uri;
+      listener({ document: { uri: uri } });
     });
-    return { dispose: () => {} };
   }
 
   onDidChangeCursor(listener: NotificationHandler<unknown>) {
@@ -101,6 +96,25 @@ class AgentTextDocumentManager extends TextDocumentManager {
 
   init(workspaceFolders: WorkspaceFolder[]) {
     this._textDocumentListener.listen(this.connection);
+    this.connection.onDidChangeTextDocument((event) => {
+      const td = event.textDocument;
+      const changes = event.contentChanges;
+      const { version: version } = td;
+      if (version == null)
+        throw new Error(`Received document change event for ${td.uri} without valid version identifier`);
+      const that: any = this._textDocumentListener;
+      // MARK private _syncedDocuments
+      let syncedDocument = that._syncedDocuments.get(td.uri);
+
+      if (syncedDocument !== undefined) {
+        syncedDocument = this._textDocumentConfiguration.update(syncedDocument, changes, version);
+        // MARK private _syncedDocuments
+        that._syncedDocuments.set(td.uri, syncedDocument);
+        // MARK private _onDidChangeContent
+        that._onDidChangeContent.fire(Object.freeze({ document: syncedDocument }));
+      }
+    });
+    this._notebookDocuments.listen(this.connection);
     this.workspaceFolders.length = 0;
     this.workspaceFolders.push(...workspaceFolders);
   }
@@ -109,32 +123,45 @@ class AgentTextDocumentManager extends TextDocumentManager {
     event.removed.forEach((c) => this.unregisterWorkspaceFolder(c));
   }
   unregisterWorkspaceFolder(container: LSPWorkspaceFolder) {
-    let index = this.workspaceFolders.findIndex((f) => f.toString() === URI.parse(container.uri).toString());
+    const index = this.workspaceFolders.findIndex((f) => f.uri === container.uri);
+
     if (index >= 0) {
       this.workspaceFolders.splice(index, 1);
     }
   }
-  registerWorkspaceFolder(container: LSPWorkspaceFolder) {
-    this.workspaceFolders.push(URI.parse(container.uri));
+  registerWorkspaceFolder(container: WorkspaceFolder) {
+    this.workspaceFolders.push(container);
   }
   getOpenTextDocuments() {
-    return this._textDocumentListener.all().map((doc) => TextDocument.wrap(doc));
+    return this._textDocumentListener.all();
   }
-  async openTextDocument(uri: URI): Promise<TextDocument | undefined> {
+  async openTextDocument(uri: DocumentUri): Promise<TextDocument | undefined> {
     try {
       if ((await this.ctx.get(FileSystem).stat(uri)).size > 5 * 1024 * 1024) return;
     } catch {
       return;
     }
     const text = await this.ctx.get(FileSystem).readFileString(uri);
-    const tmpDoc = TextDocument.create(uri, 'UNKNOWN', 0, text);
-    const language = this.ctx.get(LanguageDetection).detectLanguage(tmpDoc);
-    return TextDocument.create(uri, language.languageId, 0, text);
+    return TextDocument.create(uri, 'UNKNOWN', 0, text);
   }
   getWorkspaceFolders(): WorkspaceFolder[] {
     return this.workspaceFolders;
   }
-  findNotebook(doc: TextDocument): INotebook | void {}
+  findNotebook(doc: TextDocument): INotebook | undefined {
+    let notebook = this._notebookDocuments.findNotebookDocumentForCell(doc.uri);
+    if (notebook)
+      return {
+        getCells: () => notebook.cells.map((cell, index) => this.wrapCell(cell, index)).filter((c) => !!c),
+        getCellFor: ({ uri }) => {
+          let index = notebook.cells.findIndex((cell) => cell.document === uri);
+          return index !== -1 ? this.wrapCell(notebook.cells[index], index) : undefined;
+        },
+      };
+  }
+  wrapCell(cell: NotebookCell, index: number) {
+    let document = this._notebookDocuments.getCellTextDocument(cell);
+    if (document) return { kind: cell.kind, metadata: cell.metadata ?? {}, index, document };
+  }
 }
 
 export { AgentTextDocumentsConfiguration, AgentTextDocumentManager };

@@ -1,17 +1,16 @@
 import { Type, type Static } from '@sinclair/typebox';
 import type { Position, Range } from 'vscode-languageserver-types';
+import { ResponseError } from 'vscode-languageserver';
+import { v4 } from 'uuid';
 
 import { Context } from '../../../lib/src/context.ts';
 import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { verifyAuthenticated } from '../auth/authDecorator.ts';
-import { TelemetryData, telemetry } from '../../../lib/src/telemetry.ts';
 import { getTestCompletions } from './testing/setCompletionDocuments.ts';
-import { v4 as uuidv4 } from 'uuid';
-import { StatusReporter } from '../../../lib/src/progress.ts';
 import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
 import { setLastShown } from '../../../lib/src/ghostText/last.ts';
 import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { TelemetryData } from '../../../lib/src/telemetry.ts';
 import { LocationFactory, TextDocument } from '../../../lib/src/textDocument.ts';
 import { getGhostText, GhostTextResult } from '../../../lib/src/ghostText/ghostText.ts';
 import { isAbortError } from '../../../lib/src/networking.ts';
@@ -52,6 +51,120 @@ const Params = Type.Object({
 });
 type ParamsType = Static<typeof Params>;
 
+export type Result = {
+  uuid: string;
+  text: string;
+  displayText: string;
+  position: Position;
+  range: Range;
+  docVersion: number;
+};
+
+type GhostTextFetchResult =
+  | {
+      type: 'earlySuccess';
+      result: [{ completions: Result[] }, null];
+    }
+  | {
+      type: 'earlyFailure';
+      result: [null, { code: -32602; message: string }];
+    }
+  | {
+      type: 'earlyCancellation';
+      result: [{ completions: []; cancellationReason: 'CopilotNotAvailable' | 'DocumentVersionMismatch' }, null];
+    }
+  | {
+      type: 'ghostTextResult';
+      resultWithTelemetry: GhostTextResult;
+      textDocument: TextDocument;
+      position: Position;
+      lineLengthIncrease: number;
+    };
+
+async function fetchGhostText(
+  ctx: Context,
+  clientToken: CancellationToken,
+  params: ParamsType,
+  isCycling: boolean,
+  promptOnly: boolean
+): Promise<GhostTextFetchResult> {
+  let telemetryData = TelemetryData.createAndMarkAsIssued();
+
+  if (cancellationTokenSource) {
+    cancellationTokenSource.cancel();
+    cancellationTokenSource.dispose();
+  }
+
+  cancellationTokenSource = new CancellationTokenSource();
+  let token = new MergedToken([clientToken, cancellationTokenSource.token]);
+  let testCompletions = getTestCompletions(ctx, params.doc.position, isCycling);
+  if (testCompletions) {
+    return {
+      type: 'earlySuccess',
+      result: [
+        {
+          completions: testCompletions.map((completion) => ({
+            uuid: v4(),
+            text: completion.insertText,
+            displayText: completion.insertText,
+            position: params.doc.position,
+            range: completion.range,
+            docVersion: params.doc.version,
+          })),
+        },
+        null,
+      ],
+    };
+  }
+  let textDocument: TextDocument;
+  try {
+    textDocument = await getOpenTextDocumentChecked(ctx, params.doc, token);
+  } catch (e) {
+    if (!(e instanceof ResponseError)) throw e;
+    switch (e.code) {
+      case -32602:
+        return { type: 'earlyFailure', result: [null, { code: -32602, message: e.message }] };
+      case 1002:
+        return {
+          type: 'earlyCancellation',
+          result: [{ completions: [], cancellationReason: 'CopilotNotAvailable' }, null],
+        };
+      case -32801:
+        return {
+          type: 'earlyCancellation',
+          result: [{ completions: [], cancellationReason: 'DocumentVersionMismatch' }, null],
+        };
+    }
+    throw e;
+  }
+  const { position, lineLengthIncrease, ...andContent } = positionAndContentForCompleting(
+    ctx,
+    telemetryData,
+    textDocument,
+    params.doc.position,
+    params.doc.ifInserted?.end,
+    params.doc.ifInserted
+  );
+  textDocument = andContent.textDocument;
+  logCompletionLocation(ctx, textDocument, position);
+  return {
+    type: 'ghostTextResult',
+    resultWithTelemetry: await getGhostTextWithAbortHandling(
+      ctx,
+      textDocument,
+      position,
+      isCycling,
+      telemetryData,
+      token,
+      params.doc.ifInserted,
+      promptOnly
+    ),
+    textDocument,
+    position,
+    lineLengthIncrease,
+  };
+}
+
 async function handleGetCompletionsHelper(
   ctx: Context,
   clientToken: CancellationToken,
@@ -67,85 +180,14 @@ async function handleGetCompletionsHelper(
     ]
   | [null, { code: number; message: string }]
 > {
-  const docResultPromise = getOpenTextDocumentChecked(ctx, params.doc.uri);
-  await verifyAuthenticated(ctx, clientToken);
-  const telemetryData = TelemetryData.createAndMarkAsIssued();
-  if (cancellationTokenSource) {
-    cancellationTokenSource.cancel();
-    cancellationTokenSource.dispose();
-  }
-  cancellationTokenSource = new CancellationTokenSource();
-  const token = new MergedToken([clientToken, cancellationTokenSource.token]);
-  const testCompletions = getTestCompletions(ctx, params.doc.position, isCycling);
-
-  if (testCompletions) {
-    return [
-      {
-        completions: testCompletions.map((completion) => ({
-          uuid: uuidv4(),
-          text: completion.insertText,
-          displayText: completion.insertText,
-          position: params.doc.position,
-          range: completion.range,
-          docVersion: params.doc.version,
-        })),
-      },
-      null,
-    ];
-  }
-
-  const docResult = await docResultPromise;
-  if (docResult.status === 'notfound') {
-    return [null, { code: -32602, message: docResult.message }];
-  }
-  if (docResult.status === 'invalid') {
-    ctx.get(StatusReporter).setInactive(docResult.reason);
-    return [{ completions: [], cancellationReason: 'CopilotNotAvailable' }, null];
-  }
-  let textDocument = docResult.document;
-
-  if (textDocument.version !== params.doc.version) {
-    await new Promise(setImmediate);
-    const secondDocResult = await getOpenTextDocumentChecked(ctx, params.doc.uri);
-    if (secondDocResult.status === 'valid' && secondDocResult.document.version === params.doc.version) {
-      textDocument = secondDocResult.document;
-    }
-  }
-  if (textDocument.version !== params.doc.version) {
-    raiseVersionMismatchIfNotCanceled(ctx, token, textDocument, params.doc.version);
-    return [{ completions: [], cancellationReason: 'DocumentVersionMismatch' }, null];
-  }
-
-  const position = positionAndContentForCompleting(
-    ctx,
-    telemetryData,
-    textDocument,
-    params.doc.position,
-    params.doc.ifInserted?.end,
-    params.doc.ifInserted
-  );
-
-  logCompletionLocation(ctx, textDocument, position);
-
-  const resultWithTelemetry = await getGhostTextWithAbortHandling(
-    ctx,
-    textDocument,
-    position,
-    isCycling,
-    telemetryData,
-    token,
-    params.doc.ifInserted
-  );
+  const ghostTextFetchResult = await fetchGhostText(ctx, clientToken, params, isCycling, false);
+  if (ghostTextFetchResult.type !== 'ghostTextResult') return ghostTextFetchResult.result;
+  const { resultWithTelemetry, textDocument, position, lineLengthIncrease } = ghostTextFetchResult;
   const result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
-
-  if (!result) {
-    return [{ completions: [], ...cancellationReason(resultWithTelemetry) }, null];
-  }
-
+  if (!result) return [{ completions: [], ...cancellationReason(resultWithTelemetry) }, null];
   const [resultArray, resultType] = result;
   setLastShown(ctx, textDocument, position, resultType);
-
-  const rawCompletions = completionsFromGhostTextResults(
+  let rawCompletions = completionsFromGhostTextResults(
     ctx,
     resultArray,
     resultType,
@@ -153,40 +195,25 @@ async function handleGetCompletionsHelper(
     position,
     params.doc
   );
-
   const cache = ctx.get(CopilotCompletionCache);
-  for (const completion of rawCompletions) {
-    cache.set(completion.uuid, { ...completion, triggerCategory: 'ghostText' });
-  }
-
+  for (const completion of rawCompletions) cache.set(completion.uuid, { ...completion, triggerCategory: 'ghostText' });
   return [
     {
-      completions: rawCompletions.map((rawCompletion) => ({
-        uuid: rawCompletion.uuid,
-        text: rawCompletion.insertText,
-        range: rawCompletion.range,
-        displayText: rawCompletion.displayText,
-        position: rawCompletion.position,
-        docVersion: textDocument.version,
-      })),
+      completions: rawCompletions.map((rawCompletion) => {
+        let range = { ...rawCompletion.range, end: { ...rawCompletion.range.end } };
+        range.end.character -= lineLengthIncrease;
+        return {
+          uuid: rawCompletion.uuid,
+          text: rawCompletion.insertText,
+          range,
+          displayText: rawCompletion.displayText,
+          position: rawCompletion.position,
+          docVersion: textDocument.version,
+        };
+      }),
     },
     null,
   ];
-}
-
-async function raiseVersionMismatchIfNotCanceled(
-  ctx: Context,
-  token: CancellationToken,
-  textDocument: TextDocument,
-  requestedVersion: number
-): Promise<void> {
-  if (!token.isCancellationRequested) {
-    telemetryVersionMismatch(ctx, textDocument, requestedVersion);
-    logger.debug(
-      ctx,
-      `Producing empty completions due to document version mismatch. Completions requested for document version ${requestedVersion} but document version was ${textDocument.version}.`
-    );
-  }
 }
 
 function positionAndContentForCompleting(
@@ -196,20 +223,23 @@ function positionAndContentForCompleting(
   docPosition: Position,
   endRange = docPosition,
   ifInserted?: ParamsType['doc']['ifInserted']
-): Position {
-  let offset = textDocument.offsetAt(LocationFactory.position(docPosition.line, docPosition.character));
+): { position: Position; textDocument: TextDocument; lineLengthIncrease: number } {
+  const offset = textDocument.offsetAt(LocationFactory.position(docPosition.line, docPosition.character));
   let position = textDocument.positionAt(offset);
+  let lineLengthIncrease = 0;
 
-  if (ifInserted && ifInserted.text.length > 0 && textDocument instanceof TextDocument) {
-    textDocument.update(
+  if (ifInserted && ifInserted?.text.length > 0) {
+    textDocument = TextDocument.withChanges(
+      textDocument,
       [{ range: { start: docPosition, end: endRange }, text: ifInserted.text }],
       textDocument.version
     );
     position = textDocument.positionAt(offset + ifInserted.text.length);
+    lineLengthIncrease = ifInserted.text.length - (endRange.character - docPosition.character);
     telemetryData.properties.completionsActive = 'true';
   }
 
-  return position;
+  return { position, textDocument, lineLengthIncrease };
 }
 
 function logCompletionLocation(ctx: Context, textDocument: TextDocument, position: Position): void {
@@ -230,22 +260,11 @@ function logCompletionLocation(ctx: Context, textDocument: TextDocument, positio
   );
 }
 
-async function telemetryVersionMismatch(
-  ctx: Context,
-  textDocument: TextDocument,
-  requestedDocumentVersion: number
-): Promise<void> {
-  const data = TelemetryData.createAndMarkAsIssued({
-    languageId: String(textDocument.languageId),
-    requestedDocumentVersion: String(requestedDocumentVersion),
-    actualDocumentVersion: String(textDocument.version),
-  });
-  telemetry(ctx, 'getCompletions.docVersionMismatch', data);
-}
-
-function cancellationReason(resultWithTelemetry: GhostTextResult): {
-  cancellationReason?: 'RequestCancelled' | 'OtherFailure';
-} {
+function cancellationReason(resultWithTelemetry: GhostTextResult):
+  | {
+      cancellationReason?: 'RequestCancelled' | 'OtherFailure';
+    }
+  | undefined {
   switch (resultWithTelemetry.type) {
     case 'abortedBeforeIssued':
     case 'canceled':
@@ -253,7 +272,7 @@ function cancellationReason(resultWithTelemetry: GhostTextResult): {
     case 'failed':
       return { cancellationReason: 'OtherFailure' };
     default:
-      return {};
+      return;
   }
 }
 
@@ -264,18 +283,27 @@ async function getGhostTextWithAbortHandling(
   isCycling: boolean,
   telemetryData: TelemetryData,
   token: CancellationToken,
-  ifInserted?: ParamsType['doc']['ifInserted']
+  ifInserted?: ParamsType['doc']['ifInserted'],
+  promptOnly?: boolean
 ): Promise<GhostTextResult> {
   try {
-    return await getGhostText(requestCtx, textDocument, position, isCycling, telemetryData, token, ifInserted);
+    return await getGhostText(
+      requestCtx,
+      textDocument,
+      position,
+      isCycling,
+      telemetryData,
+      token,
+      ifInserted,
+      promptOnly
+    );
   } catch (e) {
-    if (isAbortError(e)) {
+    if (isAbortError(e))
       return {
         type: 'canceled',
         reason: 'aborted at unknown location',
         telemetryData: mkCanceledResultTelemetry(telemetryData, { cancelledNetworkRequest: true }),
       };
-    }
     throw e;
   }
 }
@@ -291,13 +319,14 @@ const handleGetCompletionsCycling = addMethodHandlerValidation(
 );
 
 export {
-  logger,
-  cancellationTokenSource,
+  Params,
+  ParamsType,
+  cancellationReason,
+  fetchGhostText,
+  getGhostTextWithAbortHandling,
   handleGetCompletions,
   handleGetCompletionsCycling,
-  raiseVersionMismatchIfNotCanceled,
-  positionAndContentForCompleting,
   logCompletionLocation,
-  getGhostTextWithAbortHandling,
-  ParamsType,
+  logger,
+  positionAndContentForCompleting,
 };

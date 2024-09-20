@@ -4,6 +4,7 @@ import { Context } from '../../../../lib/src/context.ts';
 import { ModelConfigurationProvider } from '../../../../lib/src/conversation/modelConfigurations.ts';
 import { TestingOptions } from '../testingOptions.ts';
 import { ChatRole } from '../../../../lib/src/conversation/openai/openai.ts';
+import { createTelemetryWithExpWithId } from '../../../../lib/src/conversation/telemetry.ts';
 import { ChatModelFamily } from '../../../../lib/src/conversation/modelMetadata.ts';
 import { ensureAuthenticated } from '../../auth/authDecorator.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
@@ -34,8 +35,10 @@ async function handleChatMLChecked(
   params: Static<typeof Params>
 ): Promise<[ChatMLFetcher.Response, null]> {
   const fetcher = new ChatMLFetcher(ctx);
-  const modelFamily = params.modelFamily ?? ChatModelFamily.Gpt35turbo;
-  const modelConfiguration = await ctx.get(ModelConfigurationProvider).getBestChatModelConfig([modelFamily]);
+  const modelConfiguration = await ctx
+    .get(ModelConfigurationProvider)
+    .getBestChatModelConfig([params.modelFamily ?? ChatModelFamily.Gpt35turbo]);
+  const telemetryWithExp = await createTelemetryWithExpWithId(ctx, '', '');
 
   return [
     await fetcher.fetchResponse(
@@ -46,7 +49,8 @@ async function handleChatMLChecked(
         stop: params.stop,
         intentParams: { intent: true },
       },
-      token
+      token,
+      telemetryWithExp
     ),
     null,
   ];

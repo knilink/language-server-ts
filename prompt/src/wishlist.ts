@@ -322,7 +322,7 @@ class PromptWishlist {
     const availableTokens = completeOptions.maxPromptLength - TOKENS_RESERVED_FOR_SUFFIX_ENCODING;
     let prefixTokenBudget = Math.floor((availableTokens * (100 - completeOptions.suffixPercent)) / 100);
     let suffixTokenBudget = availableTokens - prefixTokenBudget;
-    const trimmedSuffixText = suffixText.trimStart();
+    const trimmedSuffixText = suffixText.replace(/^.*/, '').trimStart();
     if (availableTokens > MAX_EDIT_DISTANCE_LENGTH && suffixTokenBudget < MAX_EDIT_DISTANCE_LENGTH)
       throw new Error(
         `Suffix budget is smaller than MAX_EDIT_DISTANCE_LENGTH: ${suffixTokenBudget} < ${MAX_EDIT_DISTANCE_LENGTH}\n`

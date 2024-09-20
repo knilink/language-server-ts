@@ -23,41 +23,49 @@ abstract class CopilotTokenManager {
   abstract checkCopilotToken(ctx: Context): Promise<Extract<CopilotAuthStatus, { kind: 'failure' }> | { status: 'OK' }>;
 }
 
+class TokenResultError extends CopilotAuthError {
+  constructor(readonly result: Extract<CopilotAuthStatus, { kind: 'failure' }>) {
+    super(result.message ?? '');
+  }
+}
+
 abstract class CopilotTokenManagerFromGitHubTokenBase extends CopilotTokenManager {
-  private copilotToken?: CopilotToken;
+  copilotToken?: Promise<CopilotToken>;
 
-  async getCopilotToken(ctx: Context, force: boolean): Promise<CopilotToken> {
-    if (!this.copilotToken || this.copilotToken.isExpired() || force) {
-      const gitHubToken = await this.getGitHubSession(ctx);
-      if (!gitHubToken) throw new CopilotAuthError('Not signed in');
-
-      const tokenResult = await authFromGitHubToken(ctx, gitHubToken);
-      if (tokenResult.kind === 'failure') {
-        if (tokenResult.message) throw new CopilotAuthError(tokenResult.message);
-        const error = new Error(`Unexpected error getting Copilot token: ${tokenResult.reason}`);
-        (error as any).code = `CopilotToken.${tokenResult.reason}`;
-        throw error;
-      }
-
-      this.copilotToken = new CopilotToken(tokenResult.envelope);
-      refreshToken(ctx, this, this.copilotToken.refreshIn);
+  async getCopilotToken(ctx: Context, force?: boolean): Promise<CopilotToken> {
+    if (this.copilotToken && !force) {
+      const token = await this.copilotToken;
+      if (!token.isExpired()) return token;
     }
 
+    this.copilotToken = (async () => {
+      const gitHubToken = await this.getGitHubSession(ctx);
+      if (!gitHubToken) throw new CopilotAuthError('Not signed in');
+      const tokenResult = await authFromGitHubToken(ctx, gitHubToken);
+      if (tokenResult.kind === 'failure') {
+        if (tokenResult.message) throw new TokenResultError(tokenResult);
+        const error: any = new Error(`Unexpected error getting Copilot token: ${tokenResult.reason}`);
+        error.code = `CopilotToken.${tokenResult.reason}`;
+        throw error;
+      }
+      const copilotToken = new CopilotToken(tokenResult.envelope);
+      refreshToken(ctx, this, copilotToken.refreshIn);
+      return copilotToken;
+    })();
+
+    this.copilotToken.catch(() => {
+      this.copilotToken = undefined;
+    });
     return this.copilotToken;
   }
 
   async checkCopilotToken(ctx: Context): Promise<Extract<CopilotAuthStatus, { kind: 'failure' }> | { status: 'OK' }> {
-    if (!this.copilotToken || this.copilotToken.isExpired()) {
-      const gitHubToken = await this.getGitHubSession(ctx);
-      if (!gitHubToken) throw new CopilotAuthError('Not signed in');
-
-      const tokenResult = await authFromGitHubToken(ctx, gitHubToken);
-      if (tokenResult.kind === 'failure') return tokenResult;
-
-      this.copilotToken = new CopilotToken(tokenResult.envelope);
-      refreshToken(ctx, this, this.copilotToken.refreshIn);
+    try {
+      await this.getCopilotToken(ctx);
+    } catch (e) {
+      if (e instanceof TokenResultError) return e.result;
+      throw e;
     }
-
     return { status: 'OK' };
   }
 

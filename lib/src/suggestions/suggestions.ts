@@ -107,10 +107,7 @@ async function postProcessChoice(
   document: TextDocument,
   position: Position,
   choice: APIChoice,
-  isMiddleOfTheLineSuggestion: boolean,
-  logger: Logger,
-  prompt: { suffix: string },
-  actualSuffix: string
+  logger: Logger
 ): Promise<APIChoice | undefined> {
   if (isRepetitive(choice.tokens)) {
     const telemetryData = TelemetryData.createAndMarkAsIssued();
@@ -136,30 +133,9 @@ async function postProcessChoice(
     return;
   }
 
-  postProcessedChoice.completionText = removeDifferenceOfCachedVsActualPromptSuffix(
-    postProcessedChoice.completionText,
-    actualSuffix,
-    prompt
-  );
   postProcessedChoice.completionText = maybeSnipCompletion(ctx, document, position, postProcessedChoice.completionText);
 
   return postProcessedChoice.completionText ? postProcessedChoice : undefined;
-}
-
-function removeDifferenceOfCachedVsActualPromptSuffix(
-  completionText: string,
-  actualSuffix: string,
-  prompt: { suffix: string }
-): string {
-  actualSuffix = actualSuffix.trimStart();
-  const idxOfCachedSuffixInActualSuffix = actualSuffix.indexOf(prompt.suffix);
-  if (idxOfCachedSuffixInActualSuffix <= 0) return completionText;
-  const missing = actualSuffix.substring(0, idxOfCachedSuffixInActualSuffix).trim();
-  return removeSuffix(completionText, missing);
-}
-
-function removeSuffix(str: string, suffix: string): string {
-  return str.endsWith(suffix) ? str.substring(0, str.length - suffix.length) : str;
 }
 
 function checkSuffix(document: TextDocument, position: Position, choice: APIChoice): number {

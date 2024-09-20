@@ -1,6 +1,9 @@
-import { Context } from '../context.ts';
-import { Logger, LogLevel } from '../logger.ts';
 import { execFile } from 'child_process';
+import type { URI } from 'vscode-uri';
+import type { Context } from '../context.ts';
+import { Logger, LogLevel } from '../logger.ts';
+import { getFsPath } from '../util/uri.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 const logger = new Logger(LogLevel.INFO, 'repository');
 
@@ -57,7 +60,7 @@ class GitConfigData {
 }
 
 abstract class GitConfigLoader {
-  abstract getConfig(ctx: Context, baseFolder: { fsPath: string }): Promise<GitConfigData | undefined>;
+  abstract getConfig(ctx: Context, baseFolder: DocumentUri | URI): Promise<GitConfigData | undefined>;
 }
 
 class GitCLIConfigLoader extends GitConfigLoader {
@@ -82,13 +85,10 @@ class GitCLIConfigLoader extends GitConfigLoader {
     }
   }
 
-  async getConfig(ctx: Context, baseFolder: { fsPath: string }): Promise<GitConfigData | undefined> {
-    const output = await this.tryRunCommand(ctx, baseFolder.fsPath, 'git', [
-      'config',
-      '--list',
-      '--null',
-      ...this.extraArgs(),
-    ]);
+  async getConfig(ctx: Context, baseFolder: DocumentUri | URI): Promise<GitConfigData | undefined> {
+    const fsPath = getFsPath(baseFolder);
+    if (fsPath === undefined) return;
+    const output = await this.tryRunCommand(ctx, fsPath, 'git', ['config', '--list', '--null', ...this.extraArgs()]);
     return output ? this.extractConfig(output) : undefined;
   }
 
@@ -114,7 +114,7 @@ class GitFallbackConfigLoader extends GitConfigLoader {
     super();
   }
 
-  async getConfig(ctx: Context, baseFolder: { fsPath: string }): Promise<GitConfigData | undefined> {
+  async getConfig(ctx: Context, baseFolder: DocumentUri | URI): Promise<GitConfigData | undefined> {
     for (const loader of this.loaders) {
       const config = await loader.getConfig(ctx, baseFolder);
       if (config) return config;

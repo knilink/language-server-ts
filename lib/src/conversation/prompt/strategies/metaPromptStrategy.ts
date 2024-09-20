@@ -11,10 +11,10 @@ import { TurnContext } from '../../turnContext.ts';
 
 async function pickMetaPromptStrategy(ctx: Context): Promise<MetaPromptStrategy> {
   const features = ctx.get(Features);
-  const telemetryDataWithExp = await features.updateExPValuesAndAssignments(ctx);
+  const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
   switch (features.ideChatMetaPromptVersion(telemetryDataWithExp)) {
-    case 'intentAndHistory':
-      return new MetaPromptStrategyWithIntentHistory();
+    case 'intent':
+      return new MetaPromptStrategyWithIntent();
     default:
       return new MetaPromptStrategy();
   }
@@ -110,7 +110,7 @@ ${skillPrompts}
   }
 }
 
-class MetaPromptStrategyWithIntentHistory extends MetaPromptStrategy {
+class MetaPromptStrategyWithIntent extends MetaPromptStrategy {
   static modelFamily() {
     return 'gpt-3.5-turbo';
   }
@@ -128,9 +128,9 @@ class MetaPromptStrategyWithIntentHistory extends MetaPromptStrategy {
   }
 
   buildMetaPrompt(availableSkills: Skill.ISkillDescriptor[]): string {
-    const skillPrompts = availableSkills.map((skill) => this.skillToPrompt(skill)).join('\n');
+    const skillPrompts = availableSkills.map((c) => `${this.skillToPrompt(c)}\n`).join(`\n`);
     return `
-Your mission is to provide a helpful answer to the user's question.
+Your task is to provide a helpful answer to the user's question.
 To help you create that answer, you have to gather useful context that can help you answer the user question.
 The context consists of the following parts:
 
@@ -145,22 +145,13 @@ List of available skills:
 ${skillPrompts}
 
 ---
-lastRelevantQuestion
-
-Determine the last question in the conversation history that is most relevant to answering the user question.
-All questions are provided with their index and answers.
-You should return the index of the last question that is most relevant to the user question, as shown in the conversation history.
-All questions before the last relevant question are considered irrelevant and will be removed from the conversation history.
-If there is no relevant question in the conversation history, return 0. If all questions are relevant, return 1.
-
----
 questionIntent
 
 Classify the intent of the user question among the following categories:
-- generalProgramming: the user questions can be answered by general programming knowledge, without the need for any specific context from the user's IDE or code.
-- userCode: the user question requires context from the user's IDE to be answered.
-- other: the user question does not fit in any of the above categories.
-    `.trim();
+- generalProgramming: the user question can be answered by general programming knowledge, without the need of any specific context from the user's IDE or code.
+- userCode: the user question requires context from the user's IDE or code to be answered.
+- other: the user question is not about programming or the user's code.
+        `.trim();
   }
 
   createFunctionArgumentSchema(supportedSkills: Skill.ISkillDescriptor[]) {
@@ -168,15 +159,10 @@ Classify the intent of the user question among the following categories:
     const skillIdsEnum = StringEnum(skillIds);
     return Type.Object({
       context: Type.Object(
-        {
-          lastRelevantQuestion: Type.Number(),
-          questionIntent: StringEnum(['generalProgramming', 'userCode', 'other']),
-          skillIds: Type.Array(skillIdsEnum),
-        },
+        { questionIntent: StringEnum(['generalProgramming', 'userCode', 'other']), skillIds: Type.Array(skillIdsEnum) },
         {
           description: `
 The context to provide to the model.
-lastRelevantQuestion is the index of the last relevant question in the conversation history.
 questionIntent is the intent classification of the user question.
 skillIds is a list of skill ids to consider, ranked from most to least relevant. Return between 1 and 4 skills.
           `.trim(),
@@ -244,4 +230,4 @@ skillIds is a list of skill ids to consider, ranked from most to least relevant.
   // }
 }
 
-export { MetaPromptStrategy, MetaPromptStrategyWithIntentHistory, pickMetaPromptStrategy };
+export { pickMetaPromptStrategy };

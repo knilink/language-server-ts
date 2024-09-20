@@ -8,22 +8,22 @@ namespace InitializedNotifier {
 }
 
 class InitializedNotifier {
-  private emitter = new EventEmitter<{ initialize: [InitializedNotifier.InitializeParams] }>();
+  private emitter = new EventEmitter<{ initialize: [] }>();
   private initialized = false;
 
   constructor() {}
 
-  public once(listener: (options: InitializedNotifier.InitializeParams) => void): void {
+  public once(listener: () => void): void {
     this.emitter.once('initialize', listener);
   }
 
-  public emit(options: InitializedNotifier.InitializeParams): void {
+  public emit(): void {
     if (this.initialized) {
       throw new Error('Already initialized');
     }
 
     this.initialized = true;
-    this.emitter.emit('initialize', options);
+    this.emitter.emit('initialize');
   }
 }
 

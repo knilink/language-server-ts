@@ -3,11 +3,10 @@ import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
 import { conversationLogger } from '../../../logger.ts';
 import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
 import { fetchEmbeddings } from './EmbeddingsFetcher.ts';
-import { ChunkingProvider } from './ChunkingProvider.ts';
 import { ScoringProvider } from './ScoringProvider.ts';
 import { type ScoringAlgorithmType } from './ScoringAlgorithms.ts';
 
-type Snippet = { id: string; text: string };
+type Snippet = { id: string; chunk: string; range: { start: number; end: number } };
 interface RerankingOptions {
   modelFamily: string;
   scoringType: ScoringAlgorithmType;
@@ -33,11 +32,11 @@ async function rerankSnippets(
   ctx: Context,
   workspaceFolder: string,
   userQuery: string,
-  snippets: string[],
+  snippets: Snippet[],
   limit: number,
   cancellationToken: CancellationToken,
   rerankingOptions: Partial<RerankingOptions> = defaultRerankingOptions
-): Promise<Snippet[]> {
+): Promise<string[]> {
   const options = { ...defaultRerankingOptions, ...rerankingOptions };
   const inputs = formatEmbeddingsInput(ctx, workspaceFolder, userQuery, snippets);
   conversationLogger.debug(ctx, `EmbeddingsReranker: Reranking ${inputs.length} snippets (includes the user query)`);
@@ -53,43 +52,31 @@ async function rerankSnippets(
   const embeddings = await fetchEmbeddings(ctx, modelConfiguration, inputs, cancellationToken);
   if (!embeddings || embeddings.length === 0) return [];
 
-  const normalizedEmbeddings = embeddings.map((e) => ({
-    id: e.id,
-    embedding: truncateNormalizeEmbedding(e.embedding, options.dimensions),
-  }));
+  const userQueryIdx = embeddings.findIndex((embedding) => embedding.id === 'userQuery');
 
-  const userQueryIdx = normalizedEmbeddings.findIndex((embedding) => embedding.id === 'userQuery');
   if (userQueryIdx === -1) return [];
 
-  const [userQueryEmbedding] = normalizedEmbeddings.splice(userQueryIdx, 1);
+  const userQueryEmbedding = embeddings.splice(userQueryIdx, 1)[0];
   if (cancellationToken.isCancellationRequested) return [];
 
-  const subset = scoreEmbeddings(
-    ctx,
-    workspaceFolder,
-    normalizedEmbeddings,
-    userQueryEmbedding,
-    options.scoringType!
-  ).slice(0, limit);
+  const subset = scoreEmbeddings(ctx, workspaceFolder, embeddings, userQueryEmbedding, options.scoringType).slice(
+    0,
+    limit
+  );
 
   conversationLogger.debug(ctx, `EmbeddingsReranker: Returning ${subset.length} snippets`);
-  return subset.map((score) => inputs.find((snippet) => snippet.id === score.id)!); // MARK ! should be fine as long as fetch cover all inputs
+  return subset.map((score) => inputs.find((snippet) => snippet.id === score.id)!.id); // MARK ! should be fine as long as fetch cover all inputs
 }
 
 function formatEmbeddingsInput(
   ctx: Context,
   workspaceFolder: string,
   userQuery: string,
-  snippets: string[]
+  snippets: Snippet[]
 ): EmbeddingInput[] {
-  const chunkingProvider = ctx.get(ChunkingProvider);
-  const inputs = snippets
-    .map((snippet) => {
-      const id = chunkingProvider.chunkId(workspaceFolder, snippet);
-      return id ? { id, text: snippet } : null;
-    })
-    .filter((snippet) => !!snippet);
-  return [...inputs, { id: 'userQuery', text: userQuery }];
+  const inputs = snippets.map((snippet) => ({ id: snippet.id, text: snippet.chunk.toLowerCase() }));
+  inputs.push({ id: 'userQuery', text: userQuery.toLowerCase() });
+  return inputs;
 }
 
 function scoreEmbeddings(
@@ -114,18 +101,4 @@ function scoreEmbeddings(
     .sort((a, b) => b.score - a.score);
 }
 
-function truncateNormalizeEmbedding(embedding: number[], dimensions: number | null): number[] {
-  let resized = embedding;
-  if (dimensions === null) dimensions = embedding.length;
-
-  if (embedding.length < dimensions!) {
-    resized = embedding.concat(Array(dimensions! - embedding.length).fill(0));
-  } else if (embedding.length > dimensions!) {
-    resized = embedding.slice(0, dimensions!);
-  }
-
-  const magnitude = Math.sqrt(resized.reduce((mag, dimension) => mag + dimension * dimension, 0));
-  return resized.map((dimension) => dimension / magnitude);
-}
-
-export { truncateNormalizeEmbedding, rerankSnippets };
+export { rerankSnippets, Snippet };

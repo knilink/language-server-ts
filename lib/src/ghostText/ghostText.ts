@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Position } from 'vscode-languageserver-types';
 
 import type { LanguageId, Prompt } from '../../../prompt/src/types.ts';
-import type { BlockMode, RepoInfo, TelemetryProperties, TelemetryMeasurements, Completion } from '../types.ts';
+import type { BlockMode, RepoInfo, TelemetryProperties, TelemetryMeasurements } from '../types.ts';
 import { CompletionResultType } from '../types.ts';
 
 import { type Context } from '../context.ts';
@@ -36,8 +36,8 @@ import { ghostTextScoreConfidence, ghostTextScoreQuantile } from '../suggestions
 import { contextualFilterScore } from './contextualFilter.ts';
 import { Logger, LogLevel } from '../logger.ts';
 import { Debouncer } from '../common/debounce.ts';
+import { type ParamsType } from '../../../agent/src/methods/getCompletions.ts';
 
-import { ParamsType } from '../../../agent/src/methods/getCompletions.ts';
 type IfInserted = ParamsType['doc']['ifInserted'];
 
 type RequestContext = {
@@ -93,7 +93,9 @@ type CompletionResult<T> =
       value: T;
       telemetryData: TelemetryProperties;
       telemetryBlob: TelemetryData;
-    };
+    }
+  // 1.40.0
+  | { type: 'promptOnly'; reason: string; prompt: ExtractedPrompt };
 
 type Result = {
   completion: {
@@ -461,19 +463,16 @@ async function getGhostText(
   isCycling: boolean,
   preIssuedTelemetryData: TelemetryData,
   cancellationToken: CancellationToken,
-  ifInserted: IfInserted
+  ifInserted: IfInserted,
+  promptOnly?: boolean
 ): Promise<GhostTextResult> {
   const ourRequestId = uuidv4();
   preIssuedTelemetryData = preIssuedTelemetryData.extendedBy({ headerRequestId: ourRequestId });
 
-  const documentSource = document.getText();
-  const positionOffset = document.offsetAt(position);
-  const actualSuffix = documentSource.substring(positionOffset);
   const features = ctx.get(Features);
 
   const preIssuedTelemetryDataWithExp = await features.updateExPValuesAndAssignments(
-    ctx,
-    { uri: document.vscodeUri, languageId: document.languageId },
+    { uri: document.uri, languageId: document.languageId },
     preIssuedTelemetryData
   );
 
@@ -488,6 +487,8 @@ async function getGhostText(
     ghostTextLogger.debug(ctx, 'Breaking, not enough context');
     return { type: 'abortedBeforeIssued', reason: 'Not enough context' };
   }
+
+  if (promptOnly) return { type: 'promptOnly', reason: 'Breaking, promptOnly set to true', prompt };
 
   if (cancellationToken?.isCancellationRequested) {
     ghostTextLogger.debug(ctx, 'Cancelled after extractPrompt');
@@ -518,8 +519,8 @@ async function getGhostText(
 
   const [prefix] = trimLastLine(document.getText(LocationFactory.range(LocationFactory.position(0, 0), position)));
   let choices = getLocalInlineSuggestion(ctx, prefix, prompt.prompt, ghostTextStrategy.requestMultiline);
-  const repoInfo = extractRepoInfoInBackground(ctx, document.vscodeUri);
-  const engineInfo = await getEngineRequestInfo(ctx, document.vscodeUri, preIssuedTelemetryDataWithExp);
+  const repoInfo = extractRepoInfoInBackground(ctx, document.uri);
+  const engineInfo = await getEngineRequestInfo(ctx, document.uri, preIssuedTelemetryDataWithExp);
   const delayMs = features.beforeRequestWaitMs(preIssuedTelemetryDataWithExp);
   const multiLogitBias = features.multiLogitBias(preIssuedTelemetryDataWithExp);
 
@@ -557,15 +558,12 @@ async function getGhostText(
   );
 
   if (
-    ((ghostTextStrategy.isCyclingRequest && choices?.[0]?.length) ?? 0 > 1) ||
-    (!ghostTextStrategy.isCyclingRequest && choices)
+    (ghostTextStrategy.isCyclingRequest && (choices?.[0].length ?? 0) > 1) ||
+    (!ghostTextStrategy.isCyclingRequest && choices !== undefined)
   ) {
     ghostTextLogger.debug(ctx, 'Found inline suggestions locally');
   } else {
-    const statusBarItem = ctx.get(StatusReporter);
-    if (statusBarItem) {
-      statusBarItem.setProgress();
-    }
+    statusBarItem?.setProgress();
 
     if (ghostTextStrategy.isCyclingRequest) {
       const networkChoices = await getAllCompletionsFromNetwork(
@@ -641,7 +639,7 @@ async function getGhostText(
 
   const [choicesArray, resultType] = choices;
   const postProcessedChoices = asyncIterableMapFilter(asyncIterableFromArray(choicesArray), async (choice) =>
-    postProcessChoice(ctx, document, position, choice, inlineSuggestion, ghostTextLogger, prompt.prompt, actualSuffix)
+    postProcessChoice(ctx, document, position, choice, ghostTextLogger)
   );
 
   const results: Result[] = [];

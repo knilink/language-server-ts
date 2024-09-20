@@ -5,6 +5,7 @@ import { Context } from '../../../../lib/src/context.ts';
 import { getTextDocumentChecked } from '../../textDocument.ts';
 import {
   conversationSourceToUiKind,
+  createTelemetryWithExpWithId,
   telemetryUserAction,
   telemetryPrefixForUiKind,
 } from '../../../../lib/src/conversation/telemetry.ts';
@@ -40,21 +41,27 @@ async function handleConversationRatingChecked(
 
   const conversationId = ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '';
 
-  return (
-    telemetryUserAction(
-      ctx,
-      textDocument,
-      {
-        rating,
-        messageId: params.turnId,
-        conversationId,
-        uiKind,
-      },
-      {},
-      `${telemetryPrefixForUiKind(uiKind)}.messageRating`
-    ),
-    ['OK', null]
+  const telemetryWithExp = await createTelemetryWithExpWithId(
+    ctx,
+    params.turnId,
+    ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '',
+    { languageId: textDocument?.languageId ?? '' }
   );
+
+  telemetryUserAction(
+    ctx,
+    textDocument,
+    {
+      rating,
+      messageId: params.turnId,
+      conversationId,
+      uiKind,
+    },
+    {},
+    `${telemetryPrefixForUiKind(uiKind)}.messageRating`,
+    telemetryWithExp
+  );
+  return ['OK', null];
 }
 
 const handleConversationRating = ensureAuthenticated(

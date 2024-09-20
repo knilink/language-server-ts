@@ -1,5 +1,4 @@
 import memoize from '@github/memoize';
-import { URI } from 'vscode-uri';
 
 import { type Context } from '../../context.ts';
 
@@ -9,24 +8,114 @@ import { FileSystem } from '../../fileSystem.ts';
 import { CopilotContentExclusionManager } from '../../contentExclusion/contentExclusionManager.ts';
 import { shortCircuit } from '../../util/shortCircuit.ts';
 import { Logger, LogLevel } from '../../logger.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
+import { LanguageId } from '../../types.ts';
 
 const relatedFilesLogger = new Logger(LogLevel.INFO, 'relatedFiles');
 
 type DocumentInfo = {
-  uri: string;
+  uri: DocumentUri;
+  languageId: LanguageId;
 };
 
 type Entry = {
   type: string;
-  uris: string[];
+  uris: DocumentUri[];
 };
-
-const EmptyRelatedFilesResponse: { entries: Entry[] } = { entries: [] };
-const EmptyRelatedFiles = new Map<string, Map<string, string>>();
 
 type CacheEntry = {
   retryCount: number;
   timestamp: number;
+};
+
+type Trait = { name: string; value: string };
+
+type RelatedFilesResult = {
+  entries: Map<string, Map<string, string>>;
+  traits: Trait[];
+};
+
+async function getRelatedFiles(
+  ctx: Context,
+  docInfo: DocumentInfo,
+  telemetryData: TelemetryData,
+  relatedFilesProvider: RelatedFilesProvider
+): Promise<RelatedFilesResult | null> {
+  const startTime = Date.now();
+  let result;
+  try {
+    result = await relatedFilesProvider.getRelatedFiles(docInfo, telemetryData);
+  } catch (error) {
+    relatedFilesLogger.exception(ctx, error, '.getRelatedFiles'), (result = null);
+  }
+  if (!result) {
+    if (lruCache.bumpRetryCount(docInfo.uri) >= defaultMaxRetryCount) {
+      result = EmptyRelatedFiles;
+    } else {
+      result = null;
+    }
+  }
+  let elapsedTime = Date.now() - startTime;
+  relatedFilesLogger.debug(
+    ctx,
+    result
+      ? `Fetched ${[...result.entries.values()].map((value) => value.size).reduce((total, current) => total + current, 0)} related files for '${docInfo.uri}' in ${elapsedTime}ms.`
+      : `Failing fecthing files for '${docInfo.uri}' in ${elapsedTime}ms.`
+  );
+  if (!result) throw new RelatedFilesProviderFailure();
+  return result;
+}
+
+async function getRelatedFilesList(
+  ctx: Context,
+  docInfo: DocumentInfo,
+  telemetryData: TelemetryData,
+  forceComputation = false
+): Promise<Map<string, Map<string, string>>> {
+  const relatedFilesProvider = ctx.get(RelatedFilesProvider);
+  let relatedFiles: RelatedFilesResult | null;
+  try {
+    relatedFiles = forceComputation
+      ? await getRelatedFiles(ctx, docInfo, telemetryData, relatedFilesProvider)
+      : await getRelatedFilesWithCacheAndTimeout(ctx, docInfo, telemetryData, relatedFilesProvider);
+  } catch (error) {
+    if (error instanceof RelatedFilesProviderFailure) {
+      await telemetry(ctx, 'getRelatedFilesList', telemetryData);
+    }
+  }
+  relatedFiles ??= EmptyRelatedFiles;
+  ReportTraitsTelemetry(ctx, relatedFiles.traits, docInfo, telemetryData);
+  relatedFilesLogger.debug(
+    ctx,
+    relatedFiles != null
+      ? `Fetched following traits ${relatedFiles.traits.map((trait) => `{${trait.name} : ${trait.value}}`).join('')} for '${docInfo.uri}'`
+      : `Failing fecthing traits for '${docInfo.uri}'.`
+  );
+  return relatedFiles.entries;
+}
+
+async function ReportTraitsTelemetry(
+  ctx: Context,
+  traits: Trait[],
+  docInfo: DocumentInfo,
+  telemetryData: TelemetryData
+) {
+  if (traits.length > 0) {
+    const properties: Record<string, string> = {};
+    properties.languageId = docInfo.languageId;
+    for (let trait of traits) {
+      let mappedTraitName = traitNamesForTelemetry.get(trait.name);
+      mappedTraitName && (properties[mappedTraitName] = trait.value);
+    }
+    let telemetryDataExt = telemetryData.extendedBy(properties, {});
+    await telemetry(ctx, 'related.traits', telemetryDataExt);
+  }
+}
+
+const EmptyRelatedFilesResponse = { entries: [] as Entry[], traits: [] as Trait[] };
+const EmptyRelatedFiles: RelatedFilesResult = {
+  entries: new Map<string, Map<string, string>>(),
+  traits: [] as Trait[],
 };
 
 class LRUExpirationCacheMap<K, V> extends LRUCacheMap<K, V> {
@@ -48,6 +137,12 @@ class LRUExpirationCacheMap<K, V> extends LRUCacheMap<K, V> {
       this._cacheTimestamps.set(key, { timestamp: Date.now(), retryCount: 0 });
       return 0;
     }
+  }
+
+  has(key: K) {
+    if (this.isValid(key)) return super.has(key);
+    this.deleteExpiredEntry(key);
+    return false;
   }
 
   get(key: K): V | undefined {
@@ -75,15 +170,16 @@ class LRUExpirationCacheMap<K, V> extends LRUCacheMap<K, V> {
   }
 
   deleteExpiredEntry(key: K): void {
-    if (this._cacheTimestamps.has(key)) this._cacheTimestamps.delete(key);
-    let entry = super.get(key);
-    if (entry) super.delete(key);
+    if (this._cacheTimestamps.has(key)) {
+      this._cacheTimestamps.delete(key);
+    }
+    super.deleteKey(key);
   }
 }
 
 const lruCacheSize = 1000;
 const defaultMaxRetryCount = 3;
-const lruCache = new LRUExpirationCacheMap<string, Promise<Map<string, Map<string, string>>>>(lruCacheSize);
+const lruCache = new LRUExpirationCacheMap<string, Promise<RelatedFilesResult | null>>(lruCacheSize);
 
 class RelatedFilesProviderFailure extends Error {
   constructor() {
@@ -94,51 +190,46 @@ class RelatedFilesProviderFailure extends Error {
 abstract class RelatedFilesProvider {
   constructor(readonly context: Context) {}
 
-  abstract getRelatedFileResponse(
+  abstract getRelatedFilesResponse(
     docInfo: DocumentInfo,
-    wksFolder: unknown,
     telemetryData: TelemetryData
-  ): Promise<{ entries: Entry[] }>;
+  ): Promise<{ entries: Entry[]; traits?: Trait[] }>;
 
-  async getRelatedFiles(
-    docInfo: DocumentInfo,
-    wksFolder: unknown,
-    telemetryData: TelemetryData
-  ): Promise<Map<string, Map<string, string>> | null> {
-    let response = await this.getRelatedFileResponse(docInfo, wksFolder, telemetryData);
+  async getRelatedFiles(docInfo: DocumentInfo, telemetryData: TelemetryData): Promise<RelatedFilesResult | null> {
+    const response = await this.getRelatedFilesResponse(docInfo, telemetryData);
     if (!response) return null;
-    let relatedFiles = new Map<string, Map<string, string>>();
+    const result = { entries: new Map(), traits: response.traits ?? [] };
     for (let entry of response.entries) {
-      let uriToContentMap = relatedFiles.get(entry.type);
+      let uriToContentMap = result.entries.get(entry.type);
       if (!uriToContentMap) {
         uriToContentMap = new Map();
-        relatedFiles.set(entry.type, uriToContentMap);
+        result.entries.set(entry.type, uriToContentMap);
       }
-      for (let uriString of entry.uris) {
+
+      for (const uri of entry.uris) {
         try {
-          const uri = URI.parse(uriString);
-          uriString = uri.toString();
-          relatedFilesLogger.debug(this.context, `Processing ${uriString} `);
+          relatedFilesLogger.debug(this.context, `Processing ${uri}`);
+
           let content = await this.getFileContent(uri);
           if (!content || content.length === 0) {
-            relatedFilesLogger.debug(this.context, `Skip ${uriString} due to empty content or loading issue.`);
+            relatedFilesLogger.debug(this.context, `Skip ${uri} due to empty content or loading issue.`);
             continue;
           }
           if (await this.isContentExcluded(uri, content)) {
-            relatedFilesLogger.debug(this.context, `Skip ${uriString} due content exclusion.`);
+            relatedFilesLogger.debug(this.context, `Skip ${uri} due content exclusion.`);
             continue;
           }
           content = RelatedFilesProvider.dropBOM(content);
-          uriToContentMap.set(uriString, content);
+          uriToContentMap.set(uri, content);
         } catch (e) {
           relatedFilesLogger.warn(this.context, e);
         }
       }
     }
-    return relatedFiles;
+    return result;
   }
 
-  async getFileContent(uri: URI): Promise<string | undefined> {
+  async getFileContent(uri: DocumentUri): Promise<string | undefined> {
     try {
       return this.context.get(FileSystem).readFileString(uri);
     } catch (e) {
@@ -146,7 +237,7 @@ abstract class RelatedFilesProvider {
     }
   }
 
-  async isContentExcluded(uri: URI, content: string): Promise<boolean> {
+  async isContentExcluded(uri: DocumentUri, content: string): Promise<boolean> {
     try {
       return (await this.context.get(CopilotContentExclusionManager).evaluate(uri, content)).isBlocked;
     } catch (e) {
@@ -160,75 +251,21 @@ abstract class RelatedFilesProvider {
   }
 }
 
-async function getRelatedFiles(
-  ctx: Context,
-  docInfo: DocumentInfo,
-  wksFolder: unknown,
-  telemetryData: TelemetryData,
-  relatedFilesProvider: RelatedFilesProvider
-): Promise<Map<string, Map<string, string>>> {
-  const startTime = Date.now();
-  let result: Map<string, Map<string, string>> | null;
-  try {
-    result = await relatedFilesProvider.getRelatedFiles(docInfo, wksFolder, telemetryData);
-  } catch (error) {
-    relatedFilesLogger.exception(ctx, error, '.getRelatedFiles');
-    result = null;
-  }
-
-  if (result === null) {
-    if (lruCache.bumpRetryCount(docInfo.uri) >= defaultMaxRetryCount) {
-      result = EmptyRelatedFiles;
-    } else {
-      result = null;
-    }
-  }
-
-  const elapsedTime = Date.now() - startTime;
-  relatedFilesLogger.debug(
-    ctx,
-    result !== null
-      ? `Fetched ${[...result.values()].map((value) => value.size).reduce((total, current) => total + current, 0)} related files for '${docInfo.uri}' in ${elapsedTime} ms.`
-      : `Failing fetching files for '${docInfo.uri}' in ${elapsedTime} ms.`
-  );
-  if (result === null) throw new RelatedFilesProviderFailure();
-  return result;
-}
-
 let getRelatedFilesWithCacheAndTimeout = memoize(getRelatedFiles, {
   cache: lruCache,
   hash: (
     ctx: Context,
     docInfo: DocumentInfo,
-    wksFolder: unknown,
     telemetryData: TelemetryData,
     symbolDefinitionProvider: RelatedFilesProvider
   ) => `${docInfo.uri} `,
 });
 
 getRelatedFilesWithCacheAndTimeout = shortCircuit(getRelatedFilesWithCacheAndTimeout, 200, EmptyRelatedFiles);
-
-async function getRelatedFilesList(
-  ctx: Context,
-  docInfo: DocumentInfo,
-  wksFolder: unknown,
-  telemetryData: TelemetryData,
-  forceComputation = false
-): Promise<Map<string, Map<string, string>>> {
-  let relatedFilesProvider = ctx.get(RelatedFilesProvider);
-  let relatedFiles: Map<string, Map<string, string>>;
-  try {
-    relatedFiles = forceComputation
-      ? await getRelatedFiles(ctx, docInfo, wksFolder, telemetryData, relatedFilesProvider)
-      : await getRelatedFilesWithCacheAndTimeout(ctx, docInfo, wksFolder, telemetryData, relatedFilesProvider);
-  } catch (error) {
-    relatedFiles = EmptyRelatedFiles;
-    if (error instanceof RelatedFilesProviderFailure) {
-      await telemetry(ctx, 'getRelatedFilesList', telemetryData);
-    }
-  }
-  return relatedFiles;
-}
+const traitNamesForTelemetry = new Map([
+  ['TargetFrameworks', 'targetFrameworks'],
+  ['LanguageVersion', 'languageVersion'],
+]);
 
 export {
   getRelatedFilesList,

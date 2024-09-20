@@ -2,17 +2,25 @@ import path from 'path';
 
 import { knownLanguages } from './generatedLanguages.ts';
 import { Context } from '../context.ts';
-import { TextDocumentManager, INotebook } from '../textDocumentManager.ts';
 import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from './languages.ts';
-import { LRUCacheMap } from '../common/cache.ts';
+// import { LRUCacheMap } from '../common/cache.ts';
 import { TextDocument } from '../textDocument.ts';
 import { LanguageId } from '../types.ts';
+// import { TextDocumentManager, INotebook } from '../textDocumentManager.ts';
+import { INotebook } from '../textDocumentManager.ts';
+import { basename } from '../util/uri.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
-function getLanguageDetection(ctx: Context) {
-  return new CachingLanguageDetection(
-    new UntitledLanguageDetection(new GroupingLanguageDetection(new FilenameAndExensionLanguageDetection())),
-    new NotebookLanguageDetection(ctx)
-  );
+function detectLanguage({
+  uri,
+  clientLanguageId,
+}: {
+  uri: DocumentUri;
+  // optionsl ../textDocument.ts
+  clientLanguageId?: LanguageId;
+}) {
+  let language = languageDetection.detectLanguage({ uri, languageId: 'UNKNOWN' });
+  return language.languageId === 'UNKNOWN' ? clientLanguageId : language.languageId;
 }
 
 function isNotebook(filename: string) {
@@ -28,64 +36,15 @@ class Language {
 }
 
 abstract class LanguageDetection {
-  abstract detectLanguage(doc: TextDocument): Language;
+  abstract detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language;
 }
 
-class CachingLanguageDetection extends LanguageDetection {
-  private delegate: LanguageDetection;
-  private notebookDelegate: NotebookLanguageDetection;
-  private cache = new LRUCacheMap<string, Language>(100);
-
-  constructor(delegate: LanguageDetection, notebookDelegate: NotebookLanguageDetection) {
-    super();
-    this.delegate = delegate;
-    this.notebookDelegate = notebookDelegate;
-  }
-
-  detectLanguage(doc: TextDocument): Language {
-    const filename = path.basename(doc.vscodeUri.path);
-    return isNotebook(filename)
-      ? this.notebookDelegate.detectLanguage(doc)
-      : this.detectLanguageForRegularFile(filename, doc);
-  }
-
-  private detectLanguageForRegularFile(filename: string, doc: TextDocument): Language {
-    let language = this.cache.get(filename);
-    if (!language) {
-      const isNotebookValue = isNotebook(filename);
-      language = isNotebookValue ? this.notebookDelegate.detectLanguage(doc) : this.delegate.detectLanguage(doc);
-      if (language.isGuess || !isNotebookValue) {
-        this.cache.set(filename, language);
-      }
-    }
-    return language;
-  }
-}
-
-class NotebookLanguageDetection extends LanguageDetection {
-  private ctx: Context;
-
-  constructor(ctx: Context) {
-    super();
-    this.ctx = ctx;
-  }
-
-  detectLanguage(doc: TextDocument): Language {
-    const notebook = this.ctx.get(TextDocumentManager).findNotebook(doc);
-    return notebook ? this.detectCellLanguage(doc, notebook) : new Language('python', false, '.ipynb');
-  }
-
-  private detectCellLanguage(doc: TextDocument, notebook: INotebook): Language {
-    const activeCell = notebook.getCellFor(doc);
-    return activeCell
-      ? new Language(activeCell.document.languageId, false, '.ipynb')
-      : new Language('unknown', false, '.ipynb');
-  }
-}
+const knownExtensions = new Map();
+const knownFilenames = new Map();
 
 class FilenameAndExensionLanguageDetection extends LanguageDetection {
-  detectLanguage(doc: any): Language {
-    const filename = path.basename(doc.vscodeUri.path);
+  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
+    const filename = basename(doc.uri);
     const extension = path.extname(filename).toLowerCase();
     const extensionWithoutTemplate = this.extensionWithoutTemplateLanguage(filename, extension);
     const languageIdWithGuessing = this.detectLanguageId(filename, extensionWithoutTemplate);
@@ -118,30 +77,15 @@ class FilenameAndExensionLanguageDetection extends LanguageDetection {
   }
 
   private detectLanguageId(filename: string, extension: string): { languageId: string; isGuess: boolean } {
-    let candidatesByExtension: string[] = [];
-    let candidatesByFilename: string[] = [];
-
-    for (const language in knownLanguages) {
-      const info = knownLanguages[language];
-      if (info.filenames && info.filenames.includes(filename)) {
-        return { languageId: language, isGuess: false };
-      } else if (info.filenames?.some((candidate) => filename.startsWith(`${candidate}.`))) {
-        candidatesByFilename.push(language);
-      }
-      if (info.extensions.includes(extension)) {
-        candidatesByExtension.push(language);
-      }
+    if (knownFilenames.has(filename)) return { languageId: knownFilenames.get(filename)[0], isGuess: false };
+    let extensionCandidates = knownExtensions.get(extension) ?? [];
+    if (extensionCandidates.length > 0)
+      return { languageId: extensionCandidates[0], isGuess: extensionCandidates.length > 1 };
+    while (filename.includes('.')) {
+      filename = filename.replace(/\.[^.]*$/, '');
+      if (knownFilenames.has(filename)) return { languageId: knownFilenames.get(filename)[0], isGuess: false };
     }
-
-    return (
-      this.determineLanguageIdByCandidates(candidatesByExtension) ??
-      this.determineLanguageIdByCandidates(candidatesByFilename) ?? { languageId: 'unknown', isGuess: true }
-    );
-  }
-
-  private determineLanguageIdByCandidates(candidates: string[]): { languageId: string; isGuess: boolean } | undefined {
-    if (candidates.length === 1) return { languageId: candidates[0], isGuess: false };
-    if (candidates.length > 1) return { languageId: candidates[0], isGuess: true };
+    return { languageId: 'unknown', isGuess: true };
   }
 
   private computeFullyQualifiedExtension(extension: string, extensionWithoutTemplate: string): string {
@@ -150,14 +94,11 @@ class FilenameAndExensionLanguageDetection extends LanguageDetection {
 }
 
 class GroupingLanguageDetection extends LanguageDetection {
-  private delegate: LanguageDetection;
-
-  constructor(delegate: LanguageDetection) {
+  constructor(readonly delegate: LanguageDetection) {
     super();
-    this.delegate = delegate;
   }
 
-  detectLanguage(doc: TextDocument): Language {
+  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
     const language = this.delegate.detectLanguage(doc);
     if (language.languageId === 'c' || language.languageId === 'cpp') {
       return new Language('cpp', language.isGuess, language.fileExtension);
@@ -166,7 +107,7 @@ class GroupingLanguageDetection extends LanguageDetection {
   }
 }
 
-class UntitledLanguageDetection extends LanguageDetection {
+class ClientProvidedLanguageDetection extends LanguageDetection {
   private delegate: LanguageDetection;
 
   constructor(delegate: LanguageDetection) {
@@ -174,20 +115,15 @@ class UntitledLanguageDetection extends LanguageDetection {
     this.delegate = delegate;
   }
 
-  detectLanguage(doc: any): Language {
-    return doc.vscodeUri.scheme === 'untitled'
+  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
+    return doc.uri.startsWith('untitled:') || doc.uri.startsWith('vscode-notebook-cell:')
       ? new Language(doc.languageId, true, '')
       : this.delegate.detectLanguage(doc);
   }
 }
 
-export {
-  getLanguageDetection,
-  Language,
-  LanguageDetection,
-  CachingLanguageDetection,
-  NotebookLanguageDetection,
-  FilenameAndExensionLanguageDetection,
-  GroupingLanguageDetection,
-  UntitledLanguageDetection,
-};
+const languageDetection = new GroupingLanguageDetection(
+  new ClientProvidedLanguageDetection(new FilenameAndExensionLanguageDetection())
+);
+
+export { detectLanguage };

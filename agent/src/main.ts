@@ -4,7 +4,7 @@ import { main } from './context.ts';
 const nodeVersionError = errorMessageForUnsupportedNodeVersion();
 if (nodeVersionError) {
   console.error(nodeVersionError);
-  process.exit(2);
+  process.exit(18);
 }
 
 main();

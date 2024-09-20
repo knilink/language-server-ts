@@ -5,7 +5,7 @@ import { CompletionsCache } from '../ghostText/completionsCache.ts';
 import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
 import { getRootCertificateReader, RootCertificateReader } from '../network/certificateReaders.ts';
 import { ProxySocketFactory, getProxySocketFactory } from '../network/proxySockets.ts';
-import { LanguageDetection, getLanguageDetection } from '../language/languageDetection.ts';
+// import { LanguageDetection, getLanguageDetection } from '../language/languageDetection.ts';
 import { Features } from '../experiments/features.ts';
 import { PostInsertionNotifier } from '../postInsertionNotifier.ts';
 import { GitParsingConfigLoader } from '../repository/configParser.ts';
@@ -39,7 +39,7 @@ function createProductionContext(configProvider: ConfigProvider): Context {
   ctx.set(CopilotTokenNotifier, new CopilotTokenNotifier());
   ctx.set(RootCertificateReader, getRootCertificateReader(ctx));
   ctx.set(ProxySocketFactory, getProxySocketFactory(ctx));
-  ctx.set(LanguageDetection, getLanguageDetection(ctx));
+  // ctx.set(LanguageDetection, getLanguageDetection(ctx)); // delete from 1.40
   ctx.set(Features, new Features(ctx));
   ctx.set(PostInsertionNotifier, new PostInsertionNotifier());
   ctx.set(ExceptionRateLimiter, new ExceptionRateLimiter());

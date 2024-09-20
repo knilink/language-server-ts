@@ -1,8 +1,8 @@
 import { IScoring } from './IndexingTypes.ts';
-import { BM25Scoring } from './BM25Ranking.ts';
+import { CosineSimilarityScoring } from './CosineSimilarityScoring.ts';
 
 const defaultScoring = 'cosine';
-const algorithms = new Map<string, new () => IScoring>([['cosine', BM25Scoring]]);
+const algorithms = new Map<string, new () => IScoring>([['cosine', CosineSimilarityScoring]]);
 
 function getScoringAlgorithm(type: ScoringAlgorithmType): new () => IScoring {
   const mappedType = type === 'default' ? defaultScoring : type;

@@ -2,11 +2,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Model } from '../../../../types.ts';
 
 import { Context } from '../../../../context.ts';
+import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
 import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
 import { getTokenizer } from '../../../../../../prompt/src/tokenization/tokenizer.ts';
 import { NetworkConfiguration } from '../../../../networkConfiguration.ts';
 import { CopilotTokenManager } from '../../../../auth/copilotTokenManager.ts';
 import { postRequest, Response } from '../../../../networking.ts';
+import { telemetryException } from '../../../../telemetry.ts';
 
 type Input = {
   id: string;
@@ -69,18 +71,25 @@ async function sendEmbeddingsRequest(
     secretKey,
     undefined,
     requestId,
-    { input, model: modelId },
+    { input, model: modelId, dimensions: 1024 },
     cancellationToken
   );
 
-  if (response.status === 200 && !cancellationToken.isCancellationRequested) {
-    try {
-      const responseData: any = await response.json();
-      return responseData.data.map((embedding: any) => ({
-        id: batch[embedding.index].id,
-        embedding: embedding.embedding,
-      }));
-    } catch (error) {}
+  if (response.status !== 200 || cancellationToken.isCancellationRequested) {
+    telemetryException(
+      ctx,
+      new LocalSnippetProviderError(`Failed to request dense embeddings, status: ${response.status}`),
+      'LocalSnippetProvider.fetchEmbeddings'
+    );
+    return;
+  }
+  try {
+    return ((await response.json()) as any).data.map((embedding: any) => ({
+      id: batch[embedding.index].id,
+      embedding: embedding.embedding,
+    })) as Output[];
+  } catch {
+    return;
   }
 }
 

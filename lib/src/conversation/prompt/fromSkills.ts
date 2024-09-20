@@ -123,16 +123,14 @@ async function determineResolution(
   resolutionTimeMs?: number,
   processingTimeMs?: number
 ): Promise<Unknown.SkillResolution> {
-  const collectibles = turnContext.collector.collectiblesForSkill(skill?.id ?? 'unknown');
-  const files = collectibles.filter((c) => c.type === 'file');
-  const labels = collectibles.filter((c) => c.type === 'label').map((c) => c.label);
+  const files = turnContext.collector.collectiblesForCollector(skill?.id ?? 'unknown').filter((c) => c.type === 'file');
   const resolution: Unknown.SkillResolution = {
     skillId: skill?.id ?? 'unknown',
     resolution: resolutionState,
-    labels,
     files,
     resolutionTimeMs,
     processingTimeMs,
+    ...turnContext.skillResolutionProperties(skill?.id),
   };
 
   if (elidableSkill) {
@@ -150,7 +148,7 @@ async function includeSkill(turnContext: TurnContext, skillId: SkillId, language
   if (skillId !== ProjectMetadataSkillId && skillId !== ProjectLabelsSkillId) return true;
 
   const features = turnContext.ctx.get(Features);
-  const telemetryDataWithExp = await features.updateExPValuesAndAssignments(turnContext.ctx, { languageId });
+  const telemetryDataWithExp = await features.updateExPValuesAndAssignments({ languageId });
 
   return features.ideChatEnableProjectMetadata(telemetryDataWithExp)
     ? skillId === ProjectMetadataSkillId

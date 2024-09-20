@@ -54,7 +54,7 @@ function completionsFromGhostTextResults(
       uuid: uuidv4(),
       insertText: insertText,
       range,
-      file: document.vscodeUri,
+      file: document.uri,
       index: result.completion.completionIndex,
       telemetry: result.telemetry,
       displayText: result.completion.displayText,

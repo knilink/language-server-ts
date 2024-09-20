@@ -5,20 +5,29 @@ import { URI } from 'vscode-uri';
 
 import { Context } from '../../lib/src/context.ts';
 import { Service } from './service.ts';
+import { Features } from '../../lib/src/experiments/features.ts';
 import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
 import { knownFileExtensions } from '../../lib/src/language/languages.ts';
+import { telemetryException } from '../../lib/src/telemetry.ts';
 import { getFsPath } from '../../lib/src/util/uri.ts';
 import { FileReader } from '../../lib/src/fileReader.ts';
+import { TextDocument } from '../../lib/src/textDocument.ts';
+import { WatchedFilesError } from '../../lib/src/workspaceWatcher.ts';
 
 const didChangeWatchedFilesEvent = 'didChangeWatchedFiles';
 
 type Info = {
   uri: URI;
+  document?: TextDocument;
   isRestricted: boolean;
   isUnknownFileExtension: boolean;
 };
 
-type WatchedFilesResponse = { watchedFiles: URI[]; contentRestrictedFiles: URI[]; unknownFileExtensions: URI[] };
+type WatchedFilesResponse = {
+  watchedFiles: TextDocument[];
+  contentRestrictedFiles: URI[];
+  unknownFileExtensions: URI[];
+};
 
 type GetWatchedFilesParams = {
   workspaceUri: string;
@@ -69,7 +78,7 @@ class LspFileWatcher {
   async getWatchedFiles(
     // ./workspaceWatcher/agentWatcher.ts
     params: GetWatchedFilesParams
-  ): Promise<WatchedFilesResponse> {
+  ): Promise<WatchedFilesResponse | WatchedFilesError> {
     if (!this.ctx.get(CopilotCapabilitiesProvider).getCapabilities().watchedFiles) return EmptyWatchedFilesResponse;
 
     const files = (await this.connection.sendRequest(LspFileWatcher.requestType, params)).files;
@@ -78,6 +87,16 @@ class LspFileWatcher {
       contentRestrictedFiles: [],
       unknownFileExtensions: [],
     };
+    const features = this.ctx.get(Features);
+    const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
+    const threshold = await features.ideChatProjectContextFileCountThreshold(telemetryDataWithExp);
+    if (files.length > threshold) {
+      let error = new WatchedFilesError(
+        `File count exceeded indexing threshold: ${files.length} files in workspace, threshold is ${threshold}.`
+      );
+      telemetryException(this.ctx, error, 'LspFileWatcher.getWatchedFiles');
+      return error;
+    }
 
     for (const filepath of files) {
       const uri = URI.parse(filepath);
@@ -88,12 +107,13 @@ class LspFileWatcher {
         continue;
       }
 
-      if (!(await this.isValid(uri))) {
+      const doc = await this.getValidDocument(uri);
+      if (doc === undefined) {
         res.contentRestrictedFiles.push(uri);
         continue;
       }
 
-      res.watchedFiles.push(uri);
+      res.watchedFiles.push(doc);
     }
 
     return res;
@@ -120,11 +140,21 @@ class LspFileWatcher {
     for (let change of event.changes) {
       const uri = URI.parse(change.uri);
       const extension = extname(change.uri).toLowerCase();
-      const info = {
+      const info: Info = {
         uri,
-        isRestricted: !(await this.isValid(uri)),
+        isRestricted: false,
         isUnknownFileExtension: !knownFileExtensions.includes(extension),
       };
+      if (!info.isUnknownFileExtension) {
+        let doc = await this.getValidDocument(uri);
+
+        if (doc === undefined) {
+          info.isRestricted = true;
+        } else {
+          info.document = doc;
+        }
+      }
+
       switch (change.type) {
         case 1:
           res.created.push(info);
@@ -141,9 +171,11 @@ class LspFileWatcher {
     this.emitter.emit(didChangeWatchedFilesEvent, res);
   }
 
-  async isValid(uri: URI): Promise<boolean> {
+  async getValidDocument(uri: URI) {
     let filepath = getFsPath(uri);
-    return !!filepath && (await this.ctx.get(FileReader).readFile(filepath)).status === 'valid';
+    if (!filepath) return;
+    let documentResult = await this.ctx.get(FileReader).readFile(filepath);
+    return documentResult.status === 'valid' ? documentResult.document : undefined;
   }
 }
 

@@ -1,6 +1,7 @@
 import { type URI } from 'vscode-uri';
 import { Context } from './context.ts';
 import { TextDocumentManager } from './textDocumentManager.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 class ChangeTracker {
   private _referenceCount = 0;
@@ -8,7 +9,7 @@ class ChangeTracker {
   private _offset: number;
   private readonly _tracker: { dispose(): void };
 
-  constructor(ctx: Context, fileURI: URI, insertionOffset: number) {
+  constructor(ctx: Context, fileURI: URI | DocumentUri, insertionOffset: number) {
     this._offset = insertionOffset;
 
     const documentManager = ctx.get(TextDocumentManager);

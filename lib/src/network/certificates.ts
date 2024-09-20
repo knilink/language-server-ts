@@ -15,7 +15,8 @@ type RequestOptions = {
 };
 
 class RootCertificateConfigurator {
-  private _certificateReader: RootCertificateReader;
+  private _cache: Promise<{ secureContext: SecureContext; certs: readonly string[] }> | undefined;
+  readonly _certificateReader: RootCertificateReader;
 
   constructor(ctx: Context) {
     this._certificateReader = ctx.get(RootCertificateReader);
@@ -31,17 +32,24 @@ class RootCertificateConfigurator {
     if (certificates.length !== 0) return certificates;
   }
 
-  async applyToRequestOptions(requestOptions: RequestOptions): Promise<void> {
+  async createSecureContext() {
     const certs = await this._certificateReader.getAllRootCAs();
     const options: SecureContextOptions & { _vscodeAdditionalCaCerts: readonly string[] } = {
       _vscodeAdditionalCaCerts: certs,
-    }; // MARK
-    requestOptions.secureContext = createSecureContext(options);
-    requestOptions.ca = certs;
-    requestOptions.cert = certs;
-    for (const cert of certs) {
-      requestOptions.secureContext.context.addCACert(cert);
+    };
+    const secureContext = createSecureContext(options);
+    for (const cert of certs) secureContext.context.addCACert(cert);
+    return { secureContext, certs };
+  }
+
+  async applyToRequestOptions(requestOptions: RequestOptions): Promise<void> {
+    if (!this._cache) {
+      this._cache = this.createSecureContext();
     }
+    const cache = await this._cache;
+    requestOptions.secureContext = cache.secureContext;
+    requestOptions.ca = cache.certs;
+    requestOptions.cert = cache.certs;
   }
 }
 

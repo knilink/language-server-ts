@@ -36,7 +36,7 @@ export class Steps {
       step = { id, title, description, status: 'running' };
       this.steps.push(step);
       await this.progress.report(this.conversation, this.turn, { steps: [step] });
-    }
+    } else throw new Error(`Step with id "${id}" already started`);
   }
 
   public async finish(id: SkillId): Promise<void> {

@@ -1,8 +1,8 @@
-import '../textDocument.ts';
-
 import { Position } from 'vscode-languageserver-types';
 import { Context } from '../context.ts';
 import { TextDocument, LocationFactory } from '../textDocument.ts';
+
+// import { } '../lib/src/util/uri.ts';
 
 function completionTypeToString(type: number): string {
   switch (type) {

@@ -1,17 +1,25 @@
 import { type Static } from '@sinclair/typebox';
 import { type ConversationSourceSchema } from './schema.ts';
 
+import { Features } from '../experiments/features.ts';
 import { Context } from '../context.ts';
-import { UiKind, TelemetryProperties, TelemetryMeasurements, TelemetryStore, Unknown } from '../types.ts';
+import { UiKind, TelemetryProperties, TelemetryMeasurements, TelemetryStore, Unknown, LanguageId } from '../types.ts';
 import { Turn, Conversation } from '../conversation/conversation.ts';
 import { TextDocument } from '../textDocument.ts';
 
 import { v4 as uuidv4 } from 'uuid';
 import {} from '../openai/fetch.ts';
-import { TelemetryData, telemetry } from '../telemetry.ts';
+import { TelemetryData, TelemetryWithExp, telemetry } from '../telemetry.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
-function createTelemetryWithId(messageId: string, conversationId: string) {
-  return TelemetryData.createAndMarkAsIssued({ messageId, conversationId });
+async function createTelemetryWithExpWithId(
+  ctx: Context,
+  messageId: string,
+  conversationId: string,
+  filtersInfo?: { languageId?: LanguageId; uri?: DocumentUri }
+): Promise<TelemetryWithExp> {
+  let telemetryWithId = TelemetryData.createAndMarkAsIssued({ messageId: messageId, conversationId: conversationId });
+  return await ctx.get(Features).updateExPValuesAndAssignments(filtersInfo, telemetryWithId);
 }
 
 function extendUserMessageTelemetryData(
@@ -22,9 +30,9 @@ function extendUserMessageTelemetryData(
   // undefined ./extensibility/remoteAgentTurnProcessor.ts
   suggestion: string | undefined,
   suggestionId: string | undefined,
-  baseTelemetry: TelemetryData,
+  baseTelemetryWithExp: TelemetryWithExp,
   skillResolutions: Unknown.SkillResolution[]
-): TelemetryData {
+): TelemetryWithExp {
   const turn: Turn = conversation.turns[conversation.turns.length - 1];
   const skillIds = turn.skills.map((skill) => skill.skillId).sort(); // MARK ?? skill.id?
   const properties: TelemetryProperties = {
@@ -41,7 +49,8 @@ function extendUserMessageTelemetryData(
     properties.skillResolutionsJson = mapSkillResolutionsForTelemetry(skillResolutions);
   }
 
-  return baseTelemetry.extendedBy(properties, measurements);
+  baseTelemetryWithExp = baseTelemetryWithExp.extendedBy(properties, measurements);
+  return baseTelemetryWithExp;
 }
 
 function mapSkillResolutionsForTelemetry(skillResolutions: Unknown.SkillResolution[]): string {
@@ -53,6 +62,10 @@ function mapSkillResolutionsForTelemetry(skillResolutions: Unknown.SkillResoluti
       tokensPreEliding: resolution.tokensPreEliding ?? 0,
       resolutionTimeMs: resolution.resolutionTimeMs ?? 0,
       processingTimeMs: resolution.processingTimeMs ?? 0,
+      fileCount: resolution.fileCount ?? 0,
+      chunkCount: resolution.chunkCount ?? 0,
+      chunkingTimeMs: resolution.chunkingTimeMs ?? 0,
+      rankingTimeMs: resolution.rankingTimeMs ?? 0,
     }))
   );
 }
@@ -61,15 +74,24 @@ function createUserMessageTelemetryData(
   ctx: Context,
   uiKind: UiKind,
   messageText: string,
-  offTopic?: boolean,
-  doc?: TextDocument,
-  baseTelemetry?: TelemetryData
+  offTopic: boolean,
+  requestId: string,
+  doc: TextDocument | undefined,
+  baseTelemetryWithExp: TelemetryWithExp
 ): string {
   if (offTopic != null) {
-    baseTelemetry = baseTelemetry?.extendedBy({ offTopic: offTopic.toString() });
+    baseTelemetryWithExp = baseTelemetryWithExp.extendedBy({ offTopic: offTopic.toString() });
   }
 
-  return telemetryMessage(ctx, doc!, uiKind, messageText, { uiKind }, {}, baseTelemetry).messageId;
+  return telemetryMessage(
+    ctx,
+    doc,
+    uiKind,
+    messageText,
+    { uiKind: uiKind, headerRequestId: requestId },
+    {},
+    baseTelemetryWithExp
+  ).messageId;
 }
 
 function createModelMessageTelemetryData(
@@ -80,7 +102,7 @@ function createModelMessageTelemetryData(
   responseNumTokens: number,
   requestId: string,
   doc?: TextDocument,
-  baseTelemetry?: TelemetryData
+  baseTelemetryWithExp?: TelemetryWithExp
 ): string {
   let codeBlockLanguages = getCodeBlocks(appliedText);
   const { messageId } = telemetryMessage(
@@ -100,7 +122,7 @@ function createModelMessageTelemetryData(
       numCodeBlocks: codeBlockLanguages.length,
       numTokens: responseNumTokens,
     },
-    baseTelemetry
+    baseTelemetryWithExp
   );
   return messageId;
 }
@@ -112,9 +134,9 @@ function createOffTopicMessageTelemetryData(
   appliedText: string,
   userMessageId: string,
   doc?: TextDocument,
-  baseTelemetry?: TelemetryData
-): string {
-  const { messageId } = telemetryMessage(
+  baseTelemetryWithExp?: TelemetryWithExp
+): void {
+  telemetryMessage(
     ctx,
     doc,
     uiKind,
@@ -126,9 +148,8 @@ function createOffTopicMessageTelemetryData(
       uiKind,
     },
     { messageCharLen: appliedText.length },
-    baseTelemetry
+    baseTelemetryWithExp
   );
-  return messageId;
 }
 
 function createSuggestionMessageTelemetryData(
@@ -140,7 +161,7 @@ function createSuggestionMessageTelemetryData(
   suggestion: string,
   suggestionId: string,
   doc?: TextDocument,
-  baseTelemetry?: TelemetryData
+  baseTelemetryWithExp?: TelemetryWithExp
 ): string {
   const { messageId, standardTelemetryData: telemetryData } = telemetryMessage(
     ctx,
@@ -155,7 +176,7 @@ function createSuggestionMessageTelemetryData(
       suggestionId,
     },
     { promptTokenLen, messageCharLen: messageText.length },
-    baseTelemetry
+    baseTelemetryWithExp
   );
 
   createSuggestionSelectedTelemetryData(
@@ -165,6 +186,7 @@ function createSuggestionMessageTelemetryData(
     messageId,
     telemetryData.properties.conversationId,
     suggestionId,
+    baseTelemetryWithExp,
     doc
   );
 
@@ -216,26 +238,10 @@ function telemetryMessage(
 function createSuggestionShownTelemetryData(
   ctx: Context,
   uiKind: UiKind,
-  suggestion: string,
-  messageId: string,
-  conversationId: string,
-  suggestionId: string,
-  doc?: TextDocument,
-  telemetryMeasurements: TelemetryMeasurements = {}
-): TelemetryData {
-  return telemetryUserAction(
-    ctx,
-    doc,
-    {
-      suggestion,
-      messageId,
-      conversationId,
-      suggestionId,
-      uiKind,
-    },
-    telemetryMeasurements,
-    'conversation.suggestionShown'
-  );
+  baseTelemetryWithExp: TelemetryWithExp,
+  doc?: TextDocument
+): void {
+  telemetryUserAction(ctx, doc, { uiKind: uiKind }, {}, 'conversation.suggestionShown', baseTelemetryWithExp);
 }
 
 function createSuggestionSelectedTelemetryData(
@@ -245,9 +251,10 @@ function createSuggestionSelectedTelemetryData(
   messageId: string,
   conversationId: string,
   suggestionId: string,
+  baseTelemetryWithExp: TelemetryWithExp,
   doc?: TextDocument
-): TelemetryData {
-  return telemetryUserAction(
+): void {
+  telemetryUserAction(
     ctx,
     doc,
     {
@@ -258,7 +265,8 @@ function createSuggestionSelectedTelemetryData(
       uiKind,
     },
     {},
-    'conversation.suggestionSelected'
+    'conversation.suggestionSelected',
+    baseTelemetryWithExp
   );
 }
 
@@ -317,27 +325,22 @@ function uiKindToIntent(uiKind: UiKind): 'conversation-inline' | 'conversation-p
   return uiKind === 'conversationInline' ? 'conversation-inline' : 'conversation-panel';
 }
 
-function uiKindToMessageSource(uiKind: UiKind): 'chat.inline' | 'chat.user' {
-  return uiKind === 'conversationInline' ? 'chat.inline' : 'chat.user';
-}
-
 // optional ../../../agent/src/methods/conversation/conversationTurnDelete.ts
 function conversationSourceToUiKind(conversationSource?: Static<typeof ConversationSourceSchema>): UiKind {
   return conversationSource === 'inline' ? 'conversationInline' : 'conversationPanel';
 }
 
 export {
-  logEngineMessages,
-  createTelemetryWithId,
-  telemetryPrefixForUiKind,
-  createSuggestionShownTelemetryData,
-  createUserMessageTelemetryData,
-  createModelMessageTelemetryData,
-  uiKindToMessageSource,
-  createOffTopicMessageTelemetryData,
-  extendUserMessageTelemetryData,
-  uiKindToIntent,
   conversationSourceToUiKind,
+  createModelMessageTelemetryData,
+  createOffTopicMessageTelemetryData,
   createSuggestionMessageTelemetryData,
+  createSuggestionShownTelemetryData,
+  createTelemetryWithExpWithId,
+  createUserMessageTelemetryData,
+  extendUserMessageTelemetryData,
+  logEngineMessages,
+  telemetryPrefixForUiKind,
   telemetryUserAction,
+  uiKindToIntent,
 };

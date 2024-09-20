@@ -7,6 +7,7 @@ import { telemetryShown } from './telemetry.ts';
 import { Logger, LogLevel } from '../logger.ts';
 import { TextDocument } from '../textDocument.ts';
 import { TelemetryWithExp } from '../telemetry.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 type Rejection = {
   completionText: string;
@@ -67,7 +68,7 @@ function setLastShown(
   ) {
     rejectLastShown(ctx, document.offsetAt(last.position));
   }
-  last.setState(document.vscodeUri, position);
+  last.setState(document, position);
   return last.index;
 }
 
@@ -77,7 +78,7 @@ function handleGhostTextShown(ctx: Context, cmp: Completion): void {
 
   if (
     !last.shownCompletions.find((c) => c.index === cmp.index) &&
-    `${cmp.file}` === `${last.uri}` &&
+    cmp.uri === last.uri &&
     last.position?.line === cmp.position.line &&
     last.position?.character === cmp.position.character
   ) {
@@ -105,12 +106,11 @@ async function handleGhostTextPostInsert(ctx: Context, cmp: Completion): Promise
     'ghostText',
     cmp.displayText,
     cmp.offset,
-    cmp.file,
+    cmp.uri,
     cmp.telemetry,
     last.partiallyAcceptedLength
       ? { compType: 'partial', acceptedLength: cmp.displayText.length }
       : { compType: 'full' },
-    cmp.uuid,
     cmp.range.start
   );
 }
@@ -135,10 +135,9 @@ async function handlePartialGhostTextPostInsert(ctx: Context, cmp: Completion, a
       'ghostText',
       cmp.displayText,
       cmp.offset,
-      cmp.file,
+      cmp.uri,
       cmp.telemetry,
       { compType: 'partial', acceptedLength: partialAcceptanceLength },
-      cmp.uuid,
       cmp.range.start
     );
   }
@@ -146,7 +145,7 @@ async function handlePartialGhostTextPostInsert(ctx: Context, cmp: Completion, a
 
 class LastGhostText {
   private _position?: Position;
-  private _uri?: URI;
+  private _uri?: DocumentUri;
   private _shownCompletions: Completion[] = [];
   partiallyAcceptedLength: number = 0;
   index?: number;
@@ -157,7 +156,7 @@ class LastGhostText {
   get shownCompletions(): Completion[] {
     return this._shownCompletions || [];
   }
-  get uri(): URI | undefined {
+  get uri(): DocumentUri | undefined {
     return this._uri;
   }
 
@@ -167,7 +166,7 @@ class LastGhostText {
     this._shownCompletions = [];
   }
 
-  setState(uri: URI, position: Position) {
+  setState({ uri }: { uri: DocumentUri }, position: Position) {
     this._uri = uri;
     this._position = position;
     this._shownCompletions = [];

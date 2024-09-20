@@ -1,15 +1,14 @@
-import { TelemetryProperties, Unknown, UiKind, FetchResult } from '../types.ts';
+import { Unknown, UiKind } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 import { TurnContext } from './turnContext.ts';
 import { TextDocument } from '../textDocument.ts';
 import { CancellationToken } from '../../../agent/src/cancellation.ts';
-import { TelemetryData } from '../telemetry.ts';
+import { TelemetryWithExp } from '../telemetry.ts';
 import { createOffTopicMessageTelemetryData } from './telemetry.ts';
 
 import { ConversationInspector } from './conversationInspector.ts';
 import {
   createSuggestionShownTelemetryData,
-  createTelemetryWithId,
   createUserMessageTelemetryData,
   createModelMessageTelemetryData,
 } from './telemetry.ts';
@@ -43,7 +42,8 @@ class ChatFetchResultPostProcessor {
     // fetchResult: FetchResult,
     token: CancellationToken,
     appliedText: string,
-    baseUserTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
+    augmentedTelemetryWithExp: TelemetryWithExp,
     messageText: string,
     uiKind: UiKind,
     // optional ./turnProcessor.ts
@@ -54,8 +54,9 @@ class ChatFetchResultPostProcessor {
       uiKind,
       messageText,
       fetchResult.type === 'offTopic',
+      fetchResult.requestId,
       doc,
-      baseUserTelemetry
+      augmentedTelemetryWithExp
     );
     this.turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
     switch (fetchResult.type) {
@@ -66,10 +67,12 @@ class ChatFetchResultPostProcessor {
           fetchResult.requestId,
           token,
           uiKind,
+          baseTelemetryWithExp,
+          augmentedTelemetryWithExp,
           doc
         );
       case 'offTopic':
-        return await this.processOffTopicFetchResult(baseUserTelemetry, uiKind, doc);
+        return await this.processOffTopicFetchResult(augmentedTelemetryWithExp, uiKind, doc);
       case 'canceled':
         this.turnContext.turn.status = 'cancelled';
         this.turnContext.turn.response = { message: 'Cancelled', type: 'user' };
@@ -98,11 +101,47 @@ class ChatFetchResultPostProcessor {
         this.turnContext.turn.status = 'error';
         this.turnContext.turn.response = { message: 'Authorization required', type: 'server' };
         return { error: { message: 'Authorization required', responseIsFiltered: false } };
+
+      case 'no_choices': {
+        this.turnContext.turn.status = 'error';
+        this.turnContext.turn.response = { message: 'No choices returned', type: 'server' };
+        return {
+          error: {
+            message: 'Oops, no choices received from the server. Please try again.',
+            responseIsFiltered: false,
+            responseIsIncomplete: true,
+          },
+        };
+      }
+      case 'no_finish_reason': {
+        this.turnContext.turn.status = 'error';
+
+        if (appliedText?.length > 0) {
+          this.turnContext.turn.response = {
+            message: appliedText,
+            type: 'model',
+            references: this.turnContext.turn.response?.references,
+          };
+        } else {
+          this.turnContext.turn.response = { message: 'No finish reason', type: 'server' };
+        }
+
+        return {
+          error: {
+            message: 'Oops, unexpected end of stream. Please try again.',
+            responseIsFiltered: false,
+            responseIsIncomplete: true,
+          },
+        };
+      }
+
       case 'successMultiple':
       case 'tool_calls':
       case 'unknown':
         this.turnContext.turn.status = 'error';
-        return { error: { message: 'Oops, no response has returned.', responseIsFiltered: false } };
+        return {
+          error: { message: 'Unknown server side error occurred. Please try again.', responseIsFiltered: false },
+        };
     }
   }
 
@@ -112,14 +151,20 @@ class ChatFetchResultPostProcessor {
     requestId: string,
     cancelationToken: CancellationToken,
     uiKind: UiKind,
+    baseTelemetryWithExp: TelemetryWithExp,
+    augmentedTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument
   ) {
     if (appliedText && appliedText.length > 0) {
-      const baseModelTelemetry = createTelemetryWithId(this.turnContext.turn.id, this.turnContext.conversation.id);
+      baseTelemetryWithExp.markAsDisplayed();
+      augmentedTelemetryWithExp.markAsDisplayed();
       this.turnContext.turn.status = 'success';
-      this.turnContext.turn.response = { message: appliedText, type: 'model' };
-      baseModelTelemetry.markAsDisplayed();
-      const telemetryMessageId = createModelMessageTelemetryData(
+      this.turnContext.turn.response = {
+        message: appliedText,
+        type: 'model',
+        references: this.turnContext.turn.response?.references,
+      };
+      createModelMessageTelemetryData(
         this.turnContext.ctx,
         this.turnContext.conversation,
         uiKind,
@@ -127,15 +172,11 @@ class ChatFetchResultPostProcessor {
         responseNumTokens,
         requestId,
         doc,
-        baseModelTelemetry
+        augmentedTelemetryWithExp
       );
+
       const suggestions = this.computeSuggestions
-        ? await this.fetchSuggestions(
-            cancelationToken,
-            uiKind,
-            { messageId: telemetryMessageId, conversationId: this.turnContext.conversation.id },
-            doc
-          )
+        ? await this.fetchSuggestions(cancelationToken, uiKind, baseTelemetryWithExp, doc)
         : undefined;
       if (suggestions) {
         const { followUp, suggestedTitle } = suggestions;
@@ -170,16 +211,16 @@ class ChatFetchResultPostProcessor {
   async fetchSuggestions(
     cancelationToken: CancellationToken,
     uiKind: UiKind,
-    telemetryProperties?: TelemetryProperties,
+    baseTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument
   ): Promise<Unknown.Suggestions | undefined> {
     const suggestionsFetchResult = await new TurnSuggestions(
       this.turnContext.ctx,
       this.chatFetcher
-    ).fetchRawSuggestions(this.turnContext, cancelationToken, uiKind, telemetryProperties);
+    ).fetchRawSuggestions(this.turnContext, cancelationToken, uiKind, baseTelemetryWithExp);
     if (!suggestionsFetchResult) return;
 
-    const enrichedFollowup = this.enrichFollowup(suggestionsFetchResult, uiKind, telemetryProperties, doc);
+    const enrichedFollowup = this.enrichFollowup(suggestionsFetchResult, uiKind, baseTelemetryWithExp, doc);
     conversationLogger.debug(this.turnContext.ctx, 'Computed followup', enrichedFollowup);
     conversationLogger.debug(this.turnContext.ctx, 'Computed suggested title', suggestionsFetchResult.suggestedTitle);
 
@@ -190,52 +231,33 @@ class ChatFetchResultPostProcessor {
   private enrichFollowup(
     suggestionsFetchResult: Unknown.SuggestionsFetchResult,
     uiKind: UiKind,
-    telemetryProperties?: TelemetryProperties,
+    baseTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument
   ) {
-    const telemetryPropertiesToUse = telemetryProperties ? telemetryProperties : {};
-    const suggestionId = uuidv4();
-    const suggestionType = 'Follow-up from model';
-    telemetryPropertiesToUse.suggestionId = suggestionId;
-    telemetryPropertiesToUse.suggestionType = suggestionType;
-
-    const telemetryMeasurements = {
-      promptTokenLen: suggestionsFetchResult.promptTokenLen,
-      numTokens: suggestionsFetchResult.numTokens,
-    };
-
-    createSuggestionShownTelemetryData(
-      this.turnContext.ctx,
-      uiKind,
-      telemetryPropertiesToUse.suggestionType,
-      telemetryPropertiesToUse.messageId,
-      telemetryPropertiesToUse.conversationId,
-      suggestionId,
-      doc,
-      telemetryMeasurements
+    let extendedTelemetry = baseTelemetryWithExp.extendedBy(
+      { messageSource: 'chat.suggestions', suggestionId: uuidv4(), suggestion: 'Follow-up from model' },
+      { promptTokenLen: suggestionsFetchResult.promptTokenLen, numTokens: suggestionsFetchResult.numTokens }
     );
-
+    createSuggestionShownTelemetryData(this.turnContext.ctx, uiKind, extendedTelemetry, doc);
     return {
       message: suggestionsFetchResult.followUp,
-      id: suggestionId,
-      type: suggestionType,
+      id: extendedTelemetry.properties.suggestionId,
+      type: extendedTelemetry.properties.suggestion,
     };
   }
 
-  async processOffTopicFetchResult(baseUserTelemetry: TelemetryData, uiKind: UiKind, doc?: TextDocument) {
-    const baseOffTopicTelemetry = createTelemetryWithId(this.turnContext.turn.id, this.turnContext.conversation.id);
+  async processOffTopicFetchResult(baseTelemetryWithExp: TelemetryWithExp, uiKind: UiKind, doc?: TextDocument) {
     const offTopicMessage = 'Sorry, but I can only assist with programming related questions.';
     this.turnContext.turn.response = { message: offTopicMessage, type: 'offtopic-detection' };
     this.turnContext.turn.status = 'off-topic';
-    baseOffTopicTelemetry.markAsDisplayed();
     createOffTopicMessageTelemetryData(
       this.turnContext.ctx,
       this.turnContext.conversation,
       uiKind,
       offTopicMessage,
-      baseUserTelemetry.properties.messageId,
+      baseTelemetryWithExp.properties.messageId,
       doc,
-      baseOffTopicTelemetry
+      baseTelemetryWithExp
     );
     return {};
   }

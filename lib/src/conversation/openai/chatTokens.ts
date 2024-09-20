@@ -14,12 +14,16 @@ function countMessagesTokens(
     if (typeof message === 'object' && message !== null) {
       numTokens += modelConfiguration.baseTokensPerMessage;
 
-      for (const [key, value] of Object.entries(message)) {
-        numTokens += tokenizer.tokenize(value).length;
+      if (message.role) {
+        numTokens += tokenizer.tokenize(message.role).length;
+      }
 
-        if (key === 'name') {
-          numTokens += modelConfiguration.baseTokensPerName;
-        }
+      if (message.name) {
+        numTokens += tokenizer.tokenize(message.name).length + modelConfiguration.baseTokensPerName;
+      }
+
+      if (message.content) {
+        numTokens += tokenizer.tokenize(message.content).length;
       }
     } else {
       throw new Error('Invalid message format');

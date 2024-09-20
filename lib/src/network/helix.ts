@@ -7,14 +7,14 @@ import { type Context } from '../context.ts';
 import { ProxySocketFactory } from './proxySockets.ts';
 import { BuildInfo } from '../config.ts';
 import { RootCertificateConfigurator, type RequestOptions } from './certificates.ts';
-import { Fetcher, Request, Response } from '../networking.ts';
+import { Fetcher, HttpTimeoutError, Response, Request } from '../networking.ts';
 
 class HelixFetcher extends Fetcher {
   readonly name = 'HelixFetcher';
-  private fetchApi: ReturnType<typeof context>;
+  fetchApi: ReturnType<typeof context>;
   readonly certificateConfigurator: RootCertificateConfigurator;
   readonly proxySocketFactory: ProxySocketFactory;
-  private _proxySettings?: Fetcher.ProxySetting;
+  _proxySettings?: Fetcher.ProxySetting;
 
   constructor(readonly ctx: Context) {
     super();
@@ -69,33 +69,37 @@ class HelixFetcher extends Fetcher {
 
   // MARK
   async fetch(url: string, options: RequestOptions & Extract<Request, { method: 'POST' }>): Promise<Response> {
-    const abortController = this.makeAbortController();
-    setTimeout(() => abortController.abort(), options?.timeout ?? 300_000);
-    if (options.signal) {
-      options.signal.addEventListener('abort', () => abortController.abort());
-      if (options.signal.aborted) {
+    let signal = options.signal;
+    let timedOut = false;
+    if (options.timeout) {
+      const abortController = this.makeAbortController();
+
+      setTimeout(() => {
+        abortController.abort();
+        timedOut = true;
+      }, options.timeout);
+
+      options.signal?.addEventListener('abort', () => abortController.abort());
+
+      if (options.signal?.aborted) {
         abortController.abort();
       }
+
+      signal = abortController.signal;
     }
-
-    const helixOptions = {
-      ...options,
-      body: options.body ? options.body : options.json,
-      signal: abortController.signal,
-    };
-
+    const helixOptions = { ...options, body: options.body ? options.body : options.json, signal: signal };
     await this.certificateConfigurator.applyToRequestOptions(helixOptions);
-    const certs = await this.certificateConfigurator.getCertificates();
-    this.fetchApi.setCA(certs && [...certs]);
-
-    const resp = await this.fetchApi.fetch(url, helixOptions);
-
+    let certs = await this.certificateConfigurator.getCertificates();
+    this.fetchApi.setCA(certs);
+    const resp = await this.fetchApi.fetch(url, helixOptions).catch((e: unknown) => {
+      throw timedOut ? new HttpTimeoutError(`Request to <${url}> timed out after ${options.timeout}ms`, e) : e;
+    });
     return new Response(
       resp.status,
       resp.statusText,
       resp.headers,
       () => resp.text(),
-      async () => resp.body as Readable // MARK should be stream.Readable somehow declared as NodeJS.ReadableStream, f*
+      async () => resp.body // as Readable // MARK should be stream.Readable somehow declared as NodeJS.ReadableStream, f*
     );
   }
 

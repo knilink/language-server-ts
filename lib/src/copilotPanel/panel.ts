@@ -52,10 +52,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
   const position = solutionManager.completionContext.position;
   const indentation = solutionManager.completionContext.indentation;
   const document = solutionManager.textDocument;
-  const documentSource = document.getText();
-  const positionOffset = document.offsetAt(position);
-  const actualSuffix = documentSource.substring(positionOffset);
-  const repoInfo = extractRepoInfoInBackground(ctx, document.vscodeUri);
+  const repoInfo = extractRepoInfoInBackground(ctx, document.uri);
   const ourRequestId = uuidv4();
   const tempTelemetry = TelemetryData.createAndMarkAsIssued(
     {
@@ -68,7 +65,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
 
   solutionManager.savedTelemetryData = await ctx
     .get(Features)
-    .updateExPValuesAndAssignments(ctx, { uri: document.vscodeUri, languageId: document.languageId }, tempTelemetry);
+    .updateExPValuesAndAssignments({ uri: document.uri, languageId: document.languageId }, tempTelemetry);
 
   const promptResponse = await extractPrompt(ctx, document, position, solutionManager.savedTelemetryData);
   if (promptResponse.type === 'copilotNotAvailable') return { status: 'FinishedNormally' };
@@ -115,7 +112,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
     postOptions.stop = [`\n\n`, `\r\n\r\n`];
   }
 
-  const engineInfo = await getEngineRequestInfo(ctx, document.vscodeUri, solutionManager.savedTelemetryData);
+  const engineInfo = await getEngineRequestInfo(ctx, document.uri, solutionManager.savedTelemetryData);
   const completionParams: OpenAIFetcher.CompletionParams = {
     prompt,
     languageId: document.languageId,
@@ -170,7 +167,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
   }
 
   choices = asyncIterableMapFilter(choices, async (choice: APIChoice) =>
-    postProcessChoice(ctx, document, position, choice, false, solutionsLogger, promptResponse.prompt, actualSuffix)
+    postProcessChoice(ctx, document, position, choice, solutionsLogger)
   );
 
   const solutions = asyncIterableMapFilter(choices, async (apiChoice: APIChoice) => {

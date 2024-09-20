@@ -1,5 +1,6 @@
 import fs from 'node:fs';
-import { URI, isSupportedUriScheme, getFsPath } from './util/uri.ts';
+import { type DocumentUri } from 'vscode-languageserver-types';
+import { URI, isSupportedUriScheme, getFsPath, parseUri } from './util/uri.ts';
 
 type FileStat = {
   ctime: number;
@@ -9,12 +10,16 @@ type FileStat = {
 };
 
 abstract class FileSystem {
-  abstract readFileString(uri: URI): Promise<string>;
-  abstract stat(uri: URI): Promise<FileStat>;
+  abstract readFileString(uri: URI | DocumentUri): Promise<string>;
+  abstract stat(uri: URI | DocumentUri): Promise<FileStat>;
 }
 
 class LocalFileSystem extends FileSystem {
-  getFsPath(uri: URI): string | undefined {
+  getFsPath(uri: URI | DocumentUri): string | undefined {
+    if (typeof uri == 'string') {
+      uri = parseUri(uri, true);
+    }
+
     const path = getFsPath(uri);
     if (path !== undefined) return path;
     throw isSupportedUriScheme(uri.scheme)
@@ -22,7 +27,7 @@ class LocalFileSystem extends FileSystem {
       : new Error(`Unsupported scheme: ${uri.scheme}`);
   }
 
-  async readFileString(uri: URI): Promise<string> {
+  async readFileString(uri: URI | DocumentUri): Promise<string> {
     const fsPath = this.getFsPath(uri);
     if (fsPath !== undefined) {
       return (await fs.promises.readFile(fsPath)).toString();
@@ -31,7 +36,7 @@ class LocalFileSystem extends FileSystem {
     }
   }
 
-  async stat(uri: URI): Promise<FileStat> {
+  async stat(uri: URI | DocumentUri): Promise<FileStat> {
     const fsPath = this.getFsPath(uri);
     if (fsPath !== undefined) {
       const { targetStat, lstat, stat } = await this.statWithLink(fsPath);

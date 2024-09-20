@@ -160,6 +160,7 @@ function editorVersionHeaders(ctx: Context) {
   return {
     'Editor-Version': formatNameAndVersion(info.getEditorInfo()),
     'Editor-Plugin-Version': formatNameAndVersion(info.getEditorPluginInfo()),
+    'Copilot-Language-Server-Version': getVersion(ctx),
   };
 }
 
@@ -396,6 +397,9 @@ class GitHubAppInfo {
   }
   fallbackAppId() {
     return FALLBACK_GITHUB_APP_CLIENT_ID;
+  }
+  experimentalJetBrainsAppId() {
+    return 'Iv23ctfURkiMfJ4xr5mv';
   }
 }
 

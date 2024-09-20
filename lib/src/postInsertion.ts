@@ -16,6 +16,7 @@ import { ChangeTracker } from './changeTracker.ts';
 import { Logger, LogLevel } from './logger.ts';
 import { TelemetryProperties, TelemetryStore } from './types.ts';
 import { Position } from 'vscode-languageserver-types';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 type CaptureCodeResult = {
   prompt: Omit<Prompt, 'prefixTokens' | 'suffixTokens'>;
@@ -49,14 +50,14 @@ const postInsertConfiguration = {
 
 async function captureCode(
   ctx: Context,
-  fileURI: URI,
+  uri: DocumentUri,
   completionTelemetry: TelemetryWithExp,
   offset: number,
   suffixOffset?: number
 ): Promise<CaptureCodeResult> {
-  const document = await ctx.get(TextDocumentManager).getTextDocument(fileURI);
+  const document = await ctx.get(TextDocumentManager).getTextDocument({ uri });
   if (!document) {
-    postInsertionLogger.info(ctx, `Could not get document for ${fileURI}. Maybe it was closed by the editor.`);
+    postInsertionLogger.info(ctx, `Could not get document for ${uri}. Maybe it was closed by the editor.`);
     return {
       prompt: { prefix: '', suffix: '', isFimEnabled: false, promptElementRanges: [] },
       capturedCode: '',
@@ -98,7 +99,7 @@ function postRejectionTasks(
   ctx: Context,
   insertionCategory: string,
   insertionOffset: number,
-  fileURI: URI,
+  uri: DocumentUri,
   completions: { completionText: string; completionTelemetryData: TelemetryWithExp }[]
 ): void {
   for (const { completionText, completionTelemetryData } of completions) {
@@ -109,8 +110,8 @@ function postRejectionTasks(
     telemetryRejected(ctx, insertionCategory, completionTelemetryData);
   }
 
-  const positionTracker = new ChangeTracker(ctx, fileURI, insertionOffset - 1);
-  const suffixTracker = new ChangeTracker(ctx, fileURI, insertionOffset);
+  const positionTracker = new ChangeTracker(ctx, uri, insertionOffset - 1);
+  const suffixTracker = new ChangeTracker(ctx, uri, insertionOffset);
 
   for (const t of captureTimeouts.filter((t) => t.captureRejection)) {
     positionTracker.push(async () => {
@@ -118,7 +119,7 @@ function postRejectionTasks(
       const { completionTelemetryData } = completions[0];
       const { prompt, capturedCode, terminationOffset } = await captureCode(
         ctx,
-        fileURI,
+        uri,
         completionTelemetryData,
         positionTracker.offset + 1,
         suffixTracker.offset
@@ -153,10 +154,9 @@ async function postInsertionTasks(
   insertionCategory: string,
   completionText: string,
   insertionOffset: number,
-  fileURI: URI,
+  uri: DocumentUri,
   telemetryData: TelemetryWithExp,
   suggestionStatus: SuggestionStatus,
-  completionId: string,
   // Position ./ghostText/last.ts
   start: Position
 ): Promise<void> {
@@ -172,8 +172,8 @@ async function postInsertionTasks(
   completionText = computeCompletionText(completionText, suggestionStatus);
 
   const trimmedCompletion = completionText.trim();
-  const tracker = new ChangeTracker(ctx, fileURI, insertionOffset);
-  const suffixTracker = new ChangeTracker(ctx, fileURI, insertionOffset + completionText.length);
+  const tracker = new ChangeTracker(ctx, uri, insertionOffset);
+  const suffixTracker = new ChangeTracker(ctx, uri, insertionOffset + completionText.length);
 
   const stillInCodeCheck = async (timeout: Timeout) => {
     await checkStillInCode(
@@ -181,7 +181,7 @@ async function postInsertionTasks(
       insertionCategory,
       trimmedCompletion,
       insertionOffset,
-      fileURI,
+      uri,
       timeout,
       telemetryDataWithStatus,
       tracker,
@@ -248,13 +248,13 @@ async function checkStillInCode(
   insertionCategory: string,
   completion: string,
   insertionOffset: number,
-  fileURI: URI,
+  uri: DocumentUri,
   timeout: Timeout,
   telemetryData: TelemetryWithExp,
   tracker: ChangeTracker,
   suffixTracker: ChangeTracker
 ): Promise<void> {
-  const document = await ctx.get(TextDocumentManager).getTextDocument(fileURI);
+  const document = await ctx.get(TextDocumentManager).getTextDocument({ uri });
   if (document) {
     const documentText = document.getText();
     let finding = find(documentText, completion, stillInCodeNearMargin, tracker.offset);
@@ -264,7 +264,7 @@ async function checkStillInCode(
 
     postInsertionLogger.debug(
       ctx,
-      `stillInCode: ${finding.stillInCodeHeuristic ? 'Found' : 'Not found'}! Completion '${completion}' in file ${fileURI}. lexEditDistance fraction was ${finding.relativeLexEditDistance}. Char edit distance was ${finding.charEditDistance}. Inserted at ${insertionOffset}, tracked at ${tracker.offset}, found at ${finding.foundOffset}. choiceIndex: ${telemetryData.properties.choiceIndex}`
+      `stillInCode: ${finding.stillInCodeHeuristic ? 'Found' : 'Not found'}! Completion '${completion}' in file ${uri}. lexEditDistance fraction was ${finding.relativeLexEditDistance}. Char edit distance was ${finding.charEditDistance}. Inserted at ${insertionOffset}, tracked at ${tracker.offset}, found at ${finding.foundOffset}. choiceIndex: ${telemetryData.properties.choiceIndex}`
     );
     const customTelemetryData = telemetryData
       .extendedBy({}, { timeout: timeout.seconds, insertionOffset, trackedOffset: tracker.offset })
@@ -274,7 +274,7 @@ async function checkStillInCode(
     if (timeout.captureCode) {
       const { prompt, capturedCode, terminationOffset } = await captureCode(
         ctx,
-        fileURI,
+        uri,
         customTelemetryData,
         tracker.offset,
         suffixTracker.offset

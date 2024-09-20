@@ -2,8 +2,7 @@ import { CancellationToken } from '../../../agent/src/cancellation.ts';
 import { ConversationProgress } from './conversationProgress.ts';
 import { conversationLogger } from './logger.ts';
 import {
-  createTelemetryWithId,
-  uiKindToMessageSource,
+  createTelemetryWithExpWithId,
   createSuggestionMessageTelemetryData,
   extendUserMessageTelemetryData,
 } from './telemetry.ts';
@@ -12,16 +11,15 @@ import { getAgents } from './agents/agents.ts';
 import { markdownCommentRegexp } from './codeEdits.ts';
 import { ModelConfigurationProvider } from './modelConfigurations.ts';
 import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
-import { Features } from '../experiments/features.ts';
 import { ChatMLFetcher } from './chatMLFetcher.ts';
 import { ChatFetchResultPostProcessor } from './fetchPostProcessor.ts';
 import { ConversationContextCollector } from './prompt/conversationContextCollector.ts';
 import { ConversationFinishCallback } from './conversationFinishCallback.ts';
 import { TurnContext } from './turnContext.ts';
-import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind, Unknown } from '../types.ts';
+import { Chat, UiKind, Unknown } from '../types.ts';
 import { TextDocument } from '../textDocument.ts';
 import { type ITurnProcessorStrategy } from './turnProcessorStrategy.ts';
-import { TelemetryData } from '../telemetry.ts';
+import { TelemetryWithExp } from '../telemetry.ts';
 
 export const COLLECT_CONTEXT_STEP = 'collect-context';
 export const GENERATE_RESPONSE_STEP = 'generate-response';
@@ -70,8 +68,13 @@ export class ModelTurnProcessor {
     doc?: TextDocument
   ): Promise<void> {
     await this.conversationProgress.begin(this.conversation, this.turn, workDoneToken);
-    const telemetryWithId = createTelemetryWithId(this.turn.id, this.conversation.id);
-    telemetryWithId.markAsDisplayed();
+    const telemetryWithExp = await createTelemetryWithExpWithId(
+      this.turnContext.ctx,
+      this.turn.id,
+      this.conversation.id,
+      { languageId: doc?.languageId ?? '' }
+    );
+
     if (cancellationToken.isCancellationRequested) {
       this.turn.status = 'cancelled';
       await this.cancelProgress();
@@ -94,6 +97,8 @@ export class ModelTurnProcessor {
     }
 
     await turnContext.steps.start(COLLECT_CONTEXT_STEP, 'Collecting context');
+    await this.collectContext(turnContext, cancellationToken, telemetryWithExp, this.strategy.uiKind, template, agent);
+
     const conversationPrompt = await this.strategy.buildConversationPrompt(
       turnContext,
       doc?.languageId || '',
@@ -105,9 +110,9 @@ export class ModelTurnProcessor {
     } else {
       await turnContext.steps.finish(COLLECT_CONTEXT_STEP);
       await turnContext.steps.start(GENERATE_RESPONSE_STEP, 'Generating response');
-      const [telemetryMessageId, augmentedTelemetry] = this.augmentTelemetry(
+      const augmentedTelemetryWithExp = this.augmentTelemetry(
         conversationPrompt,
-        telemetryWithId,
+        telemetryWithExp,
         template,
         followUp,
         doc
@@ -121,14 +126,9 @@ export class ModelTurnProcessor {
       const response = await this.fetchConversationResponse(
         conversationPrompt.messages,
         cancellationToken,
-        augmentedTelemetry,
-        doc,
-        {
-          messageId: telemetryMessageId,
-          conversationId: this.conversation.id,
-          messageSource: uiKindToMessageSource(this.strategy.uiKind),
-        },
-        { promptTokenLen: conversationPrompt.tokens }
+        telemetryWithExp.extendedBy({ messageSource: 'chat.user' }, { promptTokenLen: conversationPrompt.tokens }),
+        augmentedTelemetryWithExp,
+        doc
       );
 
       const updatedDocuments = await this.strategy.processResponse(this.turn);
@@ -185,6 +185,8 @@ export class ModelTurnProcessor {
       await this.conversationProgress.report(this.conversation, this.turn, {
         reply: 'Sure, I can definitely do that!',
         annotations: response.annotations,
+        warnings: response.warnings,
+        references: response.references,
       });
       await this.turnContext.steps.finishAll();
       await this.endProgress({
@@ -198,6 +200,8 @@ export class ModelTurnProcessor {
       await this.conversationProgress.report(this.conversation, this.turn, {
         reply: response.message,
         annotations: response.annotations,
+        warnings: response.warnings,
+        references: response.references,
       });
       await this.endProgress();
     }
@@ -206,7 +210,7 @@ export class ModelTurnProcessor {
   async collectContext(
     turnContext: TurnContext,
     cancellationToken: CancellationToken,
-    baseUserTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind,
     template?: any,
     agent?: any
@@ -214,7 +218,7 @@ export class ModelTurnProcessor {
     const promptContext = await new ConversationContextCollector(this.turnContext.ctx, this.chatFetcher).collectContext(
       turnContext,
       cancellationToken,
-      baseUserTelemetry,
+      baseTelemetryWithExp,
       uiKind,
       template,
       agent
@@ -226,29 +230,42 @@ export class ModelTurnProcessor {
   private async fetchConversationResponse(
     messages: Chat.ElidableChatMessage[],
     token: CancellationToken,
-    baseUserTelemetry: TelemetryData,
-    doc?: TextDocument,
-    telemetryProperties?: TelemetryProperties,
-    telemetryMeasurements?: TelemetryMeasurements
+    baseTelemetryWithExp: TelemetryWithExp,
+    augmentedTelemetryWithExp: TelemetryWithExp,
+    doc?: TextDocument
   ): Promise<any> {
     token.onCancellationRequested(async () => {
       await this.cancelProgress();
     });
 
     let partialResponse = '';
-    const finishCallback = new ConversationFinishCallback((text, annotations) => {
+    const finishCallback = new ConversationFinishCallback((text, annotations, references, errors) => {
       const hasEditComment = text.trim().match(markdownCommentRegexp) !== null;
       this.conversationProgress
-        .report(this.conversation, this.turn, { reply: text, annotations: annotations, hideText: hasEditComment })
+        .report(this.conversation, this.turn, {
+          reply: text,
+          annotations: annotations,
+          references,
+          hideText: hasEditComment,
+          warnings: errors,
+        })
         .then();
-      if (!this.turn.response) {
+
+      if (this.turn.response) {
+        this.turn.response.message += text;
+      } else {
         this.turn.response = { message: text, type: 'model' };
       }
-      this.turn.response.message += text;
-      this.turn.annotations.push(...(annotations ?? []));
+
+      this.turn.annotations.push(...(annotations != null ? annotations : []));
       partialResponse += text;
       if (this.strategy.currentDocument) {
-        this.turn.annotations.push(...(annotations ?? []));
+        const codeEdits = this.strategy.extractEditsFromResponse(partialResponse, this.strategy.currentDocument);
+
+        if (codeEdits?.length > 0) {
+          partialResponse = '';
+          this.conversationProgress.report(this.conversation, this.turn, { codeEdits });
+        }
       }
     });
 
@@ -258,25 +275,19 @@ export class ModelTurnProcessor {
         .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('user')),
       messages,
       uiKind: this.strategy.uiKind,
-      intentParams: { intent: true, intent_threshold: 0.9, intent_content: this.turn.request.message },
-      telemetryProperties,
-      telemetryMeasurements,
+      intentParams: { intent: true, intent_threshold: 0.7, intent_content: this.turn.request.message },
     };
 
-    const expIntentParams = await this.setupIntentDetectionModel();
-    if (expIntentParams) {
-      params.intentParams = { ...params.intentParams, ...expIntentParams };
-    }
+    const fetchResult = await this.chatFetcher.fetchResponse(params, token, baseTelemetryWithExp, async (text, delta) =>
+      finishCallback.isFinishedAfter(text, delta)
+    );
 
-    const fetchResult = await this.chatFetcher.fetchResponse(params, token, async (text, annotations?) => {
-      finishCallback.isFinishedAfter(text, annotations);
-      return undefined;
-    });
     return await this.postProcessor.postProcess(
       fetchResult,
       token,
       finishCallback.appliedText,
-      baseUserTelemetry,
+      baseTelemetryWithExp,
+      augmentedTelemetryWithExp,
       this.turn.request.message,
       this.strategy.uiKind,
       doc
@@ -285,17 +296,16 @@ export class ModelTurnProcessor {
 
   private augmentTelemetry(
     conversationPrompt: Unknown.ConversationPrompt,
-    userTelemetry: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     template?: IPromptTemplate,
     followUp?: Unknown.FollowUp,
     doc?: TextDocument
-  ): [string, TelemetryData] {
-    let telemetryMessageId: string;
-    let augmentedTelemetry: TelemetryData;
+  ): TelemetryWithExp {
+    let augmentedTelemetry: TelemetryWithExp;
 
     if (followUp) {
       this.turn.request.type = 'follow-up';
-      telemetryMessageId = createSuggestionMessageTelemetryData(
+      createSuggestionMessageTelemetryData(
         this.turnContext.ctx,
         this.conversation,
         this.strategy.uiKind,
@@ -304,7 +314,7 @@ export class ModelTurnProcessor {
         followUp.type,
         followUp.id,
         doc,
-        userTelemetry
+        baseTelemetryWithExp
       );
       augmentedTelemetry = extendUserMessageTelemetryData(
         this.conversation,
@@ -313,7 +323,7 @@ export class ModelTurnProcessor {
         conversationPrompt.tokens,
         followUp.type,
         followUp.id,
-        userTelemetry,
+        baseTelemetryWithExp,
         conversationPrompt.skillResolutions
       );
     } else {
@@ -324,13 +334,12 @@ export class ModelTurnProcessor {
         conversationPrompt.tokens,
         template?.id || undefined,
         undefined,
-        userTelemetry,
+        baseTelemetryWithExp,
         conversationPrompt.skillResolutions
       );
-      telemetryMessageId = augmentedTelemetry.properties.messageId;
     }
 
-    return [telemetryMessageId, augmentedTelemetry];
+    return augmentedTelemetry;
   }
 
   private async finishGenerateResponseStep(response: any, turnContext: any): Promise<void> {
@@ -349,24 +358,6 @@ export class ModelTurnProcessor {
   private async cancelProgress(): Promise<void> {
     await this.turnContext.steps.finishAll('cancelled');
     await this.conversationProgress.cancel(this.conversation, this.turn);
-  }
-
-  private async setupIntentDetectionModel(): Promise<
-    { intent_model: string; intent_tokenizer: string; intent_threshold: number } | undefined
-  > {
-    const features = this.turnContext.ctx.get(Features);
-    const telemetryDataWithExp = await features.updateExPValuesAndAssignments(this.turnContext.ctx);
-    const intentModel = features.ideChatIntentModel(telemetryDataWithExp);
-    const intentTokenizer = features.ideChatIntentTokenizer(telemetryDataWithExp);
-    const intentThresholdPercent = features.ideChatIntentThresholdPercent(telemetryDataWithExp);
-
-    if (intentModel !== '' && intentThresholdPercent > 0 && intentThresholdPercent < 100 && intentTokenizer !== '') {
-      return {
-        intent_model: intentModel,
-        intent_tokenizer: intentTokenizer,
-        intent_threshold: intentThresholdPercent / 100,
-      };
-    }
   }
 }
 

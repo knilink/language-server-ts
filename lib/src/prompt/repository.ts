@@ -1,14 +1,13 @@
-import path from 'node:path';
-import { Utils, URI } from 'vscode-uri';
 import gitUrlParse from 'git-url-parse';
 
 import type { RepoInfo, RepoUrlInfo } from '../types.ts';
 
 import { Context } from '../context.ts';
-import { isSupportedUriScheme } from '../util/uri.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
 import { FileSystem } from '../fileSystem.ts';
 import { LRUCacheMap } from '../common/cache.ts';
+import { dirname, getFsPath, joinPath } from '../util/uri.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 function isRepoInfo(info: RepoInfo | 0 | undefined): info is RepoInfo {
   return info !== undefined && info !== 0;
@@ -50,31 +49,31 @@ function tryGetADONWO(repoInfo?: RepoInfo): string {
   return '';
 }
 
-function extractRepoInfoInBackground(ctx: Context, uri: URI) {
-  const baseFolder = Utils.dirname(uri);
+function extractRepoInfoInBackground(ctx: Context, uri: DocumentUri) {
+  const baseFolder = dirname(uri);
   return backgroundRepoInfo(ctx, baseFolder);
 }
 
 const backgroundRepoInfo = computeInBackgroundAndMemoize(extractRepoInfo, 10_000);
 
-async function extractRepoInfo(ctx: Context, uri: URI): Promise<RepoInfo | undefined> {
-  if (!isSupportedUriScheme(uri.scheme)) return;
-
-  let baseFolder = await getRepoBaseFolder(ctx, uri.fsPath);
-  if (!baseFolder) return;
+async function extractRepoInfo(ctx: Context, uri: DocumentUri): Promise<RepoInfo | undefined> {
+  if (!getFsPath(uri)) return;
+  let baseUri = await getRepoBaseUri(ctx, uri.toString());
+  if (!baseUri) return;
 
   const fs = ctx.get(FileSystem);
-  const configPath = path.join(baseFolder, '.git', 'config');
+  const configUri = joinPath(baseUri, '.git', 'config');
 
   let gitConfig: string | undefined;
   try {
-    gitConfig = await fs.readFileString(URI.file(configPath));
+    gitConfig = await fs.readFileString(configUri);
   } catch (error) {
     return;
   }
 
   const url = getRepoUrlFromConfigText(gitConfig) || '';
   const parsedResult = parseRepoUrl(url);
+  const baseFolder = getFsPath(baseUri) ?? '';
 
   if (!parsedResult) {
     return { baseFolder, url, hostname: '', owner: '', repo: '', pathname: '' };
@@ -97,17 +96,17 @@ function parseRepoUrl(url: string): RepoUrlInfo | undefined {
   } catch {}
 }
 
-async function getRepoBaseFolder(ctx: Context, uri: string): Promise<string | undefined> {
+async function getRepoBaseUri(ctx: Context, uri: DocumentUri): Promise<string | undefined> {
   const fs = ctx.get(FileSystem);
   let previousLength = Infinity;
-  while (uri.length > 1 && uri.length < previousLength) {
-    const configPath = path.join(uri, '.git', 'config');
+  while (uri !== 'file:///' && uri.length < previousLength) {
+    const configUri = joinPath(uri, '.git', 'config');
     try {
-      await fs.stat(URI.file(configPath));
+      await fs.stat(configUri);
       return uri;
     } catch {}
     previousLength = uri.length;
-    uri = path.dirname(uri);
+    uri = dirname(uri);
   }
 }
 

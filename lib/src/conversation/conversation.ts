@@ -1,4 +1,5 @@
 import type { Reference } from './schema.ts';
+import type { WebSearchReference } from './extensibility/references.ts';
 
 import { Unknown } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,7 +19,8 @@ class Turn {
   skills: (Pick<Unknown.SkillResolution, 'skillId'> & Partial<Unknown.SkillResolution>)[] = [];
   // ./skills/ReferencesSkill.ts
   // ./conversations.ts
-  references: Reference[] = [];
+  // 1.40.0 deleted
+  // references: Reference[] = [];
   annotations: Unknown.Annotation[] = [];
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -27,13 +29,18 @@ class Turn {
   // string ./skills/projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts
   workspaceFolder?: string;
   // ./conversation.ts
+  // required? ./extensibility/skillToReferenceAdapters.ts
   agent?: { agentSlug: string };
   // required ./turnProcessor.ts
   // set ./conversations.ts
   template?: { templateId: string; userQuestion: string };
   // lib/src/conversation/extensibility/remoteAgentTurnProcessor.ts
   // ./fetchPostProcessor.ts
-  response?: { message: string; type: 'meta' | 'server' | 'model' | 'user' | 'offtopic-detection' };
+  response?: {
+    message: string;
+    type: 'meta' | 'server' | 'model' | 'user' | 'offtopic-detection';
+    references?: Reference[];
+  };
 
   constructor(
     // editable ./conversations.ts
@@ -44,6 +51,9 @@ class Turn {
         | 'template'
         // ./turnProcessor.ts
         | 'follow-up';
+      // 1.40.0
+      // optional ../../../agent/src/methods/conversation/conversationCreate.ts
+      references?: Reference[];
     }
   ) {}
 }

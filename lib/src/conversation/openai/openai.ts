@@ -9,12 +9,14 @@ type ChatCompletion = {
   message: Chat.ChatMessage;
   choiceIndex: number;
   requestId: OpenAIRequestId;
-  modelInfo?: Unknown.ModelInfo;
+  // 1.40.0 removed
+  // modelInfo?: Unknown.ModelInfo;
   blockFinished: boolean;
   finishReason: string;
   tokens: string[]; // MARK ?? might be string[]
   numTokens: number;
   tool_calls: ToolCall[];
+  function_call: unknown;
   telemetryData: TelemetryData;
 };
 
@@ -24,14 +26,15 @@ function convertToChatCompletion(
   message: Chat.ChatMessage,
   jsonData: {
     tool_calls: ToolCall[];
+    // 1.40.0 added
+    function_call: unknown;
     tokens: string[];
   },
   choiceIndex: number,
   requestId: OpenAIRequestId,
   blockFinished: boolean,
   finishReason: string,
-  telemetryData: TelemetryData,
-  modelInfo?: Unknown.ModelInfo
+  telemetryData: TelemetryData
 ): ChatCompletion {
   let chatMessageWithToolCalls = JSON.parse(JSON.stringify(message));
 
@@ -45,12 +48,12 @@ function convertToChatCompletion(
     message,
     choiceIndex,
     requestId,
-    modelInfo,
     blockFinished,
     finishReason,
     tokens: jsonData.tokens,
     numTokens: jsonData.tokens.length,
     tool_calls: jsonData.tool_calls,
+    function_call: jsonData.function_call,
     telemetryData,
   };
 }

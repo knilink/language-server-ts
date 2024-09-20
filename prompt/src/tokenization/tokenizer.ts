@@ -1,7 +1,8 @@
+import * as fs from 'node:fs';
+import * as path from 'path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { createTokenizer, getSpecialTokensByEncoder, getRegexByEncoder, TikTokenizer } from '@microsoft/tiktokenizer';
-import { join as pathJoin } from 'path';
 
 interface ITokenizer {
   tokenize(text: string): number[];
@@ -16,13 +17,40 @@ interface ITokenizer {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-class Tokenizer implements ITokenizer {
+const tokenizers = new Map<string, ITokenizer>();
+
+function getTokenizer(encoder: string = 'cl100k_base'): ITokenizer {
+  let tokenizer = tokenizers.get(encoder);
+  if (tokenizer === undefined) {
+    if (encoder === 'mock') {
+      tokenizer = new MockTokenizer();
+    } else {
+      tokenizer = new TTokenizer(encoder);
+    }
+    tokenizers.set(encoder, tokenizer);
+  }
+  return tokenizer;
+}
+
+function parseTikTokenNoIndex(file: string) {
+  if (!file.endsWith('.tiktoken.noindex')) throw new Error('File does not end with .tiktoken.noindex');
+  let contents = fs.readFileSync(file, 'utf-8');
+  let result = new Map();
+  for (let line of contents.split(`\n`)) {
+    if (!line) continue;
+    let buffer = Buffer.from(line, 'base64');
+    result.set(buffer, result.size);
+  }
+  return result;
+}
+
+class TTokenizer implements ITokenizer {
   private _tokenizer: TikTokenizer;
 
   constructor(encoder: string) {
     try {
       this._tokenizer = createTokenizer(
-        pathJoin(__dirname, `./resources/${encoder}.tiktoken`),
+        parseTikTokenNoIndex(path.join(__dirname, `./resources/${encoder}.tiktoken.noindex`)),
         getSpecialTokensByEncoder(encoder),
         getRegexByEncoder(encoder),
         32768 // TODO: ??
@@ -116,21 +144,6 @@ class MockTokenizer implements ITokenizer {
     const newlineIndex = suffix.indexOf(`\n`);
     return suffix.substring(newlineIndex + 1);
   }
-}
-
-const tokenizerCache: { [key: string]: ITokenizer } = {};
-
-function getTokenizer(encoder: string = 'cl100k_base'): ITokenizer {
-  let tokenizer = tokenizerCache[encoder];
-  if (tokenizer === undefined) {
-    if (encoder === 'mock') {
-      tokenizer = new MockTokenizer();
-    } else {
-      tokenizer = new Tokenizer(encoder);
-    }
-    tokenizerCache[encoder] = tokenizer;
-  }
-  return tokenizer;
 }
 
 export { ITokenizer, getTokenizer };

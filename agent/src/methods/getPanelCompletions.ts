@@ -1,8 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { URI } from 'vscode-uri';
 import SHA256 from 'crypto-js/sha256.js';
 import { Range } from 'vscode-languageserver-types';
-import { NotificationType } from 'vscode-languageserver';
+import { NotificationType, ResponseError } from 'vscode-languageserver';
 
 import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
 import { type CancellationToken } from '../cancellation.ts';
@@ -11,7 +10,6 @@ import { type Context } from '../../../lib/src/context.ts';
 import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel.ts';
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { verifyAuthenticated } from '../auth/authDecorator.ts';
 import { LocationFactory } from '../../../lib/src/textDocument.ts';
 import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
 
@@ -53,7 +51,7 @@ function makeSolution(
       offset: offset,
       uuid: solutionId,
       range: range,
-      file: URI.parse(params.doc.uri),
+      uri: params.doc.uri,
       telemetry: unformattedSolution.telemetryData,
       index: unformattedSolution.choiceIndex,
       position: range.end,
@@ -84,9 +82,6 @@ async function handleGetPanelCompletionsChecked(
   clientToken: CancellationToken,
   params: ParamsType
 ): Promise<[{ solutionCountTarget: number }, null] | [null, { code: number; message: string }]> {
-  const docResultPromise = getOpenTextDocumentChecked(ctx, params.doc.uri);
-  await verifyAuthenticated(ctx, clientToken);
-
   if (cancellationTokenSource) {
     cancellationTokenSource.cancel();
     cancellationTokenSource.dispose();
@@ -106,17 +101,17 @@ async function handleGetPanelCompletionsChecked(
     const documents = testingDocs.documents;
     setImmediate(() => runTestSolutions(position, documents, solutionHandler));
   } else {
-    const result = await docResultPromise;
-    if (result.status === 'notfound') return [null, { code: -32602, message: result.message }];
-    if (result.status === 'invalid') return produceEmptySolutions(ctx, params);
-    const textDocument = result.document;
-
-    if (textDocument.version !== params.doc.version) {
-      new Logger(LogLevel.DEBUG, 'getPanelCompletions').debug(
-        ctx,
-        `Producing empty solutions due to document version mismatch. Panel completions requested for document version ${params.doc.version} but document version was ${textDocument.version}.`
-      );
-      return produceEmptySolutions(ctx, params);
+    let textDocument;
+    try {
+      textDocument = await getOpenTextDocumentChecked(ctx, params.doc, token);
+    } catch (e) {
+      if (!(e instanceof ResponseError)) throw e;
+      switch (e.code) {
+        case 1002:
+        case -32801:
+          return produceEmptySolutions(ctx, params);
+      }
+      throw e;
     }
 
     solutionHandler.offset = textDocument.offsetAt(position);

@@ -7,9 +7,9 @@ class SimilarFilesProvider extends SnippetProvider {
   type = 'similar-files';
 
   async buildSnippets(context: SnippetContext): Promise<Snippet[]> {
-    let { currentFile: currentFile, similarFiles: similarFiles, options: options } = context;
-    return options && similarFiles && similarFiles.length && options.similarFiles !== 'none'
-      ? await this.api.getSimilarSnippets(currentFile, similarFiles, options.similarFiles, options.cacheReferenceTokens)
+    let { currentFile, similarFiles, options } = context;
+    return options && similarFiles && similarFiles.length
+      ? await this.api.getSimilarSnippets(currentFile, similarFiles, options.similarFilesOptions)
       : [];
   }
 }

@@ -13,10 +13,28 @@ export type Document = {
   uri: string; // lib/src/prompt/similarFiles/openTabFiles, uri: doc.uri.toString(),
 };
 
+// export type SimilarFileOption =
+//   | 'none'
+//   | 'conservative'
+//   | 'medium'
+//   | 'eager'
+//   | 'eagerButLittle'
+//   | 'eagerButMedium'
+//   | 'eagerButMuch'
+//   | 'retrievalComparable';
+
+export type SimilarFilesOptions = {
+  snippetLength: number;
+  threshold: number;
+  maxTopSnippets: number;
+  maxCharPerFile: number;
+  maxNumberOfFiles: number;
+  maxSnippetsPerFile: number;
+};
+
 export interface IPromptOptions {
   maxPromptLength: number;
   numberOfSnippets: number;
-  similarFiles: string;
   lineEnding: 'unix';
   tokenizerName: string;
   suffixPercent: number;
@@ -24,7 +42,10 @@ export interface IPromptOptions {
   promptOrderListPreset: string;
   promptPriorityPreset: string;
   snippetTextProcessingPreset: string;
-  cacheReferenceTokens: boolean;
+
+  // 1.40.0 maybe change
+  // ./snippetInclusion/similarFiles.ts
+  similarFilesOptions: SimilarFilesOptions;
 }
 
 export type SnippetContext = {

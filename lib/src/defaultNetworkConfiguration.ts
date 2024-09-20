@@ -62,9 +62,9 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     return this.baseUrlObject.host;
   }
 
-  getAPIReachabilityUrl(): string {
+  getAPIUrl(path: string): string {
     assert(this.apiUrl);
-    return this.apiUrl;
+    return this.join(this.apiUrl, path);
   }
 
   getTokenUrl(githubToken: GitHubToken): string {

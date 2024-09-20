@@ -7,6 +7,7 @@ import { type TelemetryMeasurements } from '../../../../lib/src/types.ts';
 import { getTextDocumentChecked } from '../../textDocument.ts';
 import {
   conversationSourceToUiKind,
+  createTelemetryWithExpWithId,
   telemetryUserAction,
   telemetryPrefixForUiKind,
 } from '../../../../lib/src/conversation/telemetry.ts';
@@ -16,21 +17,18 @@ import { TestingOptions } from '../testingOptions.ts';
 import { ensureAuthenticated } from '../../auth/authDecorator.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 
-enum CopyKind {
-  Keyboard = 1,
-  Toolbar = 2,
-}
+const SourceSchema = Type.Union([Type.Literal('keyboard'), Type.Literal('toolbar')]);
 
 const Params = Type.Object({
   turnId: Type.String(),
   codeBlockIndex: Type.Number(),
-  copyType: Type.Enum(CopyKind),
+  source: SourceSchema,
   copiedCharacters: Type.Number(),
   totalCharacters: Type.Number(),
   copiedText: Type.String(),
   doc: Type.Optional(DocumentSchema),
   options: Type.Optional(TestingOptions),
-  source: Type.Optional(ConversationSourceSchema),
+  conversationSource: Type.Optional(ConversationSourceSchema),
 });
 
 async function handleConversationCodeCopyChecked(
@@ -51,22 +49,24 @@ async function handleConversationCodeCopyChecked(
     copiedCharacters: params.copiedCharacters,
   };
   if (textDocument && params.doc?.position) {
-    measurements['cursorLocation'] = textDocument.offsetAt(params.doc.position);
+    measurements['currentLine'] = params.doc.position.line;
   }
 
-  const uiKind = conversationSourceToUiKind(params.source);
+  const uiKind = conversationSourceToUiKind(params.conversationSource);
+  const telemetryWithExp = await createTelemetryWithExpWithId(
+    ctx,
+    params.turnId,
+    ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '',
+    { languageId: textDocument?.languageId ?? '' }
+  );
+
   telemetryUserAction(
     ctx,
     textDocument,
-    {
-      codeBlockIndex: params.codeBlockIndex.toString(),
-      messageId: params.turnId,
-      conversationId: ctx.get(Conversations).findByTurnId(params.turnId)?.id ?? '',
-      copyType: params.copyType.toString(),
-      uiKind: uiKind,
-    },
+    { codeBlockIndex: params.codeBlockIndex.toString(), source: params.source, uiKind },
     measurements,
-    `${telemetryPrefixForUiKind(uiKind)}.acceptedCopy`
+    `${telemetryPrefixForUiKind(uiKind)}.acceptedCopy`,
+    telemetryWithExp
   );
   return ['OK', null];
 }

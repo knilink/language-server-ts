@@ -1,24 +1,37 @@
-import { StreamCopilotAnnotations } from '../openai/stream.ts';
+import { SSEProcessor, StreamCopilotAnnotations } from '../openai/stream.ts';
 import { Unknown } from '../types.ts';
+import { filterUnsupportedReferences } from './extensibility/references.ts';
+import { Reference } from './schema.ts';
 
 class ConversationFinishCallback {
-  readonly deltaApplier: (text: string, annotations: Unknown.Annotation[]) => void;
   appliedLength: number = 0;
   appliedText: string = '';
   appliedAnnotations: number[] = [];
 
-  constructor(deltaApplier: (text: string, annotations: Unknown.Annotation[]) => void) {
-    this.deltaApplier = deltaApplier;
-  }
+  constructor(
+    readonly deltaApplier: (
+      text: string,
+      annotations: Unknown.Annotation[],
+      references: Reference[],
+      errors: unknown[]
+    ) => void
+  ) {}
 
-  isFinishedAfter(text: string, annotations?: StreamCopilotAnnotations): void {
+  isFinishedAfter(text: string, delta: SSEProcessor.FinishedCbDelta): void {
     const toApply = text.substring(this.appliedLength, text.length);
-    const deltaAnnotations = this.mapAnnotations(annotations).filter((a) => !this.appliedAnnotations.includes(a.id));
-    this.append(toApply, deltaAnnotations);
+    let deltaAnnotations = this.mapAnnotations(delta.annotations).filter(
+      (a) => !this.appliedAnnotations.includes(a.id)
+    );
+    this.append(
+      toApply,
+      deltaAnnotations,
+      filterUnsupportedReferences(delta.copilotReferences),
+      delta.copilotErrors ?? []
+    );
   }
 
-  private append(text: string, annotations: Unknown.Annotation[]): void {
-    this.deltaApplier(text, annotations);
+  private append(text: string, annotations: Unknown.Annotation[], references: Reference[], errors: unknown[]): void {
+    this.deltaApplier(text, annotations, references, errors);
     this.appliedLength += text.length;
     this.appliedText += text;
     this.appliedAnnotations.push(...annotations.map((a) => a.id));

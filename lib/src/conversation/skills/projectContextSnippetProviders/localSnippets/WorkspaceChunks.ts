@@ -1,6 +1,6 @@
 import SHA256 from 'crypto-js/sha256.js';
 import { LRUCacheMap } from '../../../../common/cache.ts';
-import type { DocumentChunk, ChunkId, Chunk } from './IndexingTypes.ts';
+import type { DocumentChunk, ChunkId } from './IndexingTypes.ts';
 type FilePath = string;
 
 // const hash = (content: string) => SHA256(content).toString();
@@ -8,12 +8,19 @@ const hash = (content: string) => SHA256(content).toString(); // .slice(0, 6);
 
 type HashString = string;
 
-class WorkspaceChunks {
-  private _chunks = new LRUCacheMap<ChunkId, Chunk>(50_000);
-  private fileChunksIds = new LRUCacheMap<FilePath, ChunkId[]>(5000);
-  private reverseChunks = new LRUCacheMap<HashString, ChunkId>(50_000);
+const MAX_CHUNK_COUNT = 50_000;
 
-  get chunks(): LRUCacheMap<ChunkId, Chunk> {
+class WorkspaceChunks {
+  readonly _chunks = new LRUCacheMap<ChunkId, DocumentChunk>(MAX_CHUNK_COUNT);
+  readonly fileChunksIds = new LRUCacheMap<FilePath, ChunkId[]>(5000);
+  readonly reverseChunks = new LRUCacheMap<HashString, ChunkId>(MAX_CHUNK_COUNT);
+  _totalChunkCount = 0;
+
+  get fileCount(): number {
+    return this.fileChunksIds.size;
+  }
+
+  get chunks(): LRUCacheMap<ChunkId, DocumentChunk> {
     return this._chunks;
   }
 
@@ -21,23 +28,27 @@ class WorkspaceChunks {
     return this.chunks.size;
   }
 
-  getChunk(id: ChunkId): Chunk | undefined {
+  get totalChunkCount(): number {
+    return this._totalChunkCount;
+  }
+
+  getChunk(id: ChunkId): DocumentChunk | undefined {
     return this.chunks.get(id);
   }
 
-  chunksForFile(filepath: FilePath): Chunk[] {
+  chunksForFile(filepath: FilePath): DocumentChunk[] {
     const ids = this.fileChunksIds.get(filepath) || [];
     return ids.length ? ids.map((id) => this.chunks.get(id)).filter((chunk) => chunk !== undefined) : [];
   }
 
-  chunkId(chunk: Chunk): ChunkId | undefined {
+  chunkId(chunk: string): ChunkId | undefined {
     const key = hash(chunk);
     return this.reverseChunks.get(key);
   }
 
   addChunks(chunks: DocumentChunk[]): void {
     for (let chunk of chunks) {
-      this.chunks.set(chunk.id, chunk.chunk);
+      this.chunks.set(chunk.id, chunk);
       const reverseKey = hash(chunk.chunk);
       this.reverseChunks.set(reverseKey, chunk.id);
     }
@@ -47,6 +58,7 @@ class WorkspaceChunks {
     let ids = chunks.map((chunk) => chunk.id);
     this.fileChunksIds.set(filepath, ids);
     this.addChunks(chunks);
+    this._totalChunkCount += chunks.length;
   }
 
   deleteChunks(ids: ChunkId[]): void {
@@ -54,7 +66,7 @@ class WorkspaceChunks {
       let chunk = this.chunks.get(id);
       if (chunk !== undefined) {
         this.chunks.delete(id);
-        let reverseKey = hash(chunk);
+        let reverseKey = hash(chunk.chunk);
         this.reverseChunks.delete(reverseKey);
       }
     }
@@ -87,4 +99,4 @@ class WorkspaceChunks {
   }
 }
 
-export { WorkspaceChunks };
+export { MAX_CHUNK_COUNT, WorkspaceChunks };

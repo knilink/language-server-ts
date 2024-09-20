@@ -1,11 +1,28 @@
 import { Context } from '../../context.ts';
 
+import { RemoteAgentRegistry } from '../extensibility/remoteAgentRegistry.ts';
+import { ExtensibilityPlatformAgent, RemoteAgent } from '../extensibility/remoteAgent.ts';
 import { ProjectContextSkillId } from '../skills/ProjectContextSkill.ts';
-import { RemoteAgentRegistry, RemoteAgent } from '../extensibility/remoteAgents.ts';
+import { Features } from '../../experiments/features.ts';
+import { isDebugEnabled } from '../../testing/runtimeMode.ts';
 
-async function getAgents(ctx: Context): Promise<(ProjectAgent | RemoteAgent)[]> {
-  let remoteAgents = await ctx.get(RemoteAgentRegistry).agents();
-  return [...agents, ...remoteAgents];
+async function getAgents(ctx: Context) {
+  const agents: (ProjectAgent | RemoteAgent)[] = [];
+  const features = ctx.get(Features);
+  const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
+  const projectContextEnabled = features.ideChatEnableProjectContext(telemetryDataWithExp) || isDebugEnabled(ctx);
+  const extensibilityEnabled = features.ideChatEnableExtensibilityPlatform(telemetryDataWithExp);
+
+  if (projectContextEnabled) {
+    agents.push(new ProjectAgent());
+  }
+
+  if (extensibilityEnabled) {
+    agents.push(new ExtensibilityPlatformAgent());
+    agents.push(...(await ctx.get(RemoteAgentRegistry).agents()));
+  }
+
+  return agents;
 }
 
 class ProjectAgent {
@@ -18,6 +35,6 @@ class ProjectAgent {
   }
 }
 
-const agents: ProjectAgent[] = [new ProjectAgent()];
+const localAgents: ProjectAgent[] = [new ProjectAgent()];
 
-export { getAgents, agents, ProjectAgent };
+export { getAgents, localAgents };

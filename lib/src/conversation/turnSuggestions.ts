@@ -1,5 +1,5 @@
 import { type CancellationToken } from '../../../agent/src/cancellation.ts';
-import { FetchResult, Unknown, UiKind, TelemetryProperties } from '../types.ts';
+import { Unknown, UiKind } from '../types.ts';
 import { Context } from '../context.ts';
 import { TurnContext } from './turnContext.ts';
 
@@ -8,6 +8,7 @@ import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
 import { conversationLogger } from './logger.ts';
 import { ModelConfigurationProvider } from './modelConfigurations.ts';
 import { ChatMLFetcher } from './chatMLFetcher.ts';
+import { TelemetryWithExp } from '../telemetry.ts';
 
 class TurnSuggestions {
   constructor(
@@ -20,32 +21,25 @@ class TurnSuggestions {
     turnContext: TurnContext,
     token: CancellationToken,
     uiKind: UiKind,
-    telemetryProperties?: TelemetryProperties
+    baseTelemetryWithExp: TelemetryWithExp
   ): Promise<Unknown.SuggestionsFetchResult | undefined> {
-    const telemetryPropertiesToUse = telemetryProperties ? { ...telemetryProperties } : {};
-    telemetryPropertiesToUse.messageSource = 'chat.suggestions';
+    const modelConfiguration = await this.ctx
+      .get(ModelConfigurationProvider)
+      .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('suggestions'), { tool_calls: true });
+    const promptOptions = { promptType: 'suggestions' as 'suggestions', modelConfiguration: modelConfiguration };
+    const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
 
-    const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, { promptType: 'suggestions' });
+    const extendedTelemetry = baseTelemetryWithExp.extendedBy(
+      { messageSource: 'chat.suggestions' },
+      { promptTokenLen: prompt.tokens }
+    );
+    const params = { modelConfiguration: modelConfiguration, messages: prompt.messages, uiKind: uiKind };
 
-    if (!prompt.toolConfig) throw new Error('No tool call configuration found in suggestions prompt.');
-
-    const params: ChatMLFetcher.Params = {
-      modelConfiguration: await this.ctx
-        .get(ModelConfigurationProvider)
-        .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('suggestions')),
-      messages: prompt.messages,
-      uiKind: uiKind,
-      telemetryProperties: telemetryPropertiesToUse,
-      telemetryMeasurements: { promptTokenLen: prompt.tokens },
-      tool_choice: prompt.toolConfig.tool_choice,
-      tools: prompt.toolConfig.tools,
-    };
-
-    let response: ChatMLFetcher.Response = await this.chatFetcher.fetchResponse(params, token);
+    let response: ChatMLFetcher.Response = await this.chatFetcher.fetchResponse(params, token, extendedTelemetry);
 
     if (response.type !== 'success') {
       conversationLogger.error(this.ctx, 'Failed to fetch suggestions, trying again...');
-      response = await this.chatFetcher.fetchResponse(params, token);
+      response = await this.chatFetcher.fetchResponse(params, token, extendedTelemetry);
     }
 
     if (response.type === 'success') {

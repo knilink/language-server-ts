@@ -56,24 +56,13 @@ const WINDOWED_TOKEN_SET_CACHE = new FifoCache<TokenWindow[]>(20);
 abstract class WindowedMatcher {
   private tokenizer: Tokenizer;
   private referenceTokensCache?: Set<string>;
-  constructor(
-    private referenceDoc: Document,
-    private cacheReferenceTokens: boolean
-  ) {
+  constructor(private referenceDoc: Document) {
     this.tokenizer = new Tokenizer(referenceDoc);
   }
 
   get referenceTokens(): Set<string> {
-    if (this.cacheReferenceTokens && this.referenceTokensCache) {
-      return this.referenceTokensCache;
-    }
-
-    const tokens = this.tokenizer.tokenize(this._getCursorContextInfo(this.referenceDoc).context);
-    if (this.cacheReferenceTokens) {
-      this.referenceTokensCache = tokens;
-    }
-
-    return tokens;
+    this.referenceTokensCache ??= this.tokenizer.tokenize(this._getCursorContextInfo(this.referenceDoc).context);
+    return this.referenceTokensCache;
   }
 
   private sortScoredSnippets<T extends { score: number }>(
@@ -111,6 +100,14 @@ abstract class WindowedMatcher {
       }
 
       const score = this.similarityScore(tokensInWindows[index], this.referenceTokens);
+      if (snippets.length && startLine > 0 && snippets[snippets.length - 1].endLine > startLine) {
+        if (snippets[snippets.length - 1].score < score) {
+          snippets[snippets.length - 1].score = score;
+          snippets[snippets.length - 1].startLine = startLine;
+          snippets[snippets.length - 1].endLine = endLine;
+        }
+        continue;
+      }
 
       snippets.push({ score, startLine, endLine });
     }
@@ -122,25 +119,24 @@ abstract class WindowedMatcher {
     return this.sortScoredSnippets(snippets, sortOption);
   }
 
-  async findMatches(objectDoc: Document) {
-    const snippet = await this.findBestMatch(objectDoc);
-    return snippet ? [snippet] : [];
+  findMatches(objectDoc: Document, maxSnippetsPerFile: number): Snippet[] {
+    return this.findBestMatch(objectDoc, maxSnippetsPerFile);
   }
 
-  async findBestMatch(objectDoc: Document): Promise<Omit<Snippet, 'relativePath'> | undefined> {
-    if (objectDoc.source.length === 0 || this.referenceTokens.size === 0) return;
+  findBestMatch(objectDoc: Document, maxSnippetsPerFile: number): Snippet[] {
+    if (objectDoc.source.length === 0 || this.referenceTokens.size === 0) return [];
 
     const lines = objectDoc.source.split('\n');
     const snippets = this.retrieveAllSnippets(objectDoc, 'descending');
 
-    if (snippets.length === 0 || snippets[0].score === 0) return;
-
-    return {
-      snippet: lines.slice(snippets[0].startLine, snippets[0].endLine).join('\n'),
-      semantics: 'snippet',
-      provider: 'similar-files',
-      ...snippets[0],
-    };
+    if (snippets.length === 0) return [];
+    const bestSnippets: Snippet[] = [];
+    for (let i = 0; i < snippets.length && i < maxSnippetsPerFile; i++)
+      if (snippets[i].score !== 0) {
+        const snippetCode = lines.slice(snippets[i].startLine, snippets[i].endLine).join(`\n+  `);
+        bestSnippets.push({ snippet: snippetCode, semantics: 'snippet', provider: 'similar-files', ...snippets[i] });
+      }
+    return bestSnippets;
   }
 
   abstract _getCursorContextInfo(referenceDoc: Document): { context: string };

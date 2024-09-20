@@ -1,13 +1,13 @@
 import * as os from 'os';
 
-import { URI, Utils } from 'vscode-uri';
+import { URI } from 'vscode-uri';
 
 import { Context } from '../context.ts';
 import { RepositoryManager } from './repositoryManager.ts';
 import { FileSystem } from '../fileSystem.ts';
-import { resolveFilePath } from '../util/uri.ts';
 import { Logger, LogLevel } from '../logger.ts';
 import { GitConfigData, GitConfigLoader } from './config.ts';
+import { basename, dirname, joinPath, resolveFilePath } from '../util/uri.ts';
 
 const logger = new Logger(LogLevel.INFO, 'repository');
 const esc = '\\\\';
@@ -221,8 +221,8 @@ class GitParsingConfigLoader extends GitConfigLoader {
 
   async baseConfig(ctx: Context, baseConfigFile: URI): Promise<GitConfigData> {
     const commonUri = await this.commondirConfigUri(ctx, baseConfigFile);
-    const xdgUri = Utils.joinPath(this.xdgConfigUri(), 'git', 'config');
-    const userUri = Utils.joinPath(this.homeUri(), '.gitconfig');
+    const xdgUri = joinPath(this.xdgConfigUri(), 'git', 'config');
+    const userUri = joinPath(this.homeUri(), '.gitconfig');
     return this.mergeConfig(
       await this.getParsedConfig(ctx, xdgUri, false),
       await this.getParsedConfig(ctx, userUri, false),
@@ -231,21 +231,19 @@ class GitParsingConfigLoader extends GitConfigLoader {
   }
 
   async commondirConfigUri(ctx: Context, baseConfigFile: URI): Promise<URI | undefined> {
-    if (Utils.basename(baseConfigFile).toLowerCase() !== 'config.worktree') return;
-    const dir = Utils.dirname(baseConfigFile);
-    const commondirFile = Utils.joinPath(dir, 'commondir');
+    if (basename(baseConfigFile).toLowerCase() !== 'config.worktree') return;
+    const dir = dirname(baseConfigFile);
+    const commondirFile = joinPath(dir, 'commondir');
     try {
       const commondirPath = (await ctx.get(FileSystem).readFileString(commondirFile)).trimEnd();
-      return Utils.joinPath(resolveFilePath(dir, commondirPath), 'config');
+      return joinPath(resolveFilePath(dir, commondirPath), 'config');
     } catch {
       return;
     }
   }
 
   xdgConfigUri(): URI {
-    return process.env.XDG_CONFIG_HOME
-      ? URI.file(process.env.XDG_CONFIG_HOME)
-      : Utils.joinPath(this.homeUri(), '.config');
+    return process.env.XDG_CONFIG_HOME ? URI.file(process.env.XDG_CONFIG_HOME) : joinPath(this.homeUri(), '.config');
   }
 
   homeUri(): URI {

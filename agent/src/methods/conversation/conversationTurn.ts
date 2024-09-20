@@ -28,7 +28,9 @@ async function handleConversationTurnChecked(
   ctx: Context,
   token: CancellationToken,
   params: Static<typeof Params>
-): Promise<[{ conversationId: string; turnId: string }, null] | [null, { code: number; message: string }]> {
+): Promise<
+  [{ conversationId: string; turnId: string; agentSlug?: string }, null] | [null, { code: number; message: string }]
+> {
   let textDocument: TextDocument | undefined;
 
   if (params.doc) {
@@ -51,7 +53,7 @@ async function handleConversationTurnChecked(
     .get(TurnProcessorFactory)
     .createProcessor(turnContext, params.workDoneToken, params.computeSuggestions);
   await processor.process(params.workDoneToken, mergedToken, params.followUp, textDocument);
-  return [{ conversationId: conversation.id, turnId: turn.id }, null];
+  return [{ conversationId: conversation.id, turnId: turn.id, agentSlug: turn.agent?.agentSlug }, null];
 }
 
 const handleConversationTurn = addMethodHandlerValidation(Params, handleConversationTurnChecked);

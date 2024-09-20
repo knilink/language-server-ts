@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as tls from 'node:tls';
 import { Context } from '../context.ts';
@@ -31,16 +32,42 @@ class CachingRootCertificateReader extends RootCertificateReader {
   readonly delegates: ErrorHandlingCertificateReader[];
   certificates?: string[];
 
-  constructor(ctx: Context, delegates: RootCertificateReader[]) {
+  constructor(
+    readonly ctx: Context,
+    delegates: RootCertificateReader[]
+  ) {
     super();
     this.delegates = delegates.map((d) => new ErrorHandlingCertificateReader(ctx, d));
   }
 
   async getAllRootCAs(): Promise<string[]> {
     if (!this.certificates) {
-      this.certificates = (await Promise.all(this.delegates.map((d) => d.getAllRootCAs()))).flat();
+      this.certificates = this.removeExpiredCertificates(
+        (await Promise.all(this.delegates.map((d) => d.getAllRootCAs()))).flat()
+      );
     }
     return this.certificates;
+  }
+
+  removeExpiredCertificates(certs: string[]) {
+    const now = Date.now();
+
+    const filtered = certs.filter((cert) => {
+      try {
+        const parsedCert = new crypto.X509Certificate(cert);
+        const parsedDate = Date.parse(parsedCert.validTo);
+        return isNaN(parsedDate) || parsedDate > now;
+      } catch (err) {
+        certLogger.warn(this.ctx, 'Failed to parse certificate', cert, err);
+        return false;
+      }
+    });
+
+    if (certs.length !== filtered.length) {
+      certLogger.info(this.ctx, `Removed ${certs.length - filtered.length} expired certificates`);
+    }
+
+    return filtered;
   }
 }
 
@@ -83,8 +110,7 @@ class MacRootCertificateReader extends RootCertificateReader {
 
   async getAllRootCAs(): Promise<readonly string[]> {
     // @ts-ignore
-    const macCa: any = await import('@roamhq/mac-ca');
-    const certs: string[] = macCa.all(macCa.der2.pem).filter((c: string) => c !== undefined);
+    const certs: string[] = macCa.get();
     certLogger.debug(this.ctx, `Read ${certs.length} certificates from Mac keychain`);
     return certs;
   }

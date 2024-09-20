@@ -1,8 +1,9 @@
 import { URI } from 'vscode-uri';
 import { dump as yamlDump } from 'js-yaml';
+import { dedent } from 'ts-dedent';
 
 import { PromptType, SkillId, TurnId, Unknown } from '../types.ts';
-
+import { localAgents } from './agents/agents.ts';
 import { Conversation, Turn } from './conversation.ts';
 import { TurnContext } from './turnContext.ts';
 import { CancellationToken } from '../../../agent/src/cancellation.ts';
@@ -75,59 +76,63 @@ async function getSkillsDump(
   skillId?: string
 ): Promise<string> {
   const skillRegistry = turnContext.ctx.get(ConversationSkillRegistry);
-  let resp = '## Available skills';
+  let resp = '# Available skills';
   let supportedSkills = skillRegistry
     .getDescriptors()
     .filter((s) => turnContext.ctx.get(Conversations).getSupportedSkills(turnContext.conversation.id).includes(s.id));
-
-  if (skillId) {
-    supportedSkills = supportedSkills.filter((s) => s.id === skillId);
+  if (skillId) supportedSkills = supportedSkills.filter((s) => s.id === skillId);
+  else {
+    let localAgentsSkills = (await Promise.all(localAgents.map((a) => a.additionalSkills(turnContext.ctx)))).flat();
+    supportedSkills = supportedSkills.filter((s) => !localAgentsSkills.includes(s.id));
   }
   if (supportedSkills.length === 0) return `No skill with id ${skillId} available`;
+  for (let skill of supportedSkills)
+    resp += `
+    - ${skill.id}`;
+
+  if (turnContext.turn.request.message && turnContext.turn.request.message.trim().length > 0) {
+    resp += `
+
+        **User message**: ${turnContext.turn.request.message}`;
+  }
 
   for (let skill of supportedSkills) {
     resp += `
+        ## ${skill.id}`;
 
----
+    resp += dedent`
+                    \n\n
+                    **Description**
 
-${skill.id}`;
+                    ${skill.description()}`;
 
-    resp += `
-**Description**
-
-${skill.description()}`;
-
-    const skillProperties = skillRegistry.getSkill(skill.id);
-    const skillResolution = await skillProperties?.resolver(turnContext).resolveSkill(turnContext);
-
+    let skillProperties = skillRegistry.getSkill(skill.id);
+    let skillResolution = await skillProperties?.resolver(turnContext).resolveSkill(turnContext);
     if (skillResolution) {
-      resp += `
-**Resolution**
+      resp += dedent`
+                        \n\n
+                        **Resolution**
 
-\`\`\`yaml
-${yamlDump(skillResolution)}
-\`\`\``;
-
-      const processedSkill = await skillProperties?.processor(turnContext).processSkill(skillResolution, turnContext);
-
+                        \`\`\`yaml
+                        ${yamlDump(skillResolution)}
+                        \`\`\``;
+      let processedSkill = await skillProperties?.processor(turnContext).processSkill(skillResolution, turnContext);
       if (processedSkill) {
-        const processedSkillValue =
-          typeof processedSkill === 'string' ? processedSkill : processedSkill.makePrompt(1000); // TODO makePrompt unknown
-        resp += `
-\n\n
-**Processed value**
+        let processedSkillValue = typeof processedSkill == 'string' ? processedSkill : processedSkill.makePrompt(1e3);
+        resp += dedent`
+                            \n\n
+                            **Processed value**
 
-${processedSkillValue}`;
+                            ${processedSkillValue}`;
       } else
         resp += `
 
-**Unprocessable**`;
+        **Unprocessable**`;
     } else
       resp += `
 
-**Unresolvable**`;
+        **Unresolvable**`;
   }
-
   return resp;
 }
 
@@ -150,8 +155,8 @@ async function fileDump<T = SkillMap>(dump: SkillDump<T>, ctx: Context): Promise
   for (let file of uniqueFiles) {
     if (file && file.status === 'included') {
       fileDump ||= `The following files have been used:`;
-      let document = await ctx.get(TextDocumentManager).getTextDocument(URI.parse(file.uri)),
-        text = document?.getText();
+      const document = await ctx.get(TextDocumentManager).getTextDocument(file);
+      const text = document?.getText();
 
       logger.debug(ctx, `conversation.dump.file`, text);
       fileDump += `

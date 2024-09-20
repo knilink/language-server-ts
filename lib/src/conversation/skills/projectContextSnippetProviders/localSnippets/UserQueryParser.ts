@@ -1,4 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
+import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
 import { type CancellationToken } from '../../../../../../agent/src/cancellation.ts';
 import { type Context } from '../../../../context.ts';
 import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
@@ -7,6 +8,8 @@ import { ChatMLFetcher } from '../../../chatMLFetcher.ts';
 import { Chat, Tool } from '../../../../types.ts';
 import { ChatRole } from '../../../openai/openai.ts';
 import { ChatModelFamily } from '../../../modelMetadata.ts';
+import { createTelemetryWithExpWithId } from '../../../telemetry.ts';
+import { telemetryException } from '../../../../telemetry.ts';
 
 const userQuerySystemPrompt = `
 You are a coding assistant that helps developers find relevant code in their workspace by providing a list of relevant keywords they can search for.
@@ -66,33 +69,42 @@ async function parseUserQuery(
   const fetcher = new ChatMLFetcher(ctx);
   const messages: Chat.ElidableChatMessage[] = [
     { role: ChatRole.System, content: userQuerySystemPrompt },
-    { role: ChatRole.User, content: userQuery },
+    { role: ChatRole.User, content: userQuery.toLowerCase() },
   ];
-  const modelConfigurationProvider = ctx.get(ModelConfigurationProvider);
   const params: ChatMLFetcher.Params = {
-    modelConfiguration: await modelConfigurationProvider.getBestChatModelConfig([ChatModelFamily.Gpt35turbo]),
+    modelConfiguration: await ctx
+      .get(ModelConfigurationProvider)
+      .getBestChatModelConfig([ChatModelFamily.Gpt35turbo], { tool_calls: true }),
     uiKind: 'conversationPanel',
     messages: messages,
     tools,
     tool_choice: { type: 'function', function: { name: 'queryWithKeywords' } },
   };
 
-  const fetchResult = await fetcher.fetchResponse(params, token);
+  const fetchResult = await fetcher.fetchResponse(params, token, await createTelemetryWithExpWithId(ctx, '', ''));
 
   if (fetchResult.type === 'success' && fetchResult.toolCalls && fetchResult.toolCalls.length > 0) {
     const args = fetchResult.toolCalls[0].function.arguments.keywords;
-    const keywords: string[] = [];
-
-    for (const arg of args) {
-      keywords.push(arg.keyword);
-      keywords.push(...arg.variations);
-    }
+    const keywordsSet = new Set<string>();
+    for (let arg of args)
+      if ((keywordsSet.add(arg.keyword.toLowerCase()), arg.variations))
+        for (let variation of arg.variations) keywordsSet.add(variation.toLowerCase());
+    const keywords = Array.from(keywordsSet);
 
     conversationLogger.debug(
       ctx,
       `UserQueryParser: Parsed ${keywords.length} keywords from the original user query: ${keywords.join(', ')}`
     );
     return keywords.length ? keywords : undefined;
+  } else {
+    const reason = 'reason' in fetchResult ? fetchResult.reason : '';
+    telemetryException(
+      ctx,
+      new LocalSnippetProviderError(
+        `Failed to request user query synonyms, result type: ${fetchResult.type}, reason: ${reason}`
+      ),
+      'LocalSnippetProvider.parseUserQuery'
+    );
   }
 }
 export { parseUserQuery };

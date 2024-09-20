@@ -1,10 +1,10 @@
-import { LanguageId, Document, Snippet, PromptInfo, IPromptOptions } from './types.ts';
+import { defaultCppSimilarFilesOptions, defaultSimilarFilesOptions } from './snippetInclusion/similarFiles.ts';
+import { LanguageId, Document, Snippet, PromptInfo, IPromptOptions, SimilarFilesOptions } from './types.ts';
 import { SnippetTextProcessor } from './snippetTextProcessing.ts';
 import { processSnippetsForWishlist } from './snippetInclusion/snippets.ts';
 import { transferLastLineToTooltipSignature } from './tooltipSignature.ts';
 import { getTokenizer } from './tokenization/index.ts';
 import { kindForSnippetProviderType, PromptWishlist, PromptOrderList, PromptPriorityList } from './wishlist.ts';
-// import { } from "./snippetInclusion/similarFiles"; // TODO
 
 let cachedSuffix: { text: string; tokens: number[] } = { text: '', tokens: [] };
 const DEFAULT_MAX_COMPLETION_LENGTH = 500;
@@ -32,7 +32,7 @@ async function getPrompt(
   options: Partial<PromptOptions> = {},
   snippets: Snippet[] = []
 ): Promise<PromptInfo> {
-  const completeOptions = new PromptOptions(options);
+  const completeOptions = new PromptOptions(options, doc.languageId);
   const tokenizer = getTokenizer(completeOptions.tokenizerName);
   const snippetTextProcessor = new SnippetTextProcessor(completeOptions.snippetTextProcessingPreset);
   const promptOrderList = new PromptOrderList(completeOptions.promptOrderListPreset);
@@ -119,8 +119,6 @@ async function getPrompt(
 
 class PromptOptions implements IPromptOptions {
   maxPromptLength = DEFAULT_MAX_PROMPT_LENGTH;
-  numberOfSnippets = DEFAULT_NUM_SNIPPETS;
-  similarFiles = 'eager';
   lineEnding: 'unix' = 'unix';
   tokenizerName = 'cl100k_base';
   suffixPercent = 15;
@@ -128,11 +126,12 @@ class PromptOptions implements IPromptOptions {
   promptOrderListPreset = 'default';
   promptPriorityPreset = 'default';
   snippetTextProcessingPreset = 'default';
-  cacheReferenceTokens = false;
+  similarFilesOptions: SimilarFilesOptions;
+  numberOfSnippets: number;
   // ../../lib/src/conversation/prompt/fromSkills.tsb
   // languageId?
 
-  constructor(options: Partial<IPromptOptions>) {
+  constructor(options: Partial<IPromptOptions>, languageId: LanguageId) {
     Object.assign(this, options);
 
     if (this.suffixPercent < 0 || this.suffixPercent > 100) {
@@ -141,6 +140,14 @@ class PromptOptions implements IPromptOptions {
 
     if (this.suffixMatchThreshold < 0 || this.suffixMatchThreshold > 100) {
       throw new Error(`suffixMatchThreshold must be at between 0 and 100, but was ${this.suffixMatchThreshold}`);
+    }
+
+    if (languageId === 'cpp') {
+      this.similarFilesOptions ??= defaultCppSimilarFilesOptions;
+      this.numberOfSnippets ??= defaultCppSimilarFilesOptions.maxTopSnippets;
+    } else {
+      this.similarFilesOptions ??= defaultSimilarFilesOptions;
+      this.numberOfSnippets ??= DEFAULT_NUM_SNIPPETS;
     }
   }
 }

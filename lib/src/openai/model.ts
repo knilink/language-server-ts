@@ -1,5 +1,4 @@
-import { type URI } from 'vscode-uri';
-
+import { DocumentUri } from 'vscode-languageserver-types';
 import { CopilotToken } from '../auth/copilotToken.ts';
 import { Context } from '../context.ts';
 import { Logger } from '../logger.ts';
@@ -32,7 +31,11 @@ class AvailableModels {
     return [...(this.token.getTokenValue('cml')?.split(',') ?? []), DefaultModelId];
   }
 
-  async getModelForResource(ctx: Context, uri: URI, featureSettings?: TelemetryWithExp): Promise<ModelRequestInfo> {
+  async getModelForResource(
+    ctx: Context,
+    uri: DocumentUri,
+    featureSettings?: TelemetryWithExp
+  ): Promise<ModelRequestInfo> {
     const override: string | undefined = getConfig(ctx, ConfigKey.DebugOverrideEngine);
     if (override) return new ModelRequestInfo(override, DefaultModelId === override);
 

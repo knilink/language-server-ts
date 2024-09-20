@@ -128,4 +128,4 @@ function formatSectionAsMarkdown(section: DiagnosticSection): string {
   );
 }
 
-export { collectDiagnostics, formatDiagnosticsAsMarkdown };
+export { collectDiagnostics, findEnvironmentVariable, formatDiagnosticsAsMarkdown };

@@ -19,6 +19,14 @@ function setupExperimentationService(ctx: Context): void {
   features.registerDynamicFilter('X-VSCode-AppVersion', () =>
     trimVersionSuffix(ctx.get(EditorAndPluginInfo).getEditorInfo().version)
   );
+  features.registerDynamicFilter('X-VSCode-TargetPopulation', () => getTargetPopulation(ctx));
+}
+
+function getTargetPopulation(ctx: Context) {
+  let editorPluginInfo = ctx.get(EditorAndPluginInfo).getEditorPluginInfo();
+  return editorPluginInfo.name == 'copilot-intellij' && editorPluginInfo.version.endsWith('nightly')
+    ? 'insider'
+    : 'public';
 }
 
 function createAllFilters(ctx: Context): Record<string, string> {
@@ -27,10 +35,7 @@ function createAllFilters(ctx: Context): Record<string, string> {
 
 function createDefaultFilters(ctx: Context): Record<string, string> {
   const editorSession = ctx.get(EditorSession);
-  return {
-    'X-MSEdge-ClientId': editorSession.machineId,
-    'X-VSCode-TargetPopulation': 'public',
-  };
+  return { 'X-MSEdge-ClientId': editorSession.machineId };
 }
 
 function trimVersionSuffix(version: string): string {
