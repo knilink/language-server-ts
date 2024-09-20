@@ -131,7 +131,7 @@ class RemoteAgentTurnProcessor {
               }
             : {
                 error: undefined,
-                followUp: response.followUp,
+                followUp: response.followup,
                 suggestedTitle: response.suggestedTitle,
                 skillResolutions: conversationPrompt.skillResolutions,
               }

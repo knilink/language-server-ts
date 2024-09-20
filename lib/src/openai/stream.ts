@@ -26,7 +26,8 @@ import { Reference } from '../conversation/schema.ts';
 
 interface IStreamingToolCall {
   name?: string;
-  arguments: ToolCall['function']['arguments'][];
+  // JSON.parse(toolCall.arguments.join(''))
+  arguments: string[];
 }
 
 interface IStreamingData {
@@ -138,7 +139,7 @@ function extractToolCalls(streamingData: IStreamingData): ToolCall[] {
   return toolCalls;
 }
 
-function extractFunctionCall(streamingData: any): { name: string; arguments: unknown[] } | undefined {
+function extractFunctionCall(streamingData: any): { name: string; arguments: string[] } | undefined {
   if (streamingData.function_call.name) {
     const args =
       streamingData.function_call.arguments.length > 0
@@ -196,9 +197,9 @@ class APIJsonDataStreaming implements IStreamingData {
 
 class StreamingFunctionCall implements FunctionCall {
   name?: string;
-  readonly arguments: unknown[] = [];
+  readonly arguments: string[] = [];
   constructor() {}
-  update(functionCall: FunctionCall) {
+  update(functionCall: { name?: string; arguments: string }) {
     if (functionCall.name) {
       this.name = functionCall.name;
     }
@@ -209,9 +210,9 @@ class StreamingFunctionCall implements FunctionCall {
 
 class StreamingToolCall implements IStreamingToolCall {
   name?: string;
-  arguments: ToolCall['function']['arguments'][] = [];
+  arguments: string[] = [];
 
-  update(toolCall: ToolCall) {
+  update(toolCall: { function: { name?: string; arguments: string } }) {
     if (toolCall.function.name) {
       this.name = toolCall.function.name;
     }
@@ -363,18 +364,19 @@ class SSEProcessor {
           continue;
         }
 
-        // MARK ??
-        if (this.requestId.created == 0) {
+        if (
+          // created === 0 or created==='0'
+          this.requestId.created == 0
+        ) {
           this.requestId = getRequestId(this.response, json);
-        }
-        // MARK ??
-        if (this.requestId.created === 0) {
-          if (json.choices?.length) {
-            streamChoicesLogger.error(
-              this.ctx,
-              `Request id invalid, should have "completionId" and "created": ${this.requestId}`,
-              this.requestId
-            );
+          if (this.requestId.created === 0) {
+            if (json.choices?.length) {
+              streamChoicesLogger.error(
+                this.ctx,
+                `Request id invalid, should have "completionId" and "created": ${this.requestId}`,
+                this.requestId
+              );
+            }
           }
         }
 
@@ -437,7 +439,7 @@ class SSEProcessor {
             'completion.finishReason',
             this.telemetryData.extendedBy({
               completionChoiceFinishReason: loggedReason,
-              engineName: model != null ? model : '',
+              engineName: model ?? '',
             })
           );
 
@@ -469,7 +471,7 @@ class SSEProcessor {
         'completion.finishReason',
         this.telemetryData.extendedBy({
           completionChoiceFinishReason: 'Iteration Done',
-          engineName: model != null ? model : '',
+          engineName: model ?? '',
         })
       );
       this.stats.markYielded(solutionIndex);

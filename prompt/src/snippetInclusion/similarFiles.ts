@@ -1,4 +1,4 @@
-import { Document, Snippet, SimilarFilesOptions } from '../types.ts';
+import { Document, Snippet, type SimilarFilesOptions } from '../types.ts';
 import { FixedWindowSizeJaccardMatcher } from './jaccardMatching.ts';
 
 function parseNumberFromEnv(envName: string, defaultValue: number) {

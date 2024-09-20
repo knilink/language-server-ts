@@ -81,7 +81,7 @@ class InlineTurnProcessorStrategy implements ITurnProcessorStrategy {
     const modelConfiguration = await turnContext.ctx
       .get(ModelConfigurationProvider)
       .getBestChatModelConfig(getSupportedModelFamiliesForPrompt(promptType));
-    const promptOptions = { promptType: promptType, modelConfiguration: modelConfiguration, languageId: languageId };
+    const promptOptions = { promptType, modelConfiguration, languageId };
 
     if (promptOptions.promptType === 'inline') this.currentDocument = currentDocument;
     return await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);

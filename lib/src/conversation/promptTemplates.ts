@@ -28,6 +28,8 @@ export interface IPromptTemplate {
   ): Promise<PromptTemplateResponse>;
 
   instructions?(ctx: Context, userMessage: string, source: 'panel' | 'inline'): string;
+  // ./prompt/conversationContextCollector.ts
+  requiredSkills?: (ctx: Context) => Promise<SkillId[]>;
 }
 
 export function getPromptTemplates(): IPromptTemplate[] {

@@ -7,7 +7,7 @@ async function chatBasePrompt(
   os?: string,
   modelName?: string
 ): Promise<string> {
-  const safetyRulesJoined_o = [
+  const safetyRulesJoined = [
     'You are an AI programming assistant.',
     'When asked for your name, you must respond with "GitHub Copilot".',
     "Follow the user's requirements carefully & to the letter.",
@@ -42,9 +42,7 @@ async function chatBasePrompt(
   const osInfo = os ? `The user is using ${os} as their operating system.` : '';
   const modelInfo = modelName ? `You use the ${modelName} version of OpenAI's GPT models.` : '';
   const userInfo = username ? `The user is logged in as ${username} on GitHub.` : '';
-  return [safetyRulesJoined_o, osInfo, modelInfo, userInfo, editorInfo, promptSecondBlock]
-    .filter((s) => s && s != '')
-    .join(`\n`);
+  return [safetyRulesJoined, osInfo, modelInfo, userInfo, editorInfo, promptSecondBlock].filter((s) => s).join(`\n`);
 }
 
 export { chatBasePrompt };

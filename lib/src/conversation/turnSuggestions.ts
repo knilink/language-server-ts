@@ -33,9 +33,9 @@ class TurnSuggestions {
       { promptTokenLen: prompt.tokens }
     );
     const params: ChatMLFetcher.Params = {
-      modelConfiguration: modelConfiguration,
+      modelConfiguration,
       messages: prompt.messages,
-      uiKind: uiKind,
+      uiKind,
     };
     if (prompt.toolConfig === undefined) throw new Error('No tool call configuration found in suggestions prompt.');
     params.tool_choice = prompt.toolConfig.tool_choice;

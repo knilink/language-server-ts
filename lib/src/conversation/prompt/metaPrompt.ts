@@ -37,7 +37,7 @@ class MetaPromptFetcher {
       const promptOptions: PromptOptions = {
         promptType: 'meta',
         supportedSkillDescriptors: selectableSkillDescriptors,
-        modelConfiguration: modelConfiguration,
+        modelConfiguration,
       };
       const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
       const extendedTelemetryWithExp = baseTelemetryWithExp.extendedBy(

@@ -50,7 +50,8 @@ class TurnContext {
   }
 
   async collectFile(
-    collector: CollectorId,
+    // ./skills/RecentFilesSkill.ts
+    collector: CollectorId, // SkillId
     uri: DocumentUri,
     status: TextDocumentResultStatus,
     range?: Range

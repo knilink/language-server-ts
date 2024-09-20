@@ -30,7 +30,7 @@ class ConversationFinishCallback {
     );
   }
 
-  private append(text: string, annotations: Unknown.Annotation[], references: Reference[], errors: unknown[]): void {
+  append(text: string, annotations: Unknown.Annotation[], references: Reference[], errors: unknown[]): void {
     this.deltaApplier(text, annotations, references, errors);
     this.appliedLength += text.length;
     this.appliedText += text;
@@ -49,7 +49,7 @@ class ConversationFinishCallback {
   //     .map((a) => ({ ...a, type: 'code_vulnerability' }));
   // }
 
-  private mapAnnotations(annotations?: StreamCopilotAnnotations): Unknown.Annotation[] {
+  mapAnnotations(annotations?: StreamCopilotAnnotations): Unknown.Annotation[] {
     if (!annotations) return [];
     const vulnerabilities = annotations
       .for('CodeVulnerability')

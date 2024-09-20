@@ -48,7 +48,7 @@ abstract class AbstractUserPromptStrategy implements IPromptStrategy {
     return [
       [
         { role: Chat.Role.System, content: safetyPrompt },
-        { role: Chat.Role.User, content: elidableContent }, // TODO string?
+        { role: Chat.Role.User, content: elidableContent },
         { role: Chat.Role.System, content: this.suffix() },
         { role: Chat.Role.User, content: userInput },
       ],

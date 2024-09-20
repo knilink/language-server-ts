@@ -266,20 +266,25 @@ export type AnnotationsMap = Record<string, Unknown.Annotation[]>;
 
 export type FunctionCall = {
   name?: string;
-  arguments: unknown[];
+  arguments: string[];
 };
 
 export type Delta = {
   content: string;
   tool_calls: // indux:number ./openai/stream.ts
-  ({ index: number } & ToolCall)[];
+  { index: number; function: { name?: 'string'; arguments: string } }[];
   copilot_annotations: AnnotationsMap;
   // ./openai/stream.ts
   role: 'function';
-  function_call: FunctionCall;
+  function_call: {
+    name?: string;
+    // chunk of arguments
+    arguments: string;
+  };
 };
 
 export type Choice = {
+  index: number;
   delta?: Delta;
   text: string;
   logprobs: Partial<{

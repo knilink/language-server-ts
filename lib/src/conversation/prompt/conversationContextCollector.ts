@@ -1,5 +1,5 @@
 import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { SkillId, UiKind } from '../../types.ts';
+import { Skill, SkillId, UiKind } from '../../types.ts';
 import { Context } from '../../context.ts';
 
 import { TurnContext } from '../turnContext.ts';
@@ -14,9 +14,12 @@ import { MetaPromptFetcher } from './metaPrompt.ts';
 import { getAgents, localAgents } from '../agents/agents.ts';
 import { ReferencesSkillId } from '../skills/ReferencesSkill.ts';
 import { type ChatMLFetcher } from '../chatMLFetcher.ts';
+import { IPromptTemplate } from '../promptTemplates.ts';
+import { Conversation } from '../conversation.ts';
 
-type Template = { requiredSkills?: (ctx: Context) => Promise<SkillId[]> };
-type Agent = { additionalSkills: (ctx: Context) => Promise<SkillId[]> };
+namespace ConversationContextCollector {
+  export type Agent = { additionalSkills: (ctx: Context) => Promise<SkillId[]> };
+}
 
 const mandatorySkills = (): SkillId[] => [
   ProjectMetadataSkillId,
@@ -40,8 +43,8 @@ class ConversationContextCollector {
     token: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind,
-    template?: Template,
-    agent?: Agent
+    template?: IPromptTemplate,
+    agent?: ConversationContextCollector.Agent
   ): Promise<{ skillIds: SkillId[] }> {
     const turnSkills: SkillId[] = [];
 
@@ -78,16 +81,13 @@ class ConversationContextCollector {
     };
   }
 
-  async selectableSkillDescriptors(ctx: Context, conversation: any): Promise<any[]> {
+  async selectableSkillDescriptors(ctx: Context, conversation: Conversation): Promise<Skill.ISkillDescriptor[]> {
     const nonSelectableSkills = await this.getNonSelectableSkills(ctx);
+    const supportedSkills = ctx.get(Conversations).getSupportedSkills(conversation.id);
     return ctx
       .get(ConversationSkillRegistry)
       .getDescriptors()
-      .filter(
-        (s) =>
-          !nonSelectableSkills.includes(s.id) &&
-          ctx.get(Conversations).getSupportedSkills(conversation.id).includes(s.id)
-      );
+      .filter((s) => !nonSelectableSkills.includes(s.id) && supportedSkills.includes(s.id));
   }
 
   async getNonSelectableSkills(ctx: Context): Promise<string[]> {

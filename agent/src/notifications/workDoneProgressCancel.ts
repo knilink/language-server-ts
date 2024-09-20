@@ -1,6 +1,5 @@
 import { Type } from '@sinclair/typebox';
 
-import { CancellationToken } from '../cancellation.ts';
 import { Context } from '../../../lib/src/context.ts';
 import { WorkDoneProgressTokens } from '../workDoneProgressTokens.ts';
 import { AbstractNotification } from './abstract.ts';
@@ -13,7 +12,7 @@ class WorkDoneProgressCancelNotification extends AbstractNotification {
     super(ctx);
   }
 
-  handle(params: { token: CancellationToken }) {
+  handle(params: { token: number | string }) {
     const ctx = this.ctx;
     ctx.get(WorkDoneProgressTokens).cancel(params.token);
   }

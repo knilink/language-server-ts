@@ -19,7 +19,7 @@ class WorkDoneProgressTokens {
     return mergedToken;
   }
 
-  cancel(workDoneProgressToken: CancellationToken): void {
+  cancel(workDoneProgressToken: string | number): void {
     const cts = this.tokens.get(workDoneProgressToken.toString());
     if (cts) {
       cts.cancel();

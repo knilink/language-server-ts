@@ -19,7 +19,10 @@ import { ChatMLFetcher } from './chatMLFetcher.ts';
 namespace ChatFetchResultPostProcessor {
   // ./extensibility/remoteAgentTurnProcessor.ts
   export type PostProcessResult =
-    | Partial<Unknown.Suggestions>
+    | {
+        followup?: Unknown.FollowUp & { message: string };
+        suggestedTitle?: Unknown.SuggestionsFetchResult['suggestedTitle'];
+      }
     | {
         error: {
           message: string;
@@ -154,7 +157,7 @@ class ChatFetchResultPostProcessor {
     baseTelemetryWithExp: TelemetryWithExp,
     augmentedTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument
-  ) {
+  ): Promise<ChatFetchResultPostProcessor.PostProcessResult> {
     if (appliedText && appliedText.length > 0) {
       baseTelemetryWithExp.markAsDisplayed();
       augmentedTelemetryWithExp.markAsDisplayed();
@@ -228,7 +231,7 @@ class ChatFetchResultPostProcessor {
   }
   ////////////////////////////////////////////////////////////////////////////////
 
-  private enrichFollowup(
+  enrichFollowup(
     suggestionsFetchResult: Unknown.SuggestionsFetchResult,
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp,

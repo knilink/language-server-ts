@@ -16,7 +16,7 @@ import { ChatFetchResultPostProcessor } from './fetchPostProcessor.ts';
 import { ConversationContextCollector } from './prompt/conversationContextCollector.ts';
 import { ConversationFinishCallback } from './conversationFinishCallback.ts';
 import { TurnContext } from './turnContext.ts';
-import { Chat, UiKind, Unknown } from '../types.ts';
+import { Chat, SkillId, UiKind, Unknown } from '../types.ts';
 import { TextDocument } from '../textDocument.ts';
 import { type ITurnProcessorStrategy } from './turnProcessorStrategy.ts';
 import { TelemetryWithExp } from '../telemetry.ts';
@@ -25,11 +25,11 @@ export const COLLECT_CONTEXT_STEP = 'collect-context';
 export const GENERATE_RESPONSE_STEP = 'generate-response';
 
 export class ModelTurnProcessor {
-  private conversationProgress: ConversationProgress;
-  private chatFetcher: ChatMLFetcher;
-  private postProcessor: ChatFetchResultPostProcessor;
-  private conversation: TurnContext['conversation'];
-  private turn: TurnContext['turn'];
+  conversationProgress: ConversationProgress;
+  chatFetcher: ChatMLFetcher;
+  postProcessor: ChatFetchResultPostProcessor;
+  conversation: TurnContext['conversation'];
+  turn: TurnContext['turn'];
 
   constructor(
     readonly turnContext: TurnContext,
@@ -60,7 +60,7 @@ export class ModelTurnProcessor {
     }
   }
 
-  private async processWithModel(
+  async processWithModel(
     workDoneToken: string,
     cancellationToken: CancellationToken,
     turnContext: TurnContext,
@@ -137,9 +137,9 @@ export class ModelTurnProcessor {
       } else {
         await this.finishGenerateResponseStep(response, turnContext);
         await this.endProgress({
-          error: response.error,
-          followUp: response.followup,
-          suggestedTitle: response.suggestedTitle,
+          ...('error' in response
+            ? { error: response.error, followUp: undefined, suggestedTitle: undefined }
+            : { error: undefined, followUp: response.followup, suggestedTitle: response.suggestedTitle }),
           skillResolutions: conversationPrompt.skillResolutions,
           updatedDocuments: updatedDocuments,
         });
@@ -147,7 +147,7 @@ export class ModelTurnProcessor {
     }
   }
 
-  private async checkAgentPreconditions(agent: any): Promise<any> {
+  async checkAgentPreconditions(agent: any): Promise<any> {
     try {
       const preconditions = agent.checkPreconditions
         ? await agent.checkPreconditions(this.turnContext.ctx, this.turn)
@@ -163,14 +163,14 @@ export class ModelTurnProcessor {
     }
   }
 
-  private async endTurnWithResponse(response: string, status: 'error'): Promise<void> {
+  async endTurnWithResponse(response: string, status: 'error'): Promise<void> {
     this.turn.response = { type: 'meta', message: response };
     this.turn.status = status;
     await this.conversationProgress.report(this.conversation, this.turn, { reply: response });
     await this.endProgress();
   }
 
-  private async handleTemplateResponse(
+  async handleTemplateResponse(
     template: IPromptTemplate,
     userQuestion: string,
     cancellation: CancellationToken
@@ -212,9 +212,9 @@ export class ModelTurnProcessor {
     cancellationToken: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind,
-    template?: any,
-    agent?: any
-  ): Promise<any> {
+    template?: IPromptTemplate,
+    agent?: ConversationContextCollector.Agent
+  ): Promise<{ skillIds: SkillId[] }> {
     const promptContext = await new ConversationContextCollector(this.turnContext.ctx, this.chatFetcher).collectContext(
       turnContext,
       cancellationToken,
@@ -227,13 +227,13 @@ export class ModelTurnProcessor {
     return promptContext;
   }
 
-  private async fetchConversationResponse(
+  async fetchConversationResponse(
     messages: Chat.ElidableChatMessage[],
     token: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     augmentedTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument
-  ): Promise<any> {
+  ): Promise<ChatFetchResultPostProcessor.PostProcessResult> {
     token.onCancellationRequested(async () => {
       await this.cancelProgress();
     });
@@ -294,7 +294,7 @@ export class ModelTurnProcessor {
     );
   }
 
-  private augmentTelemetry(
+  augmentTelemetry(
     conversationPrompt: Unknown.ConversationPrompt,
     baseTelemetryWithExp: TelemetryWithExp,
     template?: IPromptTemplate,
@@ -342,20 +342,23 @@ export class ModelTurnProcessor {
     return augmentedTelemetry;
   }
 
-  private async finishGenerateResponseStep(response: any, turnContext: any): Promise<void> {
-    if (response.error) {
+  async finishGenerateResponseStep(
+    response: ChatFetchResultPostProcessor.PostProcessResult,
+    turnContext: TurnContext
+  ): Promise<void> {
+    if ('error' in response) {
       await turnContext.steps.error(GENERATE_RESPONSE_STEP, response.error.message);
     } else {
       await turnContext.steps.finish(GENERATE_RESPONSE_STEP);
     }
   }
 
-  private async endProgress(payload?: any): Promise<void> {
+  async endProgress(payload?: any): Promise<void> {
     await this.turnContext.steps.finishAll();
     await this.conversationProgress.end(this.conversation, this.turn, payload);
   }
 
-  private async cancelProgress(): Promise<void> {
+  async cancelProgress(): Promise<void> {
     await this.turnContext.steps.finishAll('cancelled');
     await this.conversationProgress.cancel(this.conversation, this.turn);
   }

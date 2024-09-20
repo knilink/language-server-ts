@@ -8,6 +8,8 @@ import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
 import { Conversation, Turn } from './conversation.ts';
 import { getAgents } from './agents/agents.ts';
 
+type ConversationId = string;
+
 // ../../../agent/src/methods/conversation/conversationCreate.ts
 type Capabilities = {
   skills: SkillId[];
@@ -91,18 +93,18 @@ class Conversations {
     return [keyword.replace(keywordIndicator, ''), userQuestion];
   }
 
-  deleteTurn(conversationId: string, turnId: string) {
+  deleteTurn(conversationId: ConversationId, turnId: string) {
     this.get(conversationId).deleteTurn(turnId);
   }
 
   get(id: string): Conversation {
     return this.getHolder(id).conversation;
   }
-  getCapabilities(id: SkillId): Capabilities {
+  getCapabilities(id: ConversationId): Capabilities {
     return this.getHolder(id).capabilities;
   }
 
-  getSupportedSkills(id: SkillId) {
+  getSupportedSkills(id: ConversationId) {
     const implicitSkills = this.ctx
       .get(ConversationSkillRegistry)
       .getDescriptors()
@@ -112,12 +114,12 @@ class Conversations {
     return [...implicitSkills, ...supportedSkill];
   }
 
-  filterSupportedSkills(id: SkillId, skillIds: SkillId[]): SkillId[] {
+  filterSupportedSkills(id: ConversationId, skillIds: SkillId[]): SkillId[] {
     const supportedSkills = this.getSupportedSkills(id);
     return skillIds.filter((skillId) => supportedSkills.includes(skillId));
   }
 
-  getHolder(id: string): ConversationHolder {
+  getHolder(id: ConversationId): ConversationHolder {
     const holder = this.conversations.get(id);
     if (!holder) throw new Error(`Conversation with id ${id} does not exist`);
     return holder;

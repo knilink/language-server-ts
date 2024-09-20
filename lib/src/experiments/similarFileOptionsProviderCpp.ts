@@ -1,5 +1,5 @@
 import { defaultCppSimilarFilesOptions } from '../../../prompt/src/snippetInclusion/similarFiles.ts';
-import '../lib/src/experiments/expConfig.ts';
+// import './expConfig.ts';
 import { TelemetryWithExp } from '../telemetry.ts';
 
 function getCppSimilarFilesOptions(telemetryWithExp: TelemetryWithExp) {

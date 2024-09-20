@@ -91,6 +91,11 @@ class HelixFetcher extends Fetcher {
     await this.certificateConfigurator.applyToRequestOptions(helixOptions);
     let certs = await this.certificateConfigurator.getCertificates();
     this.fetchApi.setCA(certs);
+    if (url.endsWith('/chat/completions') || url.endsWith('/models')) {
+      console.log(url);
+      console.log((helixOptions.json as any)?.messages);
+      console.trace();
+    }
     const resp = await this.fetchApi.fetch(url, helixOptions).catch((e: unknown) => {
       throw timedOut ? new HttpTimeoutError(`Request to <${url}> timed out after ${options.timeout}ms`, e) : e;
     });
