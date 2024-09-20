@@ -251,7 +251,7 @@ function createSuggestionSelectedTelemetryData(
   messageId: string,
   conversationId: string,
   suggestionId: string,
-  baseTelemetryWithExp: TelemetryWithExp,
+  baseTelemetryWithExp?: TelemetryWithExp,
   doc?: TextDocument
 ): void {
   telemetryUserAction(

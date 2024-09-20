@@ -1,5 +1,4 @@
-import { Position } from 'vscode-languageserver-types';
-import { URI } from 'vscode-uri';
+import { DocumentUri, Position } from 'vscode-languageserver-types';
 
 import { EventEmitter } from 'node:events';
 import { Context } from './context.ts';
@@ -9,10 +8,9 @@ type PostInsertionEvent = {
   ctx: Context;
   insertionCategory: string;
   insertionOffset: number;
-  fileURI: URI;
+  uri: DocumentUri;
   completionText: string;
   telemetryData: TelemetryWithExp;
-  completionId: string;
   // ./postInsertion.ts
   start: Position;
 };

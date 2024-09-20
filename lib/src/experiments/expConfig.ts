@@ -1,5 +1,4 @@
-import { CopilotNeighboringTabs, BlockMode } from '../types.ts';
-import type { ChatModelFamily } from '../conversation/modelMetadata.ts';
+import { BlockMode } from '../types.ts';
 import { Context } from '../context.ts';
 import { telemetryExpProblem, TelemetryData } from '../telemetry.ts';
 

@@ -28,14 +28,19 @@ class TurnSuggestions {
       .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('suggestions'), { tool_calls: true });
     const promptOptions = { promptType: 'suggestions' as 'suggestions', modelConfiguration: modelConfiguration };
     const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
-
     const extendedTelemetry = baseTelemetryWithExp.extendedBy(
       { messageSource: 'chat.suggestions' },
       { promptTokenLen: prompt.tokens }
     );
-    const params = { modelConfiguration: modelConfiguration, messages: prompt.messages, uiKind: uiKind };
-
-    let response: ChatMLFetcher.Response = await this.chatFetcher.fetchResponse(params, token, extendedTelemetry);
+    const params: ChatMLFetcher.Params = {
+      modelConfiguration: modelConfiguration,
+      messages: prompt.messages,
+      uiKind: uiKind,
+    };
+    if (prompt.toolConfig === undefined) throw new Error('No tool call configuration found in suggestions prompt.');
+    params.tool_choice = prompt.toolConfig.tool_choice;
+    params.tools = prompt.toolConfig.tools;
+    let response = await this.chatFetcher.fetchResponse(params, token, extendedTelemetry);
 
     if (response.type !== 'success') {
       conversationLogger.error(this.ctx, 'Failed to fetch suggestions, trying again...');
@@ -47,15 +52,12 @@ class TurnSuggestions {
         conversationLogger.error(this.ctx, 'Missing tool call in suggestions response');
         return;
       }
-
-      const firstToolCall = response.toolCalls[0];
-      const { followUp, suggestedTitle } = prompt.toolConfig.extractArguments(firstToolCall);
-
+      let firstToolCall = response.toolCalls[0];
+      let { followUp: followUp, suggestedTitle: suggestedTitle } = prompt.toolConfig.extractArguments(firstToolCall);
       if (!followUp || !suggestedTitle) {
         conversationLogger.error(this.ctx, 'Missing follow-up or suggested title in suggestions response');
         return;
       }
-
       return {
         followUp: followUp.trim(),
         suggestedTitle: suggestedTitle.trim(),

@@ -270,7 +270,7 @@ class ChatMLFetcher {
   }
 
   processFailedResponse(
-    response: Extract<OpenAIFetcher.ConversationResponse, { type: 'failed' }>,
+    response: Extract<OpenAIFetcher.ConversationResponse, { type: 'failed' } | { type: 'failedDependency' }>,
     requestId: string
   ): ChatMLFetcher.FailedResponse {
     if (response && response.reason.includes('filtered as off_topic by intent classifier')) {

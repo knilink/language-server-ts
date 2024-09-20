@@ -1,5 +1,4 @@
-import type { Position, Range } from 'vscode-languageserver-types';
-import type { URI } from 'vscode-uri';
+import type { Position } from 'vscode-languageserver-types';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type Context } from '../context.ts';
@@ -7,7 +6,6 @@ import { type Result } from './ghostText.ts';
 import { LocationFactory, type TextDocument } from '../textDocument.ts';
 import { normalizeIndentCharacter } from './normalizeIndent.ts';
 // import { } from './normalizeIndent';
-import { TelemetryData } from '../telemetry.ts';
 import { Completion, CompletionResultType } from '../types.ts';
 
 // ../../../agent/src/methods/getCompletions.ts
@@ -54,7 +52,7 @@ function completionsFromGhostTextResults(
       uuid: uuidv4(),
       insertText: insertText,
       range,
-      file: document.uri,
+      uri: document.uri,
       index: result.completion.completionIndex,
       telemetry: result.telemetry,
       displayText: result.completion.displayText,

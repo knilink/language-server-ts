@@ -125,7 +125,7 @@ class RepositoryManager {
     return (await RepositoryManager.getRepoConfigLocation(this.ctx, uri)) !== undefined;
   }
 
-  async repoUrl(baseFolder: URI): Promise<GitRemoteUrl | undefined> {
+  async repoUrl(baseFolder: URI | DocumentUri): Promise<GitRemoteUrl | undefined> {
     return await this.remoteResolver.resolveRemote(this.ctx, baseFolder);
   }
 

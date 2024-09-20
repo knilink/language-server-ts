@@ -665,7 +665,8 @@ export namespace Unknown {
     skillResolutions: SkillResolution[];
 
     // required ./conversation/turnSuggestions.ts
-    toolConfig: ToolConfig;
+    // optional ./conversation/prompt/conversationPromptEngine.ts
+    toolConfig?: ToolConfig;
   };
 
   // ../lib/src/conversation/prompt/metaPrompt.ts

@@ -1,8 +1,9 @@
-import { WorkspaceWatcher, WorkspaceWatcherEventListener } from './workspaceWatcher.ts';
+import { WatchedFilesError, WorkspaceWatcher, WorkspaceWatcherEventListener } from './workspaceWatcher.ts';
 import { Context } from './context.ts';
 import { getFsPath, URI } from './util/uri.ts';
 import { conversationLogger } from './conversation/logger.ts';
 import { LRUCacheMap } from './common/cache.ts';
+import { TextDocument } from './textDocument.ts';
 
 // ./conversation/skills/ProjectContextSkill.ts
 
@@ -69,7 +70,7 @@ abstract class WorkspaceWatcherProvider {
     this.getWatcher(workspaceFolder)?.onFileChange(listener);
   }
 
-  async getWatchedFiles(workspaceFolder: URI) {
+  async getWatchedFiles(workspaceFolder: URI): Promise<TextDocument[] | WatchedFilesError> {
     return (await this.getWatcher(workspaceFolder)?.getWatchedFiles()) ?? [];
   }
 

@@ -204,10 +204,9 @@ async function postInsertionTasks(
     ctx,
     insertionCategory,
     insertionOffset,
-    fileURI,
+    uri,
     completionText,
     telemetryData,
-    completionId,
     start,
   });
 }

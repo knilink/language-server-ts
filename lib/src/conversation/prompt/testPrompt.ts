@@ -50,7 +50,7 @@ class PromptForTestGeneration {
     const correspondingImplFile = await new TestFileFinder(
       this.turnContext.ctx,
       this.fileExists,
-      workspaceFolder
+      workspaceFolder && parseUri(workspaceFolder.uri)
     ).findImplFileForTestFile(testFile.vscodeUri);
 
     if (correspondingImplFile) {
@@ -107,7 +107,11 @@ class PromptForTestGeneration {
     if (!this.turnContext.isFileIncluded(file.toString())) {
       const fileReader = this.turnContext.ctx.get(FileReader);
       const documentResult = await fileReader.readFile(file.toString());
-      this.turnContext.collectFile(TestContextSkillId, file.toString(), statusFromTextDocumentResult(documentResult));
+      await this.turnContext.collectFile(
+        TestContextSkillId,
+        file.toString(),
+        statusFromTextDocumentResult(documentResult)
+      );
       if (documentResult.status === 'valid') {
         const filePath = await fileReader.getRelativePath(documentResult.document);
         return [elidableTextForSourceCode(documentResult.document.getText()), filePath];

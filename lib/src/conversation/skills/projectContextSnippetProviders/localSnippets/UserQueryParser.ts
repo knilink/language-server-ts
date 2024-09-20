@@ -1,5 +1,4 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
+import { Type } from '@sinclair/typebox';
 import { type CancellationToken } from '../../../../../../agent/src/cancellation.ts';
 import { type Context } from '../../../../context.ts';
 import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
@@ -10,6 +9,7 @@ import { ChatRole } from '../../../openai/openai.ts';
 import { ChatModelFamily } from '../../../modelMetadata.ts';
 import { createTelemetryWithExpWithId } from '../../../telemetry.ts';
 import { telemetryException } from '../../../../telemetry.ts';
+import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
 
 const userQuerySystemPrompt = `
 You are a coding assistant that helps developers find relevant code in their workspace by providing a list of relevant keywords they can search for.

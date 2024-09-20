@@ -3,7 +3,7 @@ import { SkillId, UiKind } from '../../types.ts';
 import { Context } from '../../context.ts';
 
 import { TurnContext } from '../turnContext.ts';
-import { TelemetryData } from '../../telemetry.ts';
+import { TelemetryWithExp } from '../../telemetry.ts';
 
 import { CurrentEditorSkillId } from '../skills/CurrentEditorSkill.ts';
 import { ProjectLabelsSkillId } from '../skills/ProjectLabelsSkill.ts';
@@ -38,7 +38,7 @@ class ConversationContextCollector {
   async collectContext(
     turnContext: TurnContext,
     token: CancellationToken,
-    baseTelemetryWithExp: TelemetryData,
+    baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind,
     template?: Template,
     agent?: Agent

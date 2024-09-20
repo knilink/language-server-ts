@@ -1,7 +1,6 @@
 import { URI } from 'vscode-uri';
-import type { DocumentUri, Range } from 'vscode-languageserver-types';
+import type { DocumentUri, Range, WorkspaceFolder } from 'vscode-languageserver-types';
 import { Disposable, NotificationHandler } from 'vscode-languageserver/node.js';
-import { WorkspaceFolder } from './types.ts';
 import { basename, parseUri } from './util/uri.ts';
 
 import { Context } from './context.ts';

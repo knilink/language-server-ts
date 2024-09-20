@@ -118,4 +118,4 @@ class LocalSnippetProvider implements Snippet.ISnippetProvider {
   }
 }
 
-export { LocalSnippetProvider };
+export { LocalSnippetProvider, LocalSnippetProviderError };

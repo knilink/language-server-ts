@@ -134,7 +134,7 @@ class WorkerProxy {
       err = new Error(`Non-error thrown: ${maybeError}`);
     }
 
-    for (let pendingPromise of this.pendingPromises.values()) {
+    for (const pendingPromise of this.pendingPromises.values()) {
       pendingPromise.reject(err);
     }
     throw err;

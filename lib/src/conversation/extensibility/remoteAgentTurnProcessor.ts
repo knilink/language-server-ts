@@ -95,7 +95,7 @@ class RemoteAgentTurnProcessor {
       (this.turn.status = 'cancelled'), await this.cancelProgress();
       return;
     }
-    let conversationPrompt = await this.buildAgentPrompt(turnContext);
+    const conversationPrompt = await this.buildAgentPrompt(turnContext);
     if (!conversationPrompt) await this.endTurnWithResponse(`No prompt created for agent ${this.agent.id}`, 'error');
     else {
       const promptInspection = {
@@ -232,13 +232,8 @@ class RemoteAgentTurnProcessor {
       authToken: authToken,
     };
 
-    const fetchResult = await this.chatFetcher.fetchResponse(
-      params,
-      token,
-      baseTelemetryWithExp,
-      async (text, delta) => {
-        finishCallback.isFinishedAfter(text, delta);
-      }
+    const fetchResult = await this.chatFetcher.fetchResponse(params, token, baseTelemetryWithExp, async (text, delta) =>
+      finishCallback.isFinishedAfter(text, delta)
     );
 
     this.ensureAgentIsAuthorized(fetchResult);

@@ -89,7 +89,7 @@ class AuthManager {
     return this._transientAuthRecord ?? this.getPersistedAuthRecord();
   }
 
-  async getPersistedAuthRecord(): Promise<AuthRecord> {
+  async getPersistedAuthRecord(): Promise<AuthRecord | undefined> {
     return await this.authPersistence.getAuthRecord();
   }
 

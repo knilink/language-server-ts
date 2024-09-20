@@ -1,4 +1,4 @@
-import { Range, SyntaxNode } from 'web-tree-sitter';
+import { SyntaxNode } from 'web-tree-sitter';
 import {
   languageIdToWasmLanguageMapping,
   languageIdToWasmLanguage,
@@ -6,11 +6,6 @@ import {
   parseTreeSitter,
   queryPythonIsDocstring,
 } from './parse.ts';
-
-interface IPosition {
-  column: number;
-  row: number;
-}
 
 function getLineAtOffset(text: string, offset: number): string {
   const prevNewline = text.lastIndexOf('\n', offset - 1);
@@ -121,8 +116,7 @@ abstract class BaseBlockParser {
         }
       }
 
-      // TODO: double check, was hasError()
-      if (!(block.endIndex >= block.tree.rootNode.endIndex - 1 && (block.hasError || block.parent?.hasError))) {
+      if (!(block.endIndex >= block.tree.rootNode.endIndex - 1 && (block.hasError() || block.parent?.hasError()))) {
         return cb(block);
       }
     });
@@ -245,7 +239,7 @@ class TreeSitterBasedBlockParser extends BaseBlockParser {
         while (currNode.parent) {
           if (currNode.type == 'function_signature' || currNode.type == 'method_signature') {
             const next = nodeAtPos.nextSibling;
-            return next && currNode.hasError && outdented(currNode, next, text)
+            return next && currNode.hasError() && outdented(currNode, next, text)
               ? true
               : !currNode.children.find((c) => c.type == ';') && currNode.endIndex <= offset;
           }
@@ -279,7 +273,7 @@ class TreeSitterBasedBlockParser extends BaseBlockParser {
           let prevSibling = blockNode.previousSibling;
           const flag =
             prevSibling != null &&
-            prevSibling.hasError &&
+            prevSibling.hasError() &&
             (prevSibling.text.startsWith('"""') || prevSibling.text.startsWith("'''"));
           if (flag) return true;
         }
@@ -300,7 +294,7 @@ class TreeSitterBasedBlockParser extends BaseBlockParser {
           switch (this.languageId) {
             case 'python': {
               if (keyword.type == 'try' && nodeAtPos.type == 'identifier' && nodeAtPos.text.length > 4) {
-                block = children.find((child) => child.hasError)?.children.find((child) => child.type == 'block');
+                block = children.find((child) => child.hasError())?.children.find((child) => child.type == 'block');
               }
               let colonNode;
               let parenCount = 0;

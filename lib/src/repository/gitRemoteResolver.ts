@@ -1,9 +1,11 @@
+import { URI } from 'vscode-uri';
+import { DocumentUri } from 'vscode-languageserver-types';
 import { Context } from '../context.ts';
 import { GitConfigLoader, GitConfigData } from './config.ts';
 import { GitRemoteUrl } from './gitRemoteUrl.ts';
 
 class GitRemoteResolver {
-  public async resolveRemote(ctx: Context, baseFolder: { fsPath: string }): Promise<GitRemoteUrl | undefined> {
+  public async resolveRemote(ctx: Context, baseFolder: URI | DocumentUri): Promise<GitRemoteUrl | undefined> {
     const config = await ctx.get(GitConfigLoader).getConfig(ctx, baseFolder);
     if (!config) return;
 

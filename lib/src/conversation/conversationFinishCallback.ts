@@ -17,7 +17,7 @@ class ConversationFinishCallback {
     ) => void
   ) {}
 
-  isFinishedAfter(text: string, delta: SSEProcessor.FinishedCbDelta): void {
+  isFinishedAfter(text: string, delta: SSEProcessor.FinishedCbDelta): undefined {
     const toApply = text.substring(this.appliedLength, text.length);
     let deltaAnnotations = this.mapAnnotations(delta.annotations).filter(
       (a) => !this.appliedAnnotations.includes(a.id)

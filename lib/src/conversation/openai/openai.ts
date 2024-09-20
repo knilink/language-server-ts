@@ -16,7 +16,7 @@ type ChatCompletion = {
   tokens: string[]; // MARK ?? might be string[]
   numTokens: number;
   tool_calls: ToolCall[];
-  function_call: unknown;
+  function_call?: { name: string; arguments: unknown[] };
   telemetryData: TelemetryData;
 };
 
@@ -27,7 +27,7 @@ function convertToChatCompletion(
   jsonData: {
     tool_calls: ToolCall[];
     // 1.40.0 added
-    function_call: unknown;
+    function_call?: { name: string; arguments: unknown[] };
     tokens: string[];
   },
   choiceIndex: number,

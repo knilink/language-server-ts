@@ -62,7 +62,7 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     return this.baseUrlObject.host;
   }
 
-  getAPIUrl(path: string): string {
+  getAPIUrl(path?: string): string {
     assert(this.apiUrl);
     return this.join(this.apiUrl, path);
   }

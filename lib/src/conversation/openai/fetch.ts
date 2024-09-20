@@ -13,7 +13,7 @@ import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from '../../o
 import { tryGetGitHubNWO } from '../../prompt/repository.ts';
 import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
 import { Logger, LogLevel } from '../../logger.ts';
-import { Chat, TelemetryMeasurements, TelemetryProperties, UiKind } from '../../types.ts';
+import { Chat, UiKind } from '../../types.ts';
 
 const logger = new Logger(LogLevel.INFO, 'fetchChat');
 
@@ -28,13 +28,13 @@ async function fetchWithInstrumentation(
   uiKind: UiKind,
   telemetryWithExp: TelemetryWithExp,
   cancel: CancellationToken | undefined
-): Promise<Response | undefined> {
+): Promise<Response> {
   const statusReporter = ctx.get(StatusReporter);
   const uri = `${engineUrl}/${endpoint}`;
 
   if (!secretKey) throw new Error(`Failed to send request to ${uri} due to missing key`);
 
-  let extendedTelemetryWithExp = telemetryWithExp.extendedBy({
+  const extendedTelemetryWithExp = telemetryWithExp.extendedBy({
     endpoint: endpoint,
     engineName: extractEngineName(ctx, engineUrl),
     uiKind,
@@ -100,11 +100,11 @@ class OpenAIChatMLFetcher {
     finishedCb: SSEProcessor.FinishedCb,
     cancel?: CancellationToken
   ): Promise<OpenAIFetcher.ConversationResponse> {
-    let statusReporter = ctx.get(StatusReporter);
-    let response = await this.fetchWithParameters(ctx, params.endpoint, params, baseTelemetryWithExp, cancel);
+    const statusReporter = ctx.get(StatusReporter);
+    const response = await this.fetchWithParameters(ctx, params.endpoint, params, baseTelemetryWithExp, cancel);
     if (response === 'not-sent') return { type: 'canceled', reason: 'before fetch request' };
     if (cancel?.isCancellationRequested) {
-      let body = await response.body();
+      const body = await response.body();
       try {
         body.destroy();
       } catch (e) {
@@ -113,10 +113,10 @@ class OpenAIChatMLFetcher {
       return { type: 'canceled', reason: 'after fetch request' };
     }
     if (response.status !== 200) {
-      let telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
+      const telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
       return this.handleError(ctx, statusReporter, telemetryData, response);
     }
-    let finishedCompletions = (
+    const finishedCompletions = (
       await SSEProcessor.create(ctx, params.count, response, baseTelemetryWithExp, [], cancel)
     ).processSSE(finishedCb);
     return {
@@ -143,7 +143,7 @@ class OpenAIChatMLFetcher {
     params: OpenAIFetcher.ConversationParams,
     telemetryWithExp: TelemetryWithExp,
     cancel: CancellationToken | undefined
-  ): Promise<'not-sent' | Response | undefined> {
+  ): Promise<'not-sent' | Response> {
     const request: Partial<OpenAIFetcher.ConversationRequest> = {
       messages: params.messages,
       tools: params.tools,

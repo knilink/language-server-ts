@@ -1,10 +1,9 @@
-import { type URI } from 'vscode-uri';
-
 import { LspFileWatcher } from '../lspFileWatcher.ts';
 import { WatchedFilesError, WorkspaceWatcher } from '../../../lib/src/workspaceWatcher.ts';
+import { TextDocument } from '../../../lib/src/textDocument.ts';
 
 class AgentWorkspaceWatcher extends WorkspaceWatcher {
-  async getWatchedFiles(): Promise<URI[] | WatchedFilesError> {
+  async getWatchedFiles(): Promise<TextDocument[] | WatchedFilesError> {
     const files = await this.ctx.get(LspFileWatcher).getWatchedFiles({
       workspaceUri: this.workspaceFolder.toString(),
       excludeGitignoredFiles: true,

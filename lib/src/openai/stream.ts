@@ -48,6 +48,7 @@ type APIJsonData = {
     text_offset: TextOffset[];
     tokens: Token[];
   };
+  function_call?: { name: string; arguments: unknown[] };
 };
 
 type Completion = {
@@ -252,7 +253,7 @@ namespace SSEProcessor {
     annotations?: StreamCopilotAnnotations;
     copilotErrors?: unknown[];
   };
-  export type FinishedCb = (text: string, delta: FinishedCbDelta) => Promise<void>;
+  export type FinishedCb = (text: string, delta: FinishedCbDelta) => Promise<number | undefined>;
 }
 
 class SSEProcessor {
