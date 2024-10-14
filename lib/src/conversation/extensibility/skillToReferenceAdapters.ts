@@ -7,31 +7,31 @@ import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { TurnContext } from '../turnContext.ts';
 import { TextDocument } from '../../textDocument.ts';
 
-type Reference = ConversationReference.OutgoingReference;
+type OutgoingReference = ConversationReference.OutgoingReference;
 
-async function skillsToReference(turnContext: TurnContext): Promise<Reference[]> {
-  const references: Reference[] = [];
+async function skillsToReference(turnContext: TurnContext): Promise<OutgoingReference[]> {
+  const references: OutgoingReference[] = [];
   await addRepositoryReference(turnContext, references);
   await addSelectionReference(turnContext, references);
   await addFileReferences(turnContext, references);
   return references;
 }
-async function addRepositoryReference(turnContext: TurnContext, references: Reference[]): Promise<void> {
+async function addRepositoryReference(turnContext: TurnContext, references: OutgoingReference[]): Promise<void> {
   const repositoryReference = await gitMetadataToReference(turnContext);
 
   if (repositoryReference) {
     references.push(repositoryReference);
   }
 }
-async function addSelectionReference(turnContext: TurnContext, references: Reference[]): Promise<void> {
+async function addSelectionReference(turnContext: TurnContext, references: OutgoingReference[]): Promise<void> {
   const selectionReference = await currentEditorToSelectionReference(turnContext);
 
   if (selectionReference) {
     references.push(selectionReference);
   }
 }
-async function addFileReferences(turnContext: TurnContext, references: Reference[]) {
-  const fileReferences: Reference[] = [];
+async function addFileReferences(turnContext: TurnContext, references: OutgoingReference[]) {
+  const fileReferences: OutgoingReference[] = [];
   const currentEditorReference = await currentEditorToFileReference(turnContext);
 
   if (currentEditorReference) {
@@ -44,7 +44,7 @@ async function addFileReferences(turnContext: TurnContext, references: Reference
     references.push(...fileReferences);
   }
 }
-async function gitMetadataToReference(turnContext: TurnContext): Promise<Reference | undefined> {
+async function gitMetadataToReference(turnContext: TurnContext): Promise<OutgoingReference | undefined> {
   const maybeRepoInfo = await extractRepoInfo(turnContext);
   if (maybeRepoInfo) {
     const repoApi = await turnContext.ctx.get(GitHubRepositoryApi);
@@ -77,7 +77,10 @@ async function currentEditorToSelectionReference(turnContext: TurnContext) {
     if (documentResult.status === 'valid') return await extractSelection(currentEditor, documentResult.document);
   }
 }
-async function extractSelection(currentEditor: CurrentEditor, doc: TextDocument): Promise<Reference | undefined> {
+async function extractSelection(
+  currentEditor: CurrentEditor,
+  doc: TextDocument
+): Promise<OutgoingReference | undefined> {
   if (currentEditor.selection && !isEmptyRange(currentEditor.selection)) {
     let selection = doc.getText(currentEditor.selection);
     return {
@@ -91,7 +94,7 @@ async function extractSelection(currentEditor: CurrentEditor, doc: TextDocument)
     };
   }
 }
-async function currentEditorToFileReference(turnContext: TurnContext): Promise<Reference | undefined> {
+async function currentEditorToFileReference(turnContext: TurnContext): Promise<OutgoingReference | undefined> {
   let currentEditor = await turnContext.skillResolver.resolve(CurrentEditorSkillId);
   if (currentEditor) {
     let documentResult = await turnContext.ctx.get(FileReader).readFile(currentEditor.uri);
@@ -109,8 +112,8 @@ async function currentEditorToFileReference(turnContext: TurnContext): Promise<R
       };
   }
 }
-async function fileReferenceToPlatformFileReference(turnContext: TurnContext): Promise<Reference[]> {
-  const platformReferences: Reference[] = [];
+async function fileReferenceToPlatformFileReference(turnContext: TurnContext): Promise<OutgoingReference[]> {
+  const platformReferences: OutgoingReference[] = [];
   const references = turnContext.turn.request.references;
   if (references && references?.length > 0) {
     let fileReader = turnContext.ctx.get(FileReader);

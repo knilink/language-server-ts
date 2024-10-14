@@ -265,7 +265,24 @@ class InMemoryConfigProvider extends ConfigProvider {
   }
 }
 
-// import packageJson from '../../package.json.js';
+const packageJsonDefaultConfig: AdditionalConfigValueType = {
+  [ConfigKey.Enable]: { '*': true, plaintext: false, markdown: false, scminput: false },
+  [ConfigKey.InlineSuggestEnable]: true,
+  // undefined ../../agent/src/methods/notifyChangeConfiguration.ts
+  [ConfigKey.EnableAutoCompletions]: true,
+  [ConfigKey.DebugOverrideCapiUrl]: '',
+  [ConfigKey.DebugTestOverrideCapiUrl]: '',
+  [ConfigKey.DebugOverrideProxyUrl]: '',
+  [ConfigKey.DebugTestOverrideProxyUrl]: '',
+  [ConfigKey.DebugOverrideEngine]: '',
+
+  [ConfigKey.DebugFilterLogCategories]: [],
+};
+
+const configDefaults: ConfigValueType = { ...hardCodedConfigDefaults, ...packageJsonDefaultConfig };
+
+// // @ts-ignore
+// import * as packageJson from '../../package.json';
 // // TODO;
 // for (const key of Object.values(ConfigKey)) {
 //   let conf = packageJson.contributes.configuration[0];
@@ -284,22 +301,6 @@ class InMemoryConfigProvider extends ConfigProvider {
 //   }
 //   if (!(key in configDefaults)) throw new Error(`Missing config default value ${CopilotConfigPrefix}.${key}`);
 // }
-
-const packageJsonDefaultConfig: AdditionalConfigValueType = {
-  [ConfigKey.Enable]: { '*': true, plaintext: false, markdown: false, scminput: false },
-  [ConfigKey.InlineSuggestEnable]: true,
-  // undefined ../../agent/src/methods/notifyChangeConfiguration.ts
-  [ConfigKey.EnableAutoCompletions]: true,
-  [ConfigKey.DebugOverrideCapiUrl]: '',
-  [ConfigKey.DebugTestOverrideCapiUrl]: '',
-  [ConfigKey.DebugOverrideProxyUrl]: '',
-  [ConfigKey.DebugTestOverrideProxyUrl]: '',
-  [ConfigKey.DebugOverrideEngine]: '',
-
-  [ConfigKey.DebugFilterLogCategories]: [],
-};
-
-const configDefaults: ConfigValueType = { ...hardCodedConfigDefaults, ...packageJsonDefaultConfig };
 
 // class BuildInfo {
 //   readonly packageJson: any = packageJson;
@@ -324,6 +325,7 @@ const configDefaults: ConfigValueType = { ...hardCodedConfigDefaults, ...package
 //   }
 // }
 
+// MARK: workaround for couldn't import package.json with tsx
 class BuildInfo {
   isProduction(): boolean {
     return this.getBuildType() !== 'dev';
@@ -332,13 +334,13 @@ class BuildInfo {
     return 'prod';
   }
   getVersion(): string {
-    return '1.211.0';
+    return '1.236.0';
   }
   getDisplayVersion(): string {
     return this.getBuildType() === 'dev' ? `${this.getVersion()}-dev` : this.getVersion();
   }
   getBuild(): string {
-    return '970';
+    return '1142';
   }
   getName(): string {
     return 'copilot';

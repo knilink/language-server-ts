@@ -7,13 +7,13 @@ import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
 import { Conversations } from '../../../lib/src/conversation/conversations.ts';
 import { AgentSkillResolver } from './skillResolver.ts';
 import { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
-import { SkillId, Unknown } from '../../../lib/src/types.ts';
+import { SkillId, WorkDoneToken } from '../../../lib/src/types.ts';
 
 import { Reference } from '../../../lib/src/conversation/schema.ts';
 
 class SyntheticTurn {
   constructor(
-    readonly workDoneToken: Unknown.WorkDoneToken,
+    readonly workDoneToken: WorkDoneToken,
     readonly chunks: string[],
     readonly followUp = '',
     readonly suggestedTitle = '',
@@ -27,7 +27,7 @@ class SyntheticTurns {
 
   // ../methods/testing/setSyntheticTurns.ts
   add(
-    workDoneToken: Unknown.WorkDoneToken,
+    workDoneToken: WorkDoneToken,
     chunks: string[],
     followUp = '',
     suggestedTitle = '',
@@ -37,7 +37,7 @@ class SyntheticTurns {
     this.turns.push(new SyntheticTurn(workDoneToken, chunks, followUp, suggestedTitle, skills, references));
   }
 
-  get(workDoneToken: Unknown.WorkDoneToken): SyntheticTurn | undefined {
+  get(workDoneToken: WorkDoneToken): SyntheticTurn | undefined {
     return this.turns.find((turn) => turn.workDoneToken === workDoneToken);
   }
 }

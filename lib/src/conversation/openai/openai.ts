@@ -9,8 +9,6 @@ type ChatCompletion = {
   message: Chat.ChatMessage;
   choiceIndex: number;
   requestId: OpenAIRequestId;
-  // 1.40.0 removed
-  // modelInfo?: Unknown.ModelInfo;
   blockFinished: boolean;
   finishReason: string;
   tokens: string[]; // MARK ?? might be string[]

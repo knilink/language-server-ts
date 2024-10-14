@@ -13,8 +13,10 @@ import { TurnContext } from '../turnContext.ts';
 import { ChatMLFetcher } from '../chatMLFetcher.ts';
 import { PromptOptions } from './strategies/types.ts';
 
+type MetaPromptContext = { skillIds: SkillId[] };
+
 const MAX_SKILLS = 4;
-const DEFAULT_PROMPT_CONTEXT: { skillIds: SkillId[] } = { skillIds: [] };
+const DEFAULT_PROMPT_CONTEXT: MetaPromptContext = { skillIds: [] };
 
 class MetaPromptFetcher {
   constructor(
@@ -28,7 +30,7 @@ class MetaPromptFetcher {
     token: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     uiKind: UiKind
-  ): Promise<Unknown.PromptContext> {
+  ): Promise<MetaPromptContext> {
     const userQuestion = turnContext.conversation.getLastTurn().request.message;
     if (selectableSkillDescriptors.length > 0) {
       const modelConfiguration = await this.ctx
@@ -70,7 +72,7 @@ class MetaPromptFetcher {
     messageText: string,
     uiKind: UiKind,
     toolConfig: Unknown.ToolConfig
-  ): Promise<Unknown.PromptContext> {
+  ): Promise<MetaPromptContext> {
     if (fetchResult.type !== 'success') {
       this.telemetryError(baseTelemetryWithExp, fetchResult);
       return DEFAULT_PROMPT_CONTEXT;

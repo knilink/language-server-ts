@@ -14,7 +14,7 @@ type APIChoice = {
   meanAlternativeLogProb?: number;
   choiceIndex: number;
   requestId: OpenAIRequestId;
-  modelInfo?: Unknown.ModelInfo;
+  modelInfo?: never; // unknown
   blockFinished: boolean;
   // string ../suggestions/suggestions.ts
   tokens: string[];

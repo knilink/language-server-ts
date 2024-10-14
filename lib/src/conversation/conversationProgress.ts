@@ -1,4 +1,4 @@
-import { Unknown } from '../types.ts';
+import { Unknown, WorkDoneToken } from '../types.ts';
 import type { Turn, Conversation } from '../conversation/conversation.ts';
 import type { DocumentUri, Range } from 'vscode-languageserver-types';
 import type { TextDocumentResultStatus } from '../fileReader.ts';
@@ -12,7 +12,7 @@ namespace ConversationProgress {
 // might be implementation of a lsp type
 abstract class ConversationProgress {
   // await this.conversationProgress.begin(this.conversation, this.turn, workDoneToken);
-  abstract begin(conversation: Conversation, turn: Turn, workDoneToken: Unknown.WorkDoneToken): Promise<void>;
+  abstract begin(conversation: Conversation, turn: Turn, workDoneToken: WorkDoneToken): Promise<void>;
   abstract cancel(
     conversation: Conversation,
     turn: Turn,

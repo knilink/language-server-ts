@@ -58,114 +58,9 @@ export type RepoInfo = RepoUrlInfo & {
 //   | 'eagerButMedium'
 //   | 'eagerButMuch';
 
-type TelemetryBaseProperties = {
-  origin: string;
-  type: string;
-  code: string;
-  reason: string;
-  message: string;
-  failbot_payload?: string; // json string
-  errno?: string;
-};
-
-type TelemetryErrorProperties = {
-  requestId: 'unknown' | string;
-  properties: string; // json string
-  measurements: string; // json string
-  problem: string;
-  validationError: string;
-};
-
-type TelemetryCompletionProperties = {
-  completionTextJson: string;
-  choiceIndex: string;
-};
-
-type TelemetryRequestProperties = {
-  completionId: unknown;
-  created: string; // iso string,
-  headerRequestId: unknown;
-  serverExperiments: unknown;
-  deploymentId: unknown;
-};
-
-type TelemetryGitHubTokenAuthProperties = {
-  status: string; // number
-  statusText: string;
-};
-
-type TelemetryRefreshTokenAuthProperties = {
-  result: string; // kind
-};
-
-type TelemetryEditorAgnosticProperties = {
-  editor_version: string;
-  editor_plugin_version: string;
-  client_machineid: string;
-  client_sessionid: string;
-  copilot_version: string;
-  runtime_version: string;
-  common_extname: string;
-  common_extversion: string;
-  common_vscodeversion: string;
-  fetcher: string;
-  proxy_enabled: 'true' | 'false';
-  proxy: 'true' | 'false';
-  proxy_kerberos: 'true' | 'false';
-  reject_unauthorized: 'true' | 'false';
-  unique: string;
-  telemetry_failed_validation: 'true';
-
-  restricted_unique?: string;
-};
-
-type TelemetryExperimentConfigProperties = {
-  'VSCode.ABExp.Features': string;
-  'abexp.assignmentcontext': string;
-};
-
-// export type TelemetryProperties = Partial<
-//   TelemetryEditorAgnosticProperties &
-//   TelemetryBaseProperties &
-//   TelemetryCompletionProperties &
-//   TelemetryErrorProperties &
-//   TelemetryGitHubTokenAuthProperties &
-//   TelemetryRefreshTokenAuthProperties &
-//   TelemetryRequestProperties &
-//   TelemetryExperimentConfigProperties
-// >;
-// propertiesSchema ./telemetry.ts
 export type TelemetryProperties = Record<string, string>;
 
 export type TelemetryRawProperties = Record<string, unknown>;
-
-// export type TelemetryMeasurements = Partial<{
-//   timeSinceIssuedMs: number;
-//   timeSinceDisplayedMs: number;
-//
-//   current: number;
-//   time_taken: number;
-//   refresh_count: number;
-//   adjusted_expires_at: number;
-//   expires_at: number;
-//
-//   // telemetrizePromptLength
-//   promptPrefixCharLen: number;
-//   promptSuffixCharLen: number;
-//   promptCharLen: number;
-//
-//   totalTimeMs: number;
-//   elapsedMs: number;
-//   promptTokenLen: number;
-//   messageCharLen: number;
-//   numCodeBlocks: number;
-//   numTokens: number;
-//   documentLength: number;
-//   documentLineCount: number;
-//
-//   compCharLen: number;
-//   contextualFilterScore: number;
-// }>;
 
 // ./ghostText/contextualFilter.ts 'foo' in measurements so has to be record
 export type TelemetryMeasurements = Record<string, number>;
@@ -227,7 +122,7 @@ export type ToolCall = {
   function: {
     name: string;
     arguments: {
-      context: Unknown.PromptContext;
+      context: { skillIds: SkillId[] }; // was PromptContext
       skillIds: SkillId[];
       // ./conversation/prompt/strategies/suggestionsPromptStrategy.ts
       suggestedTitle: string;
@@ -493,6 +388,11 @@ export namespace SolutionHandler {
   }
 }
 
+// lib/src/conversation/conversationProgress.ts
+// string(uuid) lsp-type
+// string | number ../../agent/src/methods/conversation/conversationCreate.ts
+export type WorkDoneToken = string | number;
+
 export namespace ConversationReference {
   type ReferenceBase<T extends string, D> = string extends T
     ? never
@@ -548,33 +448,6 @@ export namespace Unknown {
     };
   };
 
-  // conversation/prompt/metaPrompt.ts
-  // conversation/openai/openai.ts
-  export type ModelInfo = Extract<unknown, undefined>;
-
-  // conversation/openai/openai.ts
-  export type FinishReason = unknown;
-
-  // conversation/prompt/metaPrompt.ts
-  // conversation/turnSuggestions.ts
-  // lib/src/conversation/fetchPostProcessor.ts
-  export type ChatFetcher = {
-    fetchResponse(params: any, token: Token): Promise<FetchResult>;
-  };
-
-  // conversation/prompt/metaPrompt.ts
-  // conversation/turnSuggestions.ts
-  export type Token = unknown;
-
-  // lib/src/conversation/turnSuggestions.ts
-  // lib/src/conversation/fetchPostProcessor.ts
-  export type SuggestionsFetchResult = {
-    followUp: string;
-    suggestedTitle: unknown;
-    promptTokenLen: number;
-    numTokens: number;
-  };
-
   // ./conversation/turnProcessor.ts
   export type FollowUp = {
     // undefined (schema) ../../agent/src/methods/conversation/conversationTurn.ts
@@ -589,25 +462,8 @@ export namespace Unknown {
   export type Suggestions = {
     // enrichedFollowup ./conversation/fetchPostProcessor.ts
     followUp: FollowUp & { message: string };
-    suggestedTitle: SuggestionsFetchResult['suggestedTitle'];
+    suggestedTitle: string;
   };
-
-  // ./conversation/extensibility/remoteAgentTurnProcessor.ts
-  // ** ./conversation/extensibility/remoteAgent.ts
-  // ** ./conversation/agents/agents.ts
-  // number
-  export type Agent = {
-    // number `super(0,...)` ./conversation/extensibility/remoteAgent.ts
-    id: number;
-    slug: string;
-    name: string;
-    endpoint?: string;
-  };
-
-  // lib/src/conversation/conversationProgress.ts
-  // string(uuid) lsp-type
-  // string | number ../../agent/src/methods/conversation/conversationCreate.ts
-  export type WorkDoneToken = string | number;
 
   export type SkillResolution = {
     skillId: SkillId | 'unknown';
@@ -657,9 +513,6 @@ export namespace Unknown {
     // optional ./conversation/prompt/conversationPromptEngine.ts
     toolConfig?: ToolConfig;
   };
-
-  // ../lib/src/conversation/prompt/metaPrompt.ts
-  export type PromptContext = { skillIds: SkillId[] };
 }
 
 export namespace Snippet {

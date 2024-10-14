@@ -22,7 +22,7 @@ namespace ChatFetchResultPostProcessor {
   export type PostProcessResult =
     | {
         followup?: Unknown.FollowUp & { message: string };
-        suggestedTitle?: Unknown.SuggestionsFetchResult['suggestedTitle'];
+        suggestedTitle?: string;
       }
     | {
         error: {
@@ -233,7 +233,7 @@ class ChatFetchResultPostProcessor {
   ////////////////////////////////////////////////////////////////////////////////
 
   enrichFollowup(
-    suggestionsFetchResult: Unknown.SuggestionsFetchResult,
+    suggestionsFetchResult: TurnSuggestions.SuggestionsFetchResult,
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp,
     doc?: TextDocument

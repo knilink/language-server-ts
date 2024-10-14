@@ -3,7 +3,7 @@ import { SkillId } from '../../types.ts';
 import { TurnContext } from '../turnContext.ts';
 import { RemoteAgentTurnProcessor } from './remoteAgentTurnProcessor.ts';
 
-class RemoteAgent {
+class RemoteAgent implements RemoteAgentTurnProcessor.IAgent {
   constructor(
     readonly id: number,
     readonly slug: string,

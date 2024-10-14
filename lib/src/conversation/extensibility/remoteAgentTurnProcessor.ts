@@ -1,4 +1,4 @@
-import { Unknown, Model, Chat, ConversationReference } from '../../types.ts';
+import { Unknown, WorkDoneToken, Model, Chat } from '../../types.ts';
 import { CancellationToken } from '../../../../agent/src/cancellation.ts';
 import { TextDocument } from '../../textDocument.ts';
 import { Turn, Conversation, Reference } from '../conversation.ts';
@@ -8,7 +8,6 @@ import { TelemetryWithExp } from '../../telemetry.ts';
 import { ChatRole } from '../openai/openai.ts';
 import {} from '../../../../prompt/src/tokenization/index.ts';
 import {} from '../../openai/fetch.ts';
-import { IPromptTemplate } from '../promptTemplates.ts';
 import { ChatModelFamily } from '../modelMetadata.ts';
 
 import { convertToCopilotReferences } from './references.ts';
@@ -38,13 +37,23 @@ class RemoteAgentAuthorizationError extends Error {
   }
 }
 
+namespace RemoteAgentTurnProcessor {
+  export interface IAgent {
+    // number `super(0,...)` ./conversation/extensibility/remoteAgent.ts
+    readonly id: number;
+    readonly slug: string;
+    readonly name: string;
+    readonly endpoint?: string;
+  }
+}
+
 class RemoteAgentTurnProcessor {
   readonly conversationProgress: ConversationProgress;
   readonly postProcessor: ChatFetchResultPostProcessor;
   readonly conversation: Conversation;
   readonly turn: Turn;
   constructor(
-    readonly agent: Unknown.Agent,
+    readonly agent: RemoteAgentTurnProcessor.IAgent,
     readonly turnContext: TurnContext,
     readonly chatFetcher = new ChatMLFetcher(turnContext.ctx)
   ) {
@@ -54,7 +63,7 @@ class RemoteAgentTurnProcessor {
     this.turn = turnContext.turn;
   }
   async process(
-    workDoneToken: Unknown.WorkDoneToken,
+    workDoneToken: WorkDoneToken,
     cancellationToken: CancellationToken,
     followUp: Unknown.FollowUp,
     doc: TextDocument
@@ -80,7 +89,7 @@ class RemoteAgentTurnProcessor {
     }
   }
   async processWithAgent(
-    workDoneToken: Unknown.WorkDoneToken,
+    workDoneToken: WorkDoneToken,
     cancellationToken: CancellationToken,
     turnContext: TurnContext,
     doc: TextDocument
@@ -181,7 +190,7 @@ class RemoteAgentTurnProcessor {
       return messages;
     });
   }
-  async computeCopilotReferences(turnContext: TurnContext): Promise<ConversationReference.OutgoingReference[]> {
+  async computeCopilotReferences(turnContext: TurnContext) {
     return await skillsToReference(turnContext);
   }
 

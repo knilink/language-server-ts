@@ -1,5 +1,5 @@
 import { type CancellationToken } from '../../../agent/src/cancellation.ts';
-import { Unknown, UiKind } from '../types.ts';
+import { UiKind } from '../types.ts';
 import { Context } from '../context.ts';
 import { TurnContext } from './turnContext.ts';
 
@@ -9,6 +9,15 @@ import { conversationLogger } from './logger.ts';
 import { ModelConfigurationProvider } from './modelConfigurations.ts';
 import { ChatMLFetcher } from './chatMLFetcher.ts';
 import { TelemetryWithExp } from '../telemetry.ts';
+
+namespace TurnSuggestions {
+  export type SuggestionsFetchResult = {
+    followUp: string;
+    suggestedTitle: string;
+    promptTokenLen: number;
+    numTokens: number;
+  };
+}
 
 class TurnSuggestions {
   constructor(
@@ -22,7 +31,7 @@ class TurnSuggestions {
     token: CancellationToken,
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp
-  ): Promise<Unknown.SuggestionsFetchResult | undefined> {
+  ): Promise<TurnSuggestions.SuggestionsFetchResult | undefined> {
     const modelConfiguration = await this.ctx
       .get(ModelConfigurationProvider)
       .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('suggestions'), { tool_calls: true });

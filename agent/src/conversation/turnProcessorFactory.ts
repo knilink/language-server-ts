@@ -1,4 +1,4 @@
-import { Unknown } from '../../../lib/src/types.ts';
+import { Unknown, WorkDoneToken } from '../../../lib/src/types.ts';
 import { type TextDocument } from '../../../lib/src/textDocument.ts';
 import { type CancellationToken } from '../cancellation.ts';
 import { type TurnContext } from '../../../lib/src/conversation/turnContext.ts';
@@ -14,7 +14,7 @@ import { ModelTurnProcessor } from '../../../lib/src/conversation/turnProcessor.
 interface ITurnProcessor {
   // ../methods/conversation/conversationCreate.ts
   process(
-    workDoneToken: Unknown.WorkDoneToken,
+    workDoneToken: WorkDoneToken,
     cancelationToken: CancellationToken,
     followUp?: Unknown.FollowUp,
     doc?: TextDocument
@@ -24,7 +24,7 @@ interface ITurnProcessor {
 class TurnProcessorFactory {
   public async createProcessor(
     turnContext: TurnContext,
-    workDoneToken: Unknown.WorkDoneToken,
+    workDoneToken: WorkDoneToken,
     computeSuggestions?: boolean
   ): Promise<ITurnProcessor> {
     if (turnContext.ctx.get(SyntheticTurns)?.get(workDoneToken) !== undefined) {
