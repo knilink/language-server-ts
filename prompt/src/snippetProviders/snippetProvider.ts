@@ -15,7 +15,7 @@ class ProviderTimeoutError extends Error {
 
 abstract class SnippetProvider {
   protected api: Methods;
-  abstract type: string;
+  abstract readonly type: string;
 
   constructor(workerProxy: WorkerProxy) {
     this.api = workerProxy.api;

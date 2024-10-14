@@ -464,7 +464,8 @@ async function getGhostText(
   preIssuedTelemetryData: TelemetryData,
   cancellationToken: CancellationToken,
   ifInserted: IfInserted,
-  promptOnly?: boolean
+  promptOnly: boolean,
+  data: unknown
 ): Promise<GhostTextResult> {
   const ourRequestId = uuidv4();
   preIssuedTelemetryData = preIssuedTelemetryData.extendedBy({ headerRequestId: ourRequestId });
@@ -476,8 +477,15 @@ async function getGhostText(
     preIssuedTelemetryData
   );
 
-  const prompt = await extractPrompt(ctx, document, position, preIssuedTelemetryDataWithExp, ifInserted);
-
+  const prompt = await extractPrompt(
+    ctx,
+    document,
+    position,
+    preIssuedTelemetryDataWithExp,
+    cancellationToken,
+    ifInserted,
+    data
+  );
   if (prompt.type === 'copilotNotAvailable') {
     ghostTextLogger.debug(ctx, 'Copilot not available, due to content exclusion');
     return { type: 'abortedBeforeIssued', reason: 'Copilot not available due to content exclusion' };

@@ -3,7 +3,6 @@ import { dump as yamlDump } from 'js-yaml';
 import { dedent } from 'ts-dedent';
 
 import { PromptType, SkillId, TurnId, Unknown } from '../types.ts';
-import { localAgents } from './agents/agents.ts';
 import { Conversation, Turn } from './conversation.ts';
 import { TurnContext } from './turnContext.ts';
 import { CancellationToken } from '../../../agent/src/cancellation.ts';
@@ -80,11 +79,11 @@ async function getSkillsDump(
   let supportedSkills = skillRegistry
     .getDescriptors()
     .filter((s) => turnContext.ctx.get(Conversations).getSupportedSkills(turnContext.conversation.id).includes(s.id));
-  if (skillId) supportedSkills = supportedSkills.filter((s) => s.id === skillId);
-  else {
-    let localAgentsSkills = (await Promise.all(localAgents.map((a) => a.additionalSkills(turnContext.ctx)))).flat();
-    supportedSkills = supportedSkills.filter((s) => !localAgentsSkills.includes(s.id));
+
+  if (skillId) {
+    supportedSkills = supportedSkills.filter((s) => s.id === skillId);
   }
+
   if (supportedSkills.length === 0) return `No skill with id ${skillId} available`;
   for (let skill of supportedSkills)
     resp += `

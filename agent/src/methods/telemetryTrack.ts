@@ -34,7 +34,7 @@ const Params = Type.Object({
 });
 
 const plugins: Record<
-  EditorAndPluginInfo.EditorPluginInfo['name'],
+  string,
   {
     app: 'copilot-intellij' | 'copilot-vim' | 'copilot-vs';
     catalog_service: 'CopilotIntelliJ' | 'CopilotVim' | 'CopilotVS';

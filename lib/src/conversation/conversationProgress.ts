@@ -5,6 +5,10 @@ import type { TextDocumentResultStatus } from '../fileReader.ts';
 import { Reference } from './schema.ts';
 import { CodeEdit } from './codeEdits.ts';
 
+namespace ConversationProgress {
+  export type Severity = 'warning' | 'info';
+}
+
 // might be implementation of a lsp type
 abstract class ConversationProgress {
   // await this.conversationProgress.begin(this.conversation, this.turn, workDoneToken);
@@ -32,6 +36,8 @@ abstract class ConversationProgress {
       // ./turnContext.ts
       warnings?: unknown[];
       codeEdits?: CodeEdit[];
+      // ./extensibility/remoteAgentTurnProcessor.ts
+      notifications?: { message: string; severity: ConversationProgress.Severity }[];
     }
   ): Promise<void>;
 }

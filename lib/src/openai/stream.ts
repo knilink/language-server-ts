@@ -373,7 +373,7 @@ class SSEProcessor {
             if (json.choices?.length) {
               streamChoicesLogger.error(
                 this.ctx,
-                `Request id invalid, should have "completionId" and "created": ${this.requestId}`,
+                'Request id invalid, should have "completionId" and "created":',
                 this.requestId
               );
             }

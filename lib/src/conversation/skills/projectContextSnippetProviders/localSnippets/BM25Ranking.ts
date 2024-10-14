@@ -118,7 +118,7 @@ class BM25Ranking implements IRanking<DocumentChunk> {
     const scored = await calculateBM25Scores(chunkDocuments, lowercaseKeywords, this.avgTokenCount, idfValues);
     const countLimit = Math.min(10 * keywords.length, MAX_SNIPPET_COUNT);
     const limit = Math.min(countLimit, chunkDocuments.length);
-    const results = scored.slice(0, limit);
+    const results = scored.slice(0, limit).filter((s) => s.score > 0);
     for (let result of results) result.chunk = workspaceChunks.get(result.id)!.chunk;
     return results;
   }

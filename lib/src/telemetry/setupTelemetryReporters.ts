@@ -11,23 +11,25 @@ const APP_INSIGHTS_KEY_SECURE = '3fdd7f28-937a-48c8-9a21-ba337db23bd1';
 const APP_INSIGHTS_KEY_FT = 'f0000000-0000-0000-0000-000000000000';
 
 class TelemetryInitialization {
-  private _args?: {
-    namespace: string;
-    enabled: boolean;
-  };
+  _namespace?: string;
+  _initialized: boolean = false;
+  _enabled?: boolean;
 
   get isInitialized(): boolean {
-    return !!this._args;
+    return this._initialized;
+  }
+
+  get isEnabled() {
+    return this._enabled ?? false;
   }
 
   async initialize(ctx: Context, telemetryNamespace: string, telemetryEnabled: boolean): Promise<void> {
-    const deactivation = ctx.get(TelemetryReporters).deactivate();
-    this._args = {
-      namespace: telemetryNamespace,
-      enabled: telemetryEnabled,
-    };
+    let deactivation = ctx.get(TelemetryReporters).deactivate();
+    this._namespace = telemetryNamespace;
+    this._enabled = telemetryEnabled;
+    this._initialized = true;
     if (telemetryEnabled) {
-      const container = ctx.get(TelemetryReporters);
+      let container = ctx.get(TelemetryReporters);
       container.setReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY));
       container.setRestrictedReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY_SECURE));
       container.setFTReporter(new AppInsightsReporter(ctx, telemetryNamespace, APP_INSIGHTS_KEY_FT, true));
@@ -36,11 +38,9 @@ class TelemetryInitialization {
   }
 
   async reInitialize(ctx: Context): Promise<void> {
-    if (this._args) {
-      await this.initialize(ctx, this._args.namespace, this._args.enabled);
-    } else {
-      throw new Error('Cannot re-initialize telemetry that has not been initialized.');
-    }
+    return this._initialized
+      ? this.initialize(ctx, this._namespace!, this._enabled!)
+      : Promise.reject(new Error('Cannot re-initialize telemetry that has not been initialized.'));
   }
 }
 

@@ -3,14 +3,17 @@ import { URI } from 'vscode-uri';
 export type LanguageId = string;
 
 // ../../lib/src/prompt/similarFiles/neighborFiles.ts
-export type Document = {
-  languageId: LanguageId;
-  // optional: ../../lib/src/prompt/prompt.ts
-  relativePath?: string;
+export type OpenDocument = {
   source: string;
-  offset?: number;
-  // uri: URI; // don't know where this from
-  uri: string; // lib/src/prompt/similarFiles/openTabFiles, uri: doc.uri.toString(),
+  uri: string;
+  // required ../../lib/src/prompt/similarFiles/openTabFiles.ts
+  // undefined when uri is `untitled:` ../../lib/src/textDocumentManager.ts
+  relativePath?: string;
+};
+
+export type CurrentDocument = OpenDocument & {
+  languageId: LanguageId;
+  offset: number;
 };
 
 // export type SimilarFileOption =
@@ -49,11 +52,13 @@ export interface IPromptOptions {
 }
 
 export type SnippetContext = {
-  currentFile: Document;
+  currentFile: CurrentDocument;
   tooltipSignature?: string;
-  similarFiles?: Document[];
+  similarFiles?: OpenDocument[];
   // ../../lib/src/prompt/prompt.ts options: new PromptOptions(promptOptions),
   options?: IPromptOptions;
+
+  traits: ({ kind: 'string'; value: string } | { kind: 'name-value'; name: string; value: string })[];
 };
 
 export interface Element {
@@ -71,7 +76,7 @@ export interface Snippet {
   startLine: number;
   endLine: number;
   // Document['relativePath'] optional ./snippetInclusion/similarFiles.ts
-  relativePath?: Document['relativePath'];
+  relativePath?: CurrentDocument['relativePath'];
   score: number;
 }
 

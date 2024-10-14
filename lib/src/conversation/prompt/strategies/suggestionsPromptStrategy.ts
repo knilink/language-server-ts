@@ -34,20 +34,23 @@ class SuggestionsPromptStrategy implements IPromptStrategy {
     };
   }
 
-  private suffix(): string {
+  private suffix(turnContext: TurnContext): string {
     return dedent`
             Your task is to come up with two suggestions:
 
             1) Suggest a title for the current conversation based on the history of the conversation so far.
                 - The title must be a short phrase that captures the essence of the conversation.
-                - The title must relevant to the conversation context.
+                - The title must be relevant to the conversation context.
                 - The title must not be offensive or inappropriate.
+                - The title must be in the following locale: ${turnContext.conversation.userLanguage}.
 
             2) Write a short one-sentence question that the user can ask as a follow up to continue the current conversation.
                 - The question must be phrased as a question asked by the user, not by Copilot.
                 - The question must be relevant to the conversation context.
                 - The question must not be offensive or inappropriate.
                 - The question must not appear in the conversation history.
+                - The question must not have already been answered.
+                - The question must be in the following locale: ${turnContext.conversation.userLanguage}.
         `.trim();
   }
 
@@ -61,12 +64,11 @@ class SuggestionsPromptStrategy implements IPromptStrategy {
     safetyPrompt: string,
     promptOptions: unknown
   ): Promise<[Chat.ElidableChatMessage[], Unknown.SkillResolution[]]> {
-    const elidable = await this.elidableContent(turnContext.conversation);
     return [
       [
-        { role: Chat.Role.System, content: safetyPrompt },
-        { role: Chat.Role.User, content: elidable },
-        { role: Chat.Role.System, content: this.suffix() },
+        { role: 'system', content: safetyPrompt },
+        { role: 'user', content: await this.elidableContent(turnContext.conversation) },
+        { role: 'system', content: this.suffix(turnContext) },
       ],
       [],
     ];

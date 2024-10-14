@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { DocumentUri } from 'vscode-languageserver-types';
 import type { Skill } from '../../types.ts';
 import type { Reference } from '../conversation.ts';
@@ -62,6 +63,8 @@ class ReferencesSkillProcessor implements Skill.ISkillProcessor<Reference[]> {
       } else if (fileStatus === 'empty') {
         return [[new ElidableText([`The referenced file \`${filePath}\` is empty.`]), 1]];
       }
+    } else if (documentResult.status === 'invalid') {
+      return [[new ElidableText([`The referenced file \`${path.basename(ref.uri)}\` is content excluded.`]), 1]];
     }
   }
 }

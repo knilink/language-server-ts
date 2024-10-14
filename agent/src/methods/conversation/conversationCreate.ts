@@ -28,6 +28,8 @@ const Params = Type.Object({
   references: Type.Optional(Type.Array(ReferenceSchema)),
   source: Type.Optional(ConversationSourceSchema),
   workspaceFolder: Type.Optional(Type.String()),
+  ignoredSkills: Type.Optional(Type.Array(Type.String())),
+  userLanguage: Type.Optional(Type.String()),
 });
 
 async function handleConversationCreateChecked(
@@ -50,7 +52,7 @@ async function handleConversationCreateChecked(
       .map((s) => s.id);
   }
   const source = params.source ?? 'panel';
-  const conversation = await ctx.get(Conversations).create(params.capabilities, source);
+  const conversation = await ctx.get(Conversations).create(params.capabilities, source, params.userLanguage);
   await addTurns(ctx, conversation, params);
   const lastTurn = conversation.turns[conversation.turns.length - 1];
   const mergedToken = ctx.get(WorkDoneProgressTokens).add(params.workDoneToken, token);
@@ -75,7 +77,9 @@ async function addTurns(ctx: Context, conversation: Conversation, params: Static
     if (turn.response) {
       toAdd.response = { message: turn.response, type: 'model' };
     }
-    await ctx.get(Conversations).addTurn(conversation.id, toAdd, params.references, params.workspaceFolder);
+    await ctx
+      .get(Conversations)
+      .addTurn(conversation.id, toAdd, params.references, params.workspaceFolder, params.ignoredSkills);
   }
 }
 

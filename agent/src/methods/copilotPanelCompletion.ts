@@ -1,7 +1,6 @@
-import { Type, type Static } from '@sinclair/typebox';
 import SHA256 from 'crypto-js/sha256.js';
 import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
-import { WorkDoneProgress, ProtocolRequestType, ProgressType } from 'vscode-languageserver';
+import { WorkDoneProgress } from 'vscode-languageserver';
 import { Range } from 'vscode-languageserver-types';
 import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
 import { Context } from '../../../lib/src/context.ts';
@@ -13,6 +12,11 @@ import { Service } from '../service.ts';
 import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { didAcceptPanelCompletionItemCommand } from '../commands/panel.ts';
+import {
+  CopilotPanelCompletionParams,
+  CopilotPanelCompletionParamsType,
+  CopilotPanelCompletionRequest,
+} from '../../../types/src/index.ts';
 
 // import { } from '../rpc';
 // import { } from '../../../lib/src/ghostText/ghostText';
@@ -27,18 +31,9 @@ type Completion = {
   };
 };
 
-const Params = Type.Object({
-  textDocument: Type.Object({ uri: Type.String(), version: Type.Optional(Type.Integer()) }),
-  position: Type.Object({ line: Type.Integer({ minimum: 0 }), character: Type.Integer({ minimum: 0 }) }),
-  partialResultToken: Type.Optional(Type.Union([Type.Integer(), Type.String()])),
-  workDoneToken: Type.Optional(Type.Union([Type.Integer(), Type.String()])),
-});
-
-const type = new ProtocolRequestType('textDocument/copilotPanelCompletion');
-
 function makeCompletion(
   ctx: Context,
-  params: Static<typeof Params>,
+  params: CopilotPanelCompletionParamsType,
   offset: number,
   unformattedSolution: SolutionHandlerNS.UnformattedSolution,
   displayPosition: number
@@ -85,7 +80,7 @@ async function reportDone(token: string | number | undefined, service: Service, 
 async function handleChecked(
   ctx: Context,
   token: CancellationToken,
-  params: Static<typeof Params>
+  params: CopilotPanelCompletionParamsType
 ): Promise<[{ items: Completion[] }, null] | [null, { code: number; message: string }]> {
   const textDocument = await getOpenTextDocumentChecked(ctx, params.textDocument, token);
   let position = params.position;
@@ -108,9 +103,11 @@ async function handleChecked(
           items.push(solution);
         }
       : async (solution: Completion) => {
-          await ctx.get(Service).connection.sendProgress(PanelCompletionRequest.partialResult, partialResultToken, {
-            items: [solution],
-          });
+          await ctx
+            .get(Service)
+            .connection.sendProgress(CopilotPanelCompletionRequest.partialResult, partialResultToken, {
+              items: [solution],
+            });
         };
 
   const solutionHandler = new SolutionHandler(ctx, params, onCompletion);
@@ -141,7 +138,7 @@ let cancellationTokenSource: CancellationTokenSource | undefined;
 async function handleCheckedWithAbort(
   ctx: Context,
   clientToken: CancellationToken,
-  params: Static<typeof Params>
+  params: CopilotPanelCompletionParamsType
 ): Promise<[{ items: Completion[] }, null] | [null, { code: number; message: string }]> {
   if (cancellationTokenSource) {
     cancellationTokenSource.cancel();
@@ -161,10 +158,7 @@ async function handleCheckedWithAbort(
   }
 }
 
-class PanelCompletionRequest {
-  static type = type;
-  static partialResult = new ProgressType<{ items: Completion[] }>();
-}
+const type = CopilotPanelCompletionRequest.type;
 
 class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
   offset = 0;
@@ -177,7 +171,7 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
 
   constructor(
     readonly ctx: Context,
-    readonly params: Static<typeof Params>,
+    readonly params: CopilotPanelCompletionParamsType,
     readonly onCompletion: (solution: Completion) => Promise<void>
   ) {}
 
@@ -217,6 +211,6 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
   }
 }
 
-const handle = addMethodHandlerValidation(Params, handleCheckedWithAbort);
+const handle = addMethodHandlerValidation(CopilotPanelCompletionParams, handleCheckedWithAbort);
 
 export { handle, type };

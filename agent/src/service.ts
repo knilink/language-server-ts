@@ -13,20 +13,18 @@ import {
   TextDocumentSyncKind,
 } from 'vscode-languageserver/node.js';
 
-import { Type, type Static } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { URI } from 'vscode-uri';
 
 import type { Context } from '../../lib/src/context.ts';
 
 import { registerCommands } from './commands/index.ts';
-import { CopilotCapabilitiesParam, CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
+import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
 import { InitializedNotifier } from './editorFeatures/initializedNotifier.ts';
 import { NotificationLogger } from './editorFeatures/logTarget.ts';
 import { setupRedirectingTelemetryReporters } from './editorFeatures/redirectTelemetryReporter.ts';
 import { LspFileWatcher } from './lspFileWatcher.ts';
 import { MethodHandlers } from './methods/methods.ts';
-import { notifyChangeConfiguration } from './methods/notifyChangeConfiguration.ts';
+import { externalSections, notifyChangeConfiguration } from './methods/notifyChangeConfiguration.ts';
 import { registerNotifications } from './notifications/index.ts';
 import { SchemaValidationError } from './schemaValidation.ts';
 import { AgentTextDocumentManager } from './textDocumentManager.ts';
@@ -40,23 +38,9 @@ import { setupTelemetryReporters } from '../../lib/src/telemetry/setupTelemetryR
 import { TelemetryReporters } from '../../lib/src/telemetry.ts';
 import { PromiseQueue } from '../../lib/src/util/promiseQueue.ts';
 import { WorkspaceNotifier } from '../../lib/src/workspaceNotifier.ts';
+import { CopilotInitializationOptions, CopilotInitializationOptionsType } from '../../types/src/index.ts';
 
-const NameAndVersionParam = Type.Object({
-  name: Type.String(),
-  version: Type.String(),
-  readableName: Type.Optional(Type.String()),
-});
-
-const OptionsParam = Type.Object({
-  editorInfo: Type.Optional(NameAndVersionParam),
-  editorPluginInfo: Type.Optional(NameAndVersionParam),
-  copilotCapabilities: Type.Optional(CopilotCapabilitiesParam),
-  githubAppId: Type.Optional(Type.String()),
-});
-
-const optionsTypeCheck = TypeCompiler.Compile(OptionsParam);
-
-type OptionsParamType = Static<typeof OptionsParam>;
+const optionsTypeCheck = TypeCompiler.Compile(CopilotInitializationOptions);
 
 // MARK either void or not mutating
 function purgeNulls(obj: any): any {
@@ -115,13 +99,11 @@ class Service {
     async function didChangeConfiguration(ctx: Context, params: Partial<DidChangeConfigurationParams>) {
       try {
         if (workspaceConfiguration && params && typeof params === 'object' && !('settings' in params)) {
-          const settings: LSPAny = { github: {} };
-          [settings.http, settings['github-enterprise'], settings.github.copilot] =
-            await connection.workspace.getConfiguration([
-              { section: 'http' },
-              { section: 'github-enterprise' },
-              { section: 'github.copilot' },
-            ]);
+          const sections = await connection.workspace.getConfiguration(
+            ['github.copilot', ...externalSections].map((section) => ({ section }))
+          );
+          const settings: LSPAny = { github: { copilot: sections.shift() } };
+          for (const section of externalSections) settings[section] = sections.shift();
           params.settings = settings;
         }
         return notifyChangeConfiguration(ctx, purgeNulls(params));
@@ -133,10 +115,7 @@ class Service {
     async function didChangeWorkspaceFolders(params: WorkspaceFoldersChangeEvent) {
       try {
         ctx.get(AgentTextDocumentManager).didChangeWorkspaceFolders(params);
-        ctx.get(WorkspaceNotifier).emit({
-          added: params['added'].map((f: WorkspaceFolder) => URI.parse(f.uri)),
-          removed: params['removed'].map((f: WorkspaceFolder) => URI.parse(f.uri)),
-        });
+        ctx.get(WorkspaceNotifier).emit(params);
       } catch (e) {
         logger.exception(ctx, e, 'didChangeWorkspaceFolders');
       }
@@ -152,12 +131,15 @@ class Service {
     connection.onInitialize(async (params: InitializeParams) => {
       if (this.initialized) throw new Error('initialize request sent after initialized notification');
       this._clientCapabilities = params.capabilities;
-      let copilotCapabilities: OptionsParamType['copilotCapabilities'] = (params.capabilities as any).copilot;
+      let copilotCapabilities: CopilotInitializationOptionsType['copilotCapabilities'] = (params.capabilities as any)
+        .copilot;
       const options = purgeNulls(params.initializationOptions);
       if (options) {
         if (!optionsTypeCheck.Check(options)) throw new SchemaValidationError(optionsTypeCheck.Errors(options));
         if (options.editorInfo && options.editorPluginInfo) {
-          ctx.get(EditorAndPluginInfo).setEditorAndPluginInfo(options.editorInfo, options.editorPluginInfo);
+          ctx
+            .get(EditorAndPluginInfo)
+            .setEditorAndPluginInfo(options.editorInfo, options.editorPluginInfo, options.relatedPluginInfo ?? []);
         }
 
         if (options.githubAppId) {
@@ -171,10 +153,7 @@ class Service {
 
       ctx.get(AgentTextDocumentManager).init(params.workspaceFolders ?? []);
       registerDocumentTracker(this.ctx);
-      ctx.get(WorkspaceNotifier).emit({
-        added: (params.workspaceFolders ?? []).map((folder) => URI.parse(folder.uri)),
-        removed: [],
-      });
+      ctx.get(WorkspaceNotifier).emit({ added: params.workspaceFolders ?? [], removed: [] });
       workspaceConfiguration = params.capabilities.workspace?.configuration;
       if (copilotCapabilities) {
         ctx.get(CopilotCapabilitiesProvider).setCapabilities(copilotCapabilities);
@@ -188,7 +167,9 @@ class Service {
           connection.workspace.onDidChangeWorkspaceFolders(didChangeWorkspaceFolders);
         }
         if (workspaceConfiguration) {
-          didChangeConfiguration(ctx, {});
+          await didChangeConfiguration(ctx, {});
+        } else if (!copilotCapabilities?.redirectedTelemetry) {
+          await setupTelemetryReporters(ctx, 'agent', true);
         }
         ctx.get(InitializedNotifier).emit();
       });
@@ -197,8 +178,10 @@ class Service {
         await ctx.get(AuthManager).setTransientAuthRecord(ctx, null);
       }
 
-      if (copilotCapabilities?.redirectedTelemetry) await setupRedirectingTelemetryReporters(ctx);
-      else await setupTelemetryReporters(ctx, 'agent', !0);
+      if (copilotCapabilities?.redirectedTelemetry) {
+        await setupRedirectingTelemetryReporters(ctx);
+      }
+
       if (semver.lt(process.versions.node, '18.5.0')) {
         logger.warn(
           ctx,

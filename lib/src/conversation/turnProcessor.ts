@@ -185,7 +185,7 @@ export class ModelTurnProcessor {
       await this.conversationProgress.report(this.conversation, this.turn, {
         reply: 'Sure, I can definitely do that!',
         annotations: response.annotations,
-        warnings: response.warnings,
+        notifications: response.notifications,
         references: response.references,
       });
       await this.turnContext.steps.finishAll();
@@ -200,7 +200,7 @@ export class ModelTurnProcessor {
       await this.conversationProgress.report(this.conversation, this.turn, {
         reply: response.message,
         annotations: response.annotations,
-        warnings: response.warnings,
+        notifications: response.notifications,
         references: response.references,
       });
       await this.endProgress();
@@ -239,6 +239,7 @@ export class ModelTurnProcessor {
     });
 
     let partialResponse = '';
+    let numCodeEdits = 0;
     const finishCallback = new ConversationFinishCallback((text, annotations, references, errors) => {
       const hasEditComment = text.trim().match(markdownCommentRegexp) !== null;
       this.conversationProgress
@@ -247,7 +248,7 @@ export class ModelTurnProcessor {
           annotations: annotations,
           references,
           hideText: hasEditComment,
-          warnings: errors,
+          notifications: errors.map((e) => ({ severity: 'warning', message: (e as any).message })),
         })
         .then();
 
@@ -265,6 +266,7 @@ export class ModelTurnProcessor {
         if (codeEdits?.length > 0) {
           partialResponse = '';
           this.conversationProgress.report(this.conversation, this.turn, { codeEdits });
+          numCodeEdits += codeEdits.length;
         }
       }
     });
@@ -281,7 +283,7 @@ export class ModelTurnProcessor {
     const fetchResult = await this.chatFetcher.fetchResponse(params, token, baseTelemetryWithExp, async (text, delta) =>
       finishCallback.isFinishedAfter(text, delta)
     );
-
+    augmentedTelemetryWithExp = augmentedTelemetryWithExp.extendedBy(undefined, { numCodeEdits });
     return await this.postProcessor.postProcess(
       fetchResult,
       token,

@@ -117,7 +117,7 @@ class InlineTurnProcessorStrategy implements ITurnProcessorStrategy {
       this.ctx
         .get(ConversationInspector)
         .documentDiff({ original: currentDocument.getText(), updated: updatedDocumentText });
-      return { uri: currentDocument.vscodeUri.fsPath, text: updatedDocumentText };
+      return { uri: currentDocument.uri, text: updatedDocumentText };
     }
   }
 

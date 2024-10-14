@@ -3,7 +3,7 @@ import { Range, DocumentUri } from 'vscode-languageserver-types';
 import { type TextDocumentResultStatus } from '../fileReader.ts';
 import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 
-import { Skill, SkillId, Snippet } from '../types.ts';
+import { SkillId } from '../types.ts';
 import { Context } from '../context.ts';
 import { Conversation, Turn } from './conversation.ts';
 
@@ -70,11 +70,16 @@ class TurnContext {
   isFileIncluded(uri: DocumentUri): boolean {
     return this.collector.collectibles.some((c) => c.type === 'file' && c.status === 'included' && c.uri === uri);
   }
-  addSkillResolutionProperties(skillId: SkillId, properties: Snippet.Resolution) {
-    this.skillResolver.skillResolutionProperties[skillId] = properties;
+  async info(message: string) {
+    await this.sendChatNotification(message, 'info');
   }
-  skillResolutionProperties(skillId?: SkillId) {
-    return skillId ? (this.skillResolver.skillResolutionProperties[skillId] ?? {}) : {};
+  async warn(message: string) {
+    await this.sendChatNotification(message, 'warning');
+  }
+  async sendChatNotification(message: string, severity: ConversationProgress.Severity) {
+    await this.ctx
+      .get(ConversationProgress)
+      .report(this.conversation, this.turn, { notifications: [{ severity, message }] });
   }
 }
 
@@ -95,7 +100,6 @@ class ConversationAbortError extends Error {
 
 class SkillResolver<T extends Record<keyof T & SkillId, any> = SkillMap> {
   readonly resolveStack: SkillId[] = [];
-  readonly skillResolutionProperties: Record<SkillId, Snippet.Resolution> = {};
 
   constructor(readonly turnContext: TurnContext) {}
 

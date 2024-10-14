@@ -73,7 +73,7 @@ function maybeSnipCompletionImpl(
           completionLine &&
           docLine &&
           (isLastCompletionLine
-            ? docLine.startsWith(completionLine)
+            ? docLine.startsWith(completionLine) || completionLine.startsWith(docLine)
             : docLine === completionLine && completionLine.trim() === blockCloseToken)
         )
       ) {

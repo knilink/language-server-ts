@@ -1,5 +1,5 @@
 import { defaultCppSimilarFilesOptions, defaultSimilarFilesOptions } from './snippetInclusion/similarFiles.ts';
-import { LanguageId, Document, Snippet, PromptInfo, IPromptOptions, SimilarFilesOptions } from './types.ts';
+import { LanguageId, Snippet, PromptInfo, IPromptOptions, SimilarFilesOptions, CurrentDocument } from './types.ts';
 import { SnippetTextProcessor } from './snippetTextProcessing.ts';
 import { processSnippetsForWishlist } from './snippetInclusion/snippets.ts';
 import { transferLastLineToTooltipSignature } from './tooltipSignature.ts';
@@ -28,7 +28,7 @@ function normalizeLanguageId(languageId: LanguageId): LanguageId {
 }
 
 async function getPrompt(
-  doc: Document,
+  doc: CurrentDocument,
   options: Partial<PromptOptions> = {},
   snippets: Snippet[] = []
 ): Promise<PromptInfo> {
@@ -51,6 +51,7 @@ async function getPrompt(
   );
   const pathSnippet = snippets.find((s) => s.provider === 'path');
   const languageSnippet = snippets.find((s) => s.provider === 'language');
+  const traitsSnippet = snippets.find((s) => s.provider === 'trait');
   let tooltipSignatureSnippet = snippets.find((s) => s.provider === 'tooltip-signature');
 
   if (pathSnippet && pathSnippet.snippet.length > 0) {
@@ -68,8 +69,13 @@ async function getPrompt(
     promptWishlist.append(languageSnippet.snippet, 'LanguageMarker');
   }
 
+  if (traitsSnippet != null) {
+    promptWishlist.append(traitsSnippet.snippet, 'Traits');
+  }
+
   snippets = snippets.filter(
-    (s) => s.provider !== 'language' && s.provider !== 'path' && s.provider !== 'tooltip-signature'
+    (s) =>
+      s.provider !== 'language' && s.provider !== 'path' && s.provider !== 'tooltip-signature' && s.provider !== 'trait'
   );
 
   function addSnippetsNow() {

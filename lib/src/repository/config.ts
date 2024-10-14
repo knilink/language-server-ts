@@ -88,7 +88,15 @@ class GitCLIConfigLoader extends GitConfigLoader {
   async getConfig(ctx: Context, baseFolder: DocumentUri | URI): Promise<GitConfigData | undefined> {
     const fsPath = getFsPath(baseFolder);
     if (fsPath === undefined) return;
-    const output = await this.tryRunCommand(ctx, fsPath, 'git', ['config', '--list', '--null', ...this.extraArgs()]);
+    const output = await this.tryRunCommand(ctx, fsPath, 'git', [
+      '-c',
+      'safe.directory=*',
+      'config',
+      '--list',
+      '--null',
+      ...this.extraArgs(),
+    ]);
+
     return output ? this.extractConfig(output) : undefined;
   }
 

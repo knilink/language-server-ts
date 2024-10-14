@@ -82,9 +82,8 @@ async function collectFeatureFlagsSection(ctx: Context): Promise<DiagnosticSecti
     const tokenManager = ctx.get(CopilotTokenManager);
     const token = await tokenManager.getCopilotToken(ctx);
     items['Send Restricted Telemetry'] = token.getTokenValue('rt') === '1' ? 'enabled' : 'disabled';
-    if (token.envelope?.chat_enabled) {
-      items.Chat = 'enabled';
-    }
+    items.Chat = token.envelope?.chat_enabled ? 'enabled' : undefined;
+    items['Content exclusion'] = token.envelope?.copilotignore_enabled ? 'enabled' : 'unavailable';
   } catch {}
 
   return { name: 'Feature Flags', items };

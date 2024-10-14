@@ -2,6 +2,10 @@ import { TSchema } from '@sinclair/typebox';
 import { Context } from '../../../lib/src/context.ts';
 import { NotificationType } from 'vscode-languageserver';
 
+namespace AbstractNotification {
+  export type Ctor = new (ctx: Context) => AbstractNotification;
+}
+
 abstract class AbstractNotification {
   abstract name: string;
   abstract params: TSchema;

@@ -12,7 +12,11 @@ import { ConversationProgress } from '../../../lib/src/conversation/conversation
 import { PreconditionsCheck } from '../../../lib/src/conversation/preconditions.ts';
 import { PreconditionsNotifier } from './preconditionsNotifier.ts';
 import { HeaderContributors } from '../../../lib/src/headerContributors.ts';
-import { ModelMetadataProvider, pickModelMetadataProvider } from '../../../lib/src/conversation/modelMetadata.ts';
+import {
+  CapiModelMetadataProvider,
+  ExpModelMetadataProvider,
+  ModelMetadataProvider,
+} from '../../../lib/src/conversation/modelMetadata.ts';
 import { TurnProcessorFactory } from './turnProcessorFactory.ts';
 import { BlackbirdIndexingStatus } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/indexingStatus.ts';
 import { ConversationInspector } from '../../../lib/src/conversation/conversationInspector.ts';
@@ -98,7 +102,7 @@ function registerContextDependencies(ctx: Context): void {
 
   ctx.get(HeaderContributors).add(new CapiVersionHeaderContributor(ctx));
 
-  ctx.set(ModelMetadataProvider, pickModelMetadataProvider(ctx));
+  ctx.set(ModelMetadataProvider, new ExpModelMetadataProvider(ctx, new CapiModelMetadataProvider(ctx)));
   ctx.set(TurnProcessorFactory, new TurnProcessorFactory());
   ctx.set(BlackbirdIndexingStatus, new BlackbirdIndexingStatus());
   ctx.set(ConversationInspector, new AgentConversationInspector(ctx));

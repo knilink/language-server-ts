@@ -72,7 +72,7 @@ const handleSetEditorInfoChecked = async (
     ctx.get(NetworkConfiguration).updateBaseUrl(ctx, params.authProvider.url);
   }
 
-  await initializePostConfigurationDependencies(ctx);
+  await initializePostConfigurationDependencies(ctx, params.editorConfiguration);
   return ['OK', null];
 };
 

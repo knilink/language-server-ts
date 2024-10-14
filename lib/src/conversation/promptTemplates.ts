@@ -11,14 +11,15 @@ import { TestFailuresSkillId } from './skills/TestFailuresSkill.ts';
 import { TestContextSkillId } from './skills/TestContextSkill.ts';
 import { ProblemsInActiveDocumentSkillId } from './skills/ProblemInActiveDocumentSkill.ts';
 import { Reference } from './schema.ts';
+import { ConversationProgress } from './conversationProgress.ts';
 
 export type TemplateScope = 'editor' | 'chat-panel' | 'inline';
 
 export interface IPromptTemplate {
-  id: string;
-  description: string;
-  shortDescription: string;
-  scopes: TemplateScope[];
+  readonly id: string;
+  readonly description: string;
+  readonly shortDescription: string;
+  readonly scopes: TemplateScope[];
 
   producesCodeEdits?: boolean;
   response?(
@@ -60,7 +61,7 @@ export class PromptTemplateResponse {
     readonly error?: unknown,
     readonly annotations: Unknown.Annotation[] = [],
     // ./promptDebugTemplates.ts
-    readonly warnings: { message: string }[] = [],
+    readonly notifications: { message: string; severity: ConversationProgress.Severity }[] = [],
     readonly references: Reference[] = []
   ) {}
 }

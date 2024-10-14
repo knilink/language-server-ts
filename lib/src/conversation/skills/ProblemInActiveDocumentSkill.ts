@@ -5,10 +5,10 @@ import type { Skill } from '../../types.ts';
 
 import {} from '../modelMetadata.ts';
 import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
-import { RangeSchema } from '../schema.ts';
 import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { weighElidableList } from '../prompt/elidableList.ts';
 import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { RangeSchema } from '../../../../types/src/index.ts';
 import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';

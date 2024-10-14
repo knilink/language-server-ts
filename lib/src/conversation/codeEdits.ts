@@ -71,27 +71,31 @@ function extractEditsFromTaggedCodeblocks(responseText: string, doc: TextDocumen
 }
 
 function applyEditsToDocument(edits: PartialCodeEdit[], currentDocument: TextDocument): string | undefined {
-  if (edits.length === 0) return;
-
+  if (edits.length === 0) {
+    return;
+  }
   edits.sort((a, b) => (a.start !== b.start ? b.start - a.start : b.end - a.end));
-  const documentRows = currentDocument.getText().split('\n');
+  let documentRows = currentDocument.getText().split(`\n`);
+  for (let edit of edits) {
+    let start = edit.start;
+    let end = edit.end;
+    let mode = edit.mode;
 
-  for (const edit of edits) {
-    const start = edit.start;
-    const end = edit.end;
-    const mode = edit.mode;
-    let codeblockLines = edit.codeblock.split('\n');
+    let codeblockRows = edit.codeblock.split(`\n`);
 
-    if (mode === 'delete') {
-      documentRows.splice(start, end - start + 1);
-    } else if (mode === 'replace') {
-      const indentation = getIndentation(codeblockLines[start]);
-      codeblockLines = codeblockLines.map((line) => indentation + line);
-      documentRows.splice(start, end - start + 1, ...codeblockLines);
+    if (!(start < 0 || end < 0 || end < start) && !(start >= documentRows.length || end >= documentRows.length)) {
+      if (mode === 'delete') {
+        documentRows.splice(start, end - start + 1);
+      } else if (mode === 'replace') {
+        let indentation = documentRows[start].match(/^\s*/)?.[0] ?? '';
+        codeblockRows.forEach((line, index) => {
+          codeblockRows[index] = indentation + line;
+        });
+        documentRows.splice(start, end - start + 1, ...codeblockRows);
+      }
     }
   }
-
-  return documentRows.join('\n');
+  return documentRows.join(`\n`);
 }
 
 export { extractEditsFromTaggedCodeblocks, applyEditsToDocument, CodeEdit, codeEditModes, markdownCommentRegexp };

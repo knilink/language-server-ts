@@ -1,4 +1,4 @@
-import { Document } from '../types.ts';
+import { CurrentDocument } from '../types.ts';
 import { getCursorContext } from './cursorContext.ts';
 import { getBasicWindowDelineations } from './windowDelineations.ts';
 import { WindowedMatcher } from './selectRelevance.ts';
@@ -28,13 +28,13 @@ class FixedWindowSizeJaccardMatcher extends WindowedMatcher {
 
   static FACTORY(windowLength: number) {
     return {
-      to(referenceDoc: Document): FixedWindowSizeJaccardMatcher {
+      to(referenceDoc: CurrentDocument): FixedWindowSizeJaccardMatcher {
         return new FixedWindowSizeJaccardMatcher(referenceDoc, windowLength);
       },
     };
   }
 
-  constructor(referenceDoc: Document, windowLength: number) {
+  constructor(referenceDoc: CurrentDocument, windowLength: number) {
     super(referenceDoc);
     this.windowLength = windowLength;
   }
@@ -47,7 +47,7 @@ class FixedWindowSizeJaccardMatcher extends WindowedMatcher {
     return getBasicWindowDelineations(this.windowLength, lines);
   }
 
-  _getCursorContextInfo(referenceDoc: Document) {
+  _getCursorContextInfo(referenceDoc: CurrentDocument) {
     return getCursorContext(referenceDoc, { maxLineCount: this.windowLength });
   }
 

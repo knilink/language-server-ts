@@ -1,5 +1,4 @@
 import { type Static, Type } from '@sinclair/typebox';
-import { URI } from 'vscode-uri';
 
 import { statusFromTextDocumentResult, FileReader } from '../../fileReader.ts';
 import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
@@ -36,10 +35,7 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
           statusFromTextDocumentResult(documentResult)
         );
         if (documentResult.status === 'valid')
-          return await promptGenerator.asImplFilePrompt(
-            documentResult.document.languageId,
-            URI.parse(skill.sourceFileUri)
-          );
+          return await promptGenerator.asImplFilePrompt(documentResult.document.languageId, skill.sourceFileUri);
       } else if (skill.sourceFileUri === skill.currentFileUri) {
         const documentResult = await fileReader.readFile(skill.sourceFileUri);
         await this.turnContext.collectFile(
@@ -48,10 +44,7 @@ class TestContextSkillProcessor implements Skill.ISkillProcessor<TestContext> {
           statusFromTextDocumentResult(documentResult)
         );
         if (documentResult.status === 'valid')
-          return await promptGenerator.asTestFilePrompt(
-            documentResult.document.languageId,
-            URI.parse(skill.testFileUri)
-          );
+          return await promptGenerator.asTestFilePrompt(documentResult.document.languageId, skill.testFileUri);
       }
     } else if (skill.sourceFileUri && skill.sourceFileUri === skill.currentFileUri) {
       const documentResult = await fileReader.readFile(skill.sourceFileUri);

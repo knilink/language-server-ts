@@ -14,13 +14,11 @@ class RankingProvider {
   }
 
   getImplementation(ctx: Context, workspaceFolder: DocumentUri, type: string = 'default'): IRanking {
-    const fsPath = (workspaceFolder.startsWith('file://') ? URI.parse(workspaceFolder) : URI.file(workspaceFolder))
-      .fsPath;
-    let provider = this.workspaceRankingProviders.get(fsPath);
+    let provider = this.workspaceRankingProviders.get(workspaceFolder);
 
     if (!provider) {
-      provider = this.createImplementation(ctx, fsPath, type);
-      this.workspaceRankingProviders.set(fsPath, provider);
+      provider = this.createImplementation(ctx, workspaceFolder, type);
+      this.workspaceRankingProviders.set(workspaceFolder, provider);
     }
 
     return provider;

@@ -2,6 +2,7 @@ import { Context } from '../context.ts';
 
 import { parseVulnerabilitiesInstructions, DebugCodeVulnerability } from './vulnerabilityDebugHandler.ts';
 import { CurrentEditorSkillId } from './skills/CurrentEditorSkill.ts';
+import { ProjectContextSkillId } from './skills/ProjectContextSkill.ts';
 import { exampleMarkdown } from './markdownRenderingSpecification.ts';
 import { PromptTemplateResponse, IPromptTemplate } from './promptTemplates.ts';
 import { ProjectLabelsSkillId } from './skills/ProjectLabelsSkill.ts';
@@ -9,6 +10,7 @@ import { getSkillsDump, getConversationDump, ConversationDumper } from './dump.t
 import { TurnContext } from './turnContext.ts';
 import { CancellationToken } from '../../../agent/src/cancellation.ts';
 import { SkillId } from '../types.ts';
+import { ConversationProgress } from './conversationProgress.ts';
 
 function getDebugTemplates() {
   return [
@@ -23,16 +25,17 @@ function getDebugTemplates() {
     DebugVulnerabilityTemplate,
     DebugMarkdownRenderingTemplate,
     DebugLongTemplate,
+    DebugProjectContextTemplate,
   ];
 }
 
 const FilteredMessage = "Oops, your response got filtered. Vote down if you think this shouldn't have happened";
 
 class DebugFailPromptTemplate implements IPromptTemplate {
-  id = 'debug.fail';
-  description = 'Fail for debugging purposes';
-  shortDescription = 'Fail';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.fail';
+  readonly description = 'Fail for debugging purposes';
+  readonly shortDescription = 'Fail';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
 
   async response(
     turnContext: TurnContext,
@@ -45,23 +48,30 @@ class DebugFailPromptTemplate implements IPromptTemplate {
 
 const DebugFailTemplate = new DebugFailPromptTemplate();
 
-class DebugWarnPromptTemplate implements IPromptTemplate {
-  id = 'debug.warn';
-  description = 'Warn for debugging purposes';
-  shortDescription = 'Warn';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+class DebugNotificationPromptTemplate implements IPromptTemplate {
+  readonly id = 'debug.notify';
+  readonly description = 'Notify for debugging purposes';
+  readonly shortDescription = 'Notify';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel', 'inline'];
   async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
-    let warnings = [{ message: userMessage.length > 0 ? userMessage : 'Some is really wrong' }];
-    return new PromptTemplateResponse("Alright, I'm producing a warning", undefined, [], warnings);
+    let severity: ConversationProgress.Severity = 'warning';
+
+    if (userMessage.includes('info')) {
+      severity = 'info';
+    }
+
+    const message = userMessage.replace('info', '').replace('warning', '').trim();
+    const notifications = [{ severity, message: message.length > 0 ? message : 'Debug Notification' }];
+    return new PromptTemplateResponse("Alright, I'm producing a notification", undefined, [], notifications);
   }
 }
-const DebugWarnTemplate = new DebugWarnPromptTemplate();
+const DebugWarnTemplate = new DebugNotificationPromptTemplate();
 
 class DebugFilterPromptTemplate implements IPromptTemplate {
-  id = 'debug.filter';
-  description = 'Make the RAI filter kick in';
-  shortDescription = 'RAI Filter';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.filter';
+  readonly description = 'Make the RAI filter kick in';
+  readonly shortDescription = 'RAI Filter';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
 
   async response(turnContext: TurnContext, userMessage: string) {
     turnContext.turn.status = 'filtered';
@@ -76,10 +86,10 @@ class DebugFilterPromptTemplate implements IPromptTemplate {
 const DebugFilterTemplate = new DebugFilterPromptTemplate();
 
 class DebugDumpPromptTemplate implements IPromptTemplate {
-  id = 'debug.dump';
-  description = 'Dump the conversation';
-  shortDescription = 'Dump';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.dump';
+  readonly description = 'Dump the conversation';
+  readonly shortDescription = 'Dump';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async response(turnContext: TurnContext) {
     return new PromptTemplateResponse(await getConversationDump(turnContext));
   }
@@ -88,10 +98,10 @@ class DebugDumpPromptTemplate implements IPromptTemplate {
 const DebugDumpTemplate = new DebugDumpPromptTemplate();
 
 class DebugChristmasTreePromptTemplate implements IPromptTemplate {
-  id = 'debug.tree';
-  description = 'Jingle bells, jingle bells, jingle all the way';
-  shortDescription = 'Christmas Tree';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.tree';
+  readonly description = 'Jingle bells, jingle bells, jingle all the way';
+  readonly shortDescription = 'Christmas Tree';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async requiredSkills(ctx: Context): Promise<SkillId[]> {
     return [ProjectLabelsSkillId, CurrentEditorSkillId];
   }
@@ -145,10 +155,10 @@ ${value}
 const DebugPromptTemplate = new DebugPromptPromptTemplate();
 
 class DebugSkillsPromptTemplate implements IPromptTemplate {
-  id = 'debug.skills';
-  description = 'Resolves and displays all available skills or a single skill (id) if provided';
-  shortDescription = 'Skills';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.skills';
+  readonly description = 'Resolves and displays all available skills or a single skill (id) if provided';
+  readonly shortDescription = 'Skills';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
     let skillId;
     let strippedMessage;
@@ -166,10 +176,10 @@ class DebugSkillsPromptTemplate implements IPromptTemplate {
 const DebugSkillsTemplate = new DebugSkillsPromptTemplate();
 
 class DebugVulnerabilityPromptTemplate implements IPromptTemplate {
-  id = 'debug.vulnerability';
-  description = 'Create a message with a vulnerability annotation';
-  shortDescription = 'Vulnerability';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.vulnerability';
+  readonly description = 'Create a message with a vulnerability annotation';
+  readonly shortDescription = 'Vulnerability';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
     let { reply, vulnerabilities } = parseVulnerabilitiesInstructions(userMessage);
     for (let i = 0; i < vulnerabilities; i++) turnContext.turn.annotations.push(DebugCodeVulnerability);
@@ -180,10 +190,10 @@ class DebugVulnerabilityPromptTemplate implements IPromptTemplate {
 const DebugVulnerabilityTemplate = new DebugVulnerabilityPromptTemplate();
 
 class DebugMarkdownRenderingPromptTemplate implements IPromptTemplate {
-  id = 'debug.markdown';
-  description = 'Markdown rendering specification by example';
-  shortDescription = 'Markdown';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.markdown';
+  readonly description = 'Markdown rendering specification by example';
+  readonly shortDescription = 'Markdown';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   async response(turnContext: TurnContext, userMessage: string, cancellationToken: CancellationToken) {
     return new PromptTemplateResponse(exampleMarkdown);
   }
@@ -192,14 +202,27 @@ class DebugMarkdownRenderingPromptTemplate implements IPromptTemplate {
 const DebugMarkdownRenderingTemplate = new DebugMarkdownRenderingPromptTemplate();
 
 class DebugLongPromptTemplate implements IPromptTemplate {
-  id = 'debug.long';
-  description = 'Generate a long response';
-  shortDescription = 'Long';
-  scopes: IPromptTemplate['scopes'] = ['chat-panel'];
+  readonly id = 'debug.long';
+  readonly description = 'Generate a long response';
+  readonly shortDescription = 'Long';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel'];
   instructions(ctx: Context, userMessage: string) {
     return 'Write out the OWASP top 10 with code examples in java';
   }
 }
 const DebugLongTemplate = new DebugLongPromptTemplate();
+
+class DebugProjectContextPromptTemplate implements IPromptTemplate {
+  readonly id = 'debug.project';
+  readonly description = 'Generate a response using the project context skill';
+  readonly shortDescription = 'Project';
+  readonly scopes: IPromptTemplate['scopes'] = ['chat-panel', 'inline'];
+
+  async requiredSkills(ctx: Context) {
+    return [ProjectContextSkillId];
+  }
+}
+
+const DebugProjectContextTemplate = new DebugProjectContextPromptTemplate();
 
 export { getDebugTemplates };

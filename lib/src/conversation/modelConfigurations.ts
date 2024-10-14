@@ -12,7 +12,7 @@ async function getDefaultRequestTokens(ctx: Context, modelMetadata: Model.Metada
   let maxRequestTokens = features.ideChatMaxRequestTokens(telemetryDataWithExp);
 
   if (maxRequestTokens === -1) {
-    maxRequestTokens = 10240;
+    maxRequestTokens = 16384;
   }
 
   if (modelMetadata.capabilities.limits?.max_prompt_tokens) {
@@ -103,13 +103,26 @@ class DefaultModelConfigurationProvider extends ModelConfigurationProvider {
             tokenizer: 'cl100k_base',
             isExperimental: modelMetadata.isExperimental ?? false,
           };
+        case 'gpt-4o-mini':
+          return {
+            modelId: modelMetadata.id,
+            uiName: modelMetadata.name,
+            modelFamily,
+            maxRequestTokens: 6144,
+            maxResponseTokens: 2048,
+            baseTokensPerMessage: 3,
+            baseTokensPerName: 1,
+            baseTokensPerCompletion: 3,
+            tokenizer: 'o200k_base',
+            isExperimental: modelMetadata.isExperimental ?? false,
+          };
         case 'gpt-4':
         case 'gpt-4-turbo': {
           return {
             modelId: modelMetadata.id,
             uiName: modelMetadata.name,
             modelFamily: modelFamily,
-            maxRequestTokens: await getDefaultRequestTokens(this.ctx, modelMetadata),
+            maxRequestTokens: 10240,
             maxResponseTokens: 4096,
             baseTokensPerMessage: 3,
             baseTokensPerName: 1,
@@ -143,11 +156,10 @@ class DefaultModelConfigurationProvider extends ModelConfigurationProvider {
     if (modelMetadata) {
       switch (modelFamily) {
         case 'text-embedding-3-small':
-        case 'text-embedding-ada-002':
           return {
             modelId: modelMetadata.id,
             modelFamily: modelFamily,
-            maxBatchSize: Math.min(16, modelMetadata.capabilities.limits?.max_inputs ?? 2048),
+            maxBatchSize: modelMetadata.capabilities.limits?.max_inputs ?? 16,
             maxTokens: 8191,
             tokenizer: 'cl100k_base',
           };

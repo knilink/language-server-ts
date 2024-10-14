@@ -47,24 +47,26 @@ abstract class AbstractUserPromptStrategy implements IPromptStrategy {
 
     return [
       [
-        { role: Chat.Role.System, content: safetyPrompt },
-        { role: Chat.Role.User, content: elidableContent },
-        { role: Chat.Role.System, content: this.suffix() },
-        { role: Chat.Role.User, content: userInput },
+        { role: 'system', content: safetyPrompt },
+        { role: 'user', content: elidableContent },
+        { role: 'system', content: this.suffix(turnContext) },
+        { role: 'user', content: userInput },
       ],
+
       skillResolutions,
     ];
   }
 
-  abstract suffix(): string;
+  abstract suffix(turnContext: TurnContext): string;
 }
 
 class PanelUserPromptStrategy extends AbstractUserPromptStrategy {
-  suffix(): string {
+  suffix(turnContext: TurnContext): string {
     return `
 Use the above information, including the additional context and conversation history (if available) to answer the user's question below.
 Prioritize the context given in the user's question.
-When generating code, think step-by-step - describe your plan for what to build in pseudocode, written out in great detail. Then output the code in a single code block. Minimize any other prose.
+When generating code, think step-by-step. Briefly explain the code and then output it in a single code block.
+When fixing problems and errors, provide a brief description first.
 When generating classes, use a separate code block for each class.
 Keep your answers short and impersonal.
 Use Markdown formatting in your answers.
@@ -77,6 +79,7 @@ Do not repeat the user's code excerpt when answering.
 Do not prefix your answer with "GitHub Copilot".
 Do not start your answer with a programming language name.
 Do not include follow up questions or suggestions for next turns.
+Respond in the following locale: ${turnContext.conversation.userLanguage}.
     `.trim();
   }
 }

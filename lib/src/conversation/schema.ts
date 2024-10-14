@@ -1,10 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
+import { RangeSchema } from '../../../types/src/index.ts';
 import { WebSearchReferenceSchema } from './extensibility/references.ts';
-
-const RangeSchema = Type.Object({
-  start: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
-  end: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
-});
 
 const FileStatusSchema = Type.Union([
   Type.Literal('included'),
@@ -38,4 +34,4 @@ type Reference = Static<typeof ReferenceSchema>;
 
 const ConversationSourceSchema = Type.Union([Type.Literal('panel'), Type.Literal('inline')]);
 
-export { ConversationSourceSchema, DocumentSchema, RangeSchema, ReferenceSchema, FileReference, Reference };
+export { ConversationSourceSchema, DocumentSchema, ReferenceSchema, FileReference, Reference };

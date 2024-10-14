@@ -4,9 +4,19 @@ import { Context } from '../../../context.ts';
 
 import { ChatModelFamily } from '../../modelMetadata.ts';
 import { PanelUserPromptStrategy } from './userPromptStrategy.ts';
-import { pickMetaPromptStrategy } from './metaPromptStrategy.ts';
+import { MetaPromptStrategy } from './metaPromptStrategy.ts';
 import { SuggestionsPromptStrategy } from './suggestionsPromptStrategy.ts';
 import { InlineUserPromptStrategy } from './inlineUserPromptStrategy.ts';
+import { UserQuerySynonymsPromptStrategy } from './userQuerySynonymsPromptStrategy.ts';
+import { getSupportedModelFamiliesForPrompt } from '../../modelMetadata.ts';
+
+function descriptor(
+  promptType: PromptType,
+  modelFamilies: ChatModelFamily[],
+  strategy: () => Promise<IPromptStrategy>
+) {
+  return new PromptStrategyDescriptor(promptType, modelFamilies, strategy);
+}
 
 class PromptStrategyDescriptor {
   constructor(
@@ -17,25 +27,18 @@ class PromptStrategyDescriptor {
 }
 
 const descriptors: PromptStrategyDescriptor[] = [
-  new PromptStrategyDescriptor(
-    'user',
-    [ChatModelFamily.Gpt4o, ChatModelFamily.Gpt4turbo, ChatModelFamily.Gpt4],
-    async () => new PanelUserPromptStrategy() // fromSkills.promptOptions
-  ),
-  new PromptStrategyDescriptor(
-    'inline',
-    [ChatModelFamily.Gpt4o, ChatModelFamily.Gpt4turbo, ChatModelFamily.Gpt4],
-    async () => new InlineUserPromptStrategy() // fromSkills.promptOptions
-  ),
-  new PromptStrategyDescriptor(
-    'meta',
-    [ChatModelFamily.Gpt35turbo],
-    async (ctx: Context) => pickMetaPromptStrategy(ctx) // {promptType, supportedSkillDescriptors} Unknown.MetaPromptOptions
-  ),
-  new PromptStrategyDescriptor(
+  descriptor('user', getSupportedModelFamiliesForPrompt('user'), async () => new PanelUserPromptStrategy()),
+  descriptor('inline', getSupportedModelFamiliesForPrompt('inline'), async () => new InlineUserPromptStrategy()),
+  descriptor('meta', getSupportedModelFamiliesForPrompt('meta'), async () => new MetaPromptStrategy()),
+  descriptor(
     'suggestions',
-    [ChatModelFamily.Gpt35turbo],
-    async () => new SuggestionsPromptStrategy() // unknown unused
+    getSupportedModelFamiliesForPrompt('suggestions'),
+    async () => new SuggestionsPromptStrategy()
+  ),
+  descriptor(
+    'synonyms',
+    getSupportedModelFamiliesForPrompt('synonyms'),
+    async () => new UserQuerySynonymsPromptStrategy()
   ),
 ];
 

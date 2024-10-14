@@ -1,4 +1,4 @@
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import { type TextDocument } from '../../../../textDocument.ts';
 import { IChunking, DocumentChunk } from './IndexingTypes.ts';
 import { getTokenizer } from '../../../../../../prompt/src/tokenization/index.ts';
 

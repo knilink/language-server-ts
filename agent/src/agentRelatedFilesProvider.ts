@@ -1,31 +1,16 @@
-import { ProtocolRequestType } from 'vscode-languageserver-protocol';
-
-import {
-  RelatedFilesProvider,
-  EmptyRelatedFilesResponse,
-  type DocumentInfo,
-  type Entry,
-} from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
+import { RelatedFilesProvider, EmptyRelatedFilesResponse } from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
 // import { } from '../../lib/src/prompt/similarFiles/neighborFiles';
 
 import { type Context } from '../../lib/src/context.ts';
 import { Service } from './service.ts';
 import { relatedFilesLogger } from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
 import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
-import { Features } from '../../lib/src/experiments/features.ts';
-import { ConfigKey, getConfig } from '../../lib/src/config.ts';
 import { telemetry, TelemetryData, TelemetryWithExp } from '../../lib/src/telemetry.ts';
-
-type RawResponse = { entries: Array<{ providerName: string; uris: string[] }>; traits: never };
+import { CopilotRelatedRequest, RawResponse, Trait, Entry } from '../../types/src/index.ts';
+import { type CancellationToken } from './cancellation.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 class AgentRelatedFilesProvider extends RelatedFilesProvider {
-  static getRelatedFilesRequestType = new ProtocolRequestType<
-    { textDocument: { uri: DocumentInfo['uri'] } },
-    RawResponse,
-    unknown,
-    unknown,
-    unknown
-  >('copilot/related');
   static telemetrySent = false;
 
   readonly reportedUnknownProviders = new Set<string>();
@@ -38,16 +23,17 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     return this.context.get(Service);
   }
 
-  static mapProviderNameToNeighboringFileType(
-    providerName: string
-  ): 'related/csharp' | 'related/cpp' | 'related/cppsemanticcodecontext' | 'related/other' {
+  static mapProviderNameToNeighboringFileType(providerName: string): Entry['type'] {
     const csharpProviderName = 'CSharpCopilotCompletionContextProvider';
+    const csharpRoslynProviderName = 'CSharpRoslynCompletionRelatedContextProvider';
     const cppProviderName = 'CppCopilotCompletionContextProvider';
     const cppSemanticCodeContextroviderName = 'CppCopilotCompletionSemanticCodeContextProvider';
 
     switch (providerName) {
       case csharpProviderName:
         return 'related/csharp';
+      case csharpRoslynProviderName:
+        return 'related/csharproslyn';
       case cppProviderName:
         return 'related/cpp';
       case cppSemanticCodeContextroviderName:
@@ -57,8 +43,11 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     }
   }
 
-  convert(rawResponse: RawResponse): { entries: Entry[] } {
-    const response: { entries: Entry[]; traits: RawResponse['traits'] } = { entries: [], traits: rawResponse.traits };
+  convert(rawResponse: RawResponse): RelatedFilesProvider.RelatedFilesResponse {
+    const response: { entries: Entry[]; traits: Trait[] } = {
+      entries: [],
+      traits: rawResponse.traits,
+    };
 
     for (const rawEntry of rawResponse.entries) {
       const entry: Entry = {
@@ -75,7 +64,11 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     return response;
   }
 
-  async getRelatedFilesResponse(docInfo: DocumentInfo, telemetryData: TelemetryWithExp): Promise<{ entries: Entry[] }> {
+  async getRelatedFilesResponse(
+    docInfo: { uri: DocumentUri; data: unknown },
+    telemetryData: TelemetryWithExp,
+    cancellationToken: CancellationToken
+  ): Promise<RelatedFilesProvider.RelatedFilesResponse | null> {
     relatedFilesLogger.debug(this.context, `Fetching related files for ${docInfo.uri}`);
 
     const hasRelatedCapability = this.context.get(CopilotCapabilitiesProvider).getCapabilities().related ?? false;
@@ -86,27 +79,17 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
       return EmptyRelatedFilesResponse;
     }
 
-    if (
-      !(
-        this.context.get(Features).relatedFiles(telemetryData) ||
-        getConfig(this.context, ConfigKey.DebugOverrideRelatedFiles)
-      )
-    ) {
-      relatedFilesLogger.debug(this.context, '`copilot/related` experiment is not active');
-      return EmptyRelatedFilesResponse;
-    }
-
     try {
       const rawResponse = await this.service.connection.sendRequest(
-        AgentRelatedFilesProvider.getRelatedFilesRequestType,
-        { textDocument: { uri: docInfo.uri } }
+        CopilotRelatedRequest.type,
+        { textDocument: { uri: docInfo.uri }, data: docInfo.data },
+        cancellationToken
       );
       return this.convert(rawResponse);
     } catch (e) {
       relatedFilesLogger.exception(this.context, e, '.copilotRelated');
+      return null;
     }
-
-    return EmptyRelatedFilesResponse;
   }
 
   static async relatedCapabilityTelemetry(

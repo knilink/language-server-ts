@@ -21,13 +21,11 @@ class FeatureFlagsNotifier {
 
   constructor(readonly ctx: Context) {
     this.ctx.get(CopilotTokenNotifier).on('onCopilotToken', async (token) => {
-      let inlineChatEnabled = false;
       let extensibilityPlatformEnabled = false;
       let projectContextEnabled = false;
       if (token.envelope.chat_enabled) {
         const features = ctx.get(Features);
         const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
-        inlineChatEnabled = features.ideChatEnableInline(telemetryDataWithExp);
         extensibilityPlatformEnabled = features.ideChatEnableExtensibilityPlatform(telemetryDataWithExp);
         projectContextEnabled = features.ideChatEnableProjectContext(telemetryDataWithExp);
       }
@@ -35,7 +33,7 @@ class FeatureFlagsNotifier {
         rt: token.getTokenValue('rt') === '1',
         sn: token.getTokenValue('sn') === '1',
         chat: token.envelope.chat_enabled ?? false,
-        ic: inlineChatEnabled,
+        ic: token.envelope.chat_enabled ?? false,
         ep: extensibilityPlatformEnabled,
         pc: projectContextEnabled,
       };

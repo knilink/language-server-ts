@@ -1,5 +1,6 @@
 import { Snippet } from './types.ts';
 import { TooltipSignatureSnippetProvider } from './snippetProviders/tooltipSignature.ts';
+import { TraitProvider } from './snippetProviders/trait.ts';
 import { SnippetProvider } from './snippetProviders/snippetProvider.ts';
 import { PathSnippetProvider } from './snippetProviders/path.ts';
 import { WorkerProxy, workerProxy } from './workerProxy.ts';
@@ -69,6 +70,7 @@ const defaultProviders: (new (workerProxy: WorkerProxy) => SnippetProvider)[] = 
   PathSnippetProvider,
   SimilarFilesProvider,
   TooltipSignatureSnippetProvider,
+  TraitProvider,
 ];
 
 class SnippetOrchestrator {

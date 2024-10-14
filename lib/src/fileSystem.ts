@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { type DocumentUri } from 'vscode-languageserver-types';
-import { URI, isSupportedUriScheme, getFsPath, parseUri } from './util/uri.ts';
+import { type URI } from 'vscode-uri';
+import { isSupportedUriScheme, getFsPath, parseUri } from './util/uri.ts';
 
 type FileStat = {
   ctime: number;

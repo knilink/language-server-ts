@@ -7,9 +7,10 @@ import { minimatch } from 'minimatch';
 import { factory } from 'dldr/cache';
 
 import {
+  BLOCKED_POLICY_ERROR_RESPONSE,
   NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE,
   NOT_BLOCKED_RESPONSE,
-  BLOCKED_POLICY_ERROR_RESPONSE,
+  logger,
 } from './constants.ts';
 
 import { PolicyEvaluator } from './policyEvaluator.ts';
@@ -19,9 +20,10 @@ import { Fetcher, FetchResponseError } from '../networking.ts';
 import { assertShape } from '../util/typebox.ts';
 import { telemetryException, telemetry, TelemetryData } from '../telemetry.ts';
 import { RepositoryManager } from '../repository/repositoryManager.ts';
-import { dirname } from '../util/uri.ts';
+import { dirname, percentDecode, resolveFilePath } from '../util/uri.ts';
 import { LRUCacheMap } from '../common/cache.ts';
 import { CopilotAuthError } from '../auth/error.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 const SourceSchema = Type.Object({ name: Type.String(), type: Type.String() });
 type SourceSchema = Static<typeof SourceSchema>;
@@ -99,6 +101,9 @@ class CopilotContentExclusion extends PolicyEvaluator {
       url.searchParams.set('repos', filteredScopes.join(','));
     }
     url.searchParams.set('scope', hasAllScope ? 'all' : 'repo');
+    logger.debug(this._context, 'Fetching content exclusion policies', {
+      params: Object.fromEntries(url.searchParams),
+    });
 
     const result = await this._context
       .get(Fetcher)
@@ -107,6 +112,10 @@ class CopilotContentExclusion extends PolicyEvaluator {
 
     if (!result.ok) {
       if (result.status === 404) return Array.from(scopes, () => []);
+      logger.error(this._context, 'Failed fetching content exclusion policies', {
+        params: Object.fromEntries(url.searchParams),
+        data,
+      });
       this._telemetry('fetch.error', { message: (data as any).message });
       throw new FetchResponseError(result);
     }
@@ -114,20 +123,22 @@ class CopilotContentExclusion extends PolicyEvaluator {
     return assertShape(ContentRestrictionsResponseSchema, data).map((r: RepoRuleSchema) => r.rules);
   }, this._ruleLoaderCache);
 
-  async evaluate(uri: URI, fileContent: string): Promise<DocumentEvaluateResult> {
+  async evaluate(uri: DocumentUri, fileContent: string): Promise<DocumentEvaluateResult> {
     try {
+      uri = resolveFilePath(uri).toString();
       const repoInfo = await this.getGitRepo(uri);
       const rules = await this._rulesForScope((repoInfo?.url ?? 'all').toLowerCase());
 
       if (!rules) return NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE;
 
-      const basePath = repoInfo?.baseFolder?.path ?? '';
+      const basePath = repoInfo?.baseFolder ?? 'file://';
       const filePathResult = await this.evaluateFilePathRules(uri, basePath, rules);
       if (filePathResult.isBlocked) return filePathResult;
 
-      const textBasedResult = await this.evaluateTextBasedRules(rules, fileContent);
+      const textBasedResult = await this.evaluateTextBasedRules(uri, rules, fileContent);
       if (textBasedResult.isBlocked) return textBasedResult;
     } catch (err) {
+      logger.error(this._context, err, `Error evaluating policy for <${uri}>`);
       telemetryException(this._context, err, `${TELEMETRY_NAME}.evaluate`);
       return BLOCKED_POLICY_ERROR_RESPONSE;
     }
@@ -135,35 +146,56 @@ class CopilotContentExclusion extends PolicyEvaluator {
     return NOT_BLOCKED_RESPONSE;
   }
 
-  async evaluateFilePathRules(uri: URI, basePath: string, rules: Rule[]): Promise<DocumentEvaluateResult> {
-    const cacheKey = uri.fsPath;
-    if (this._evaluateResultCache.has(cacheKey)) return this._evaluateResultCache.get(cacheKey)!;
-
+  async evaluateFilePathRules(uri: DocumentUri, baseUri: string, rules: Rule[]): Promise<DocumentEvaluateResult> {
+    let cacheKey = uri;
+    if (this._evaluateResultCache.has(cacheKey)) {
+      return this._evaluateResultCache.get(cacheKey)!;
+    }
     let result = NOT_BLOCKED_RESPONSE;
-    const fileName = uri.path.replace(basePath, '');
-
-    ruleLoop: for (const rule of rules) {
-      for (const pattern of rule.paths) {
-        if (minimatch(fileName, pattern, { nocase: true, matchBase: true, nonegate: true, dot: true })) {
+    let fileName = percentDecode(uri.replace(baseUri, ''));
+    logger.debug(this._context, '[Path Based]', `Evaluating rules for <${fileName}>`, {
+      uri,
+      baseUri,
+      rules,
+    });
+    ruleLoop: for (let rule of rules) {
+      logger.debug(this._context, '[Path Based]', `Evaluating rule for <${fileName}>`, {
+        uri,
+        baseUri,
+        rule,
+      });
+      for (let pattern of rule.paths) {
+        let matchResult = minimatch(fileName, pattern, { nocase: true, matchBase: true, nonegate: true, dot: true });
+        logger.debug(this._context, '[Path Based]', `Tried to match <${fileName}> with <${pattern}>`, {
+          uri,
+          baseUri,
+          pattern,
+          result: matchResult,
+        });
+        if (matchResult) {
           result = fileBlockedEvaluationResult(rule, 'FILE_BLOCKED_PATH');
           break ruleLoop;
         }
       }
     }
-
+    logger.debug(this._context, '[Path Based]', `Evaluation result for <${fileName}>`, {
+      uri,
+      baseUri,
+      result,
+    });
     this._evaluateResultCache.set(cacheKey, result);
     return result;
   }
 
-  async evaluateTextBasedRules(rules: Rule[], fileContent: string): Promise<DocumentEvaluateResult> {
-    const blockedIfAnyMatchRules = rules.filter((r) => r.ifAnyMatch);
-    const blockedIfNoneMatchRules = rules.filter((r) => r.ifNoneMatch);
-
+  async evaluateTextBasedRules(uri: DocumentUri, rules: Rule[], fileContent: string): Promise<DocumentEvaluateResult> {
+    let blockedIfAnyMatchRules = rules.filter((r) => r.ifAnyMatch);
+    let blockedIfNoneMatchRules = rules.filter((r) => r.ifNoneMatch);
     if (!fileContent || (blockedIfAnyMatchRules.length === 0 && blockedIfNoneMatchRules.length === 0)) {
       return NOT_BLOCKED_RESPONSE;
     }
-
-    return this.evaluateFileContent(blockedIfAnyMatchRules, blockedIfNoneMatchRules, fileContent);
+    let result = await this.evaluateFileContent(blockedIfAnyMatchRules, blockedIfNoneMatchRules, fileContent);
+    logger.debug(this._context, `Evaluated text-based exclusion rules for <${uri}>`, { result });
+    return result;
   }
 
   async evaluateFileContent(
@@ -213,7 +245,7 @@ class CopilotContentExclusion extends PolicyEvaluator {
     this._testingRules = rules;
   }
 
-  async getGitRepo(uri: URI) {
+  async getGitRepo(uri: DocumentUri) {
     const repo = await this._context.get(RepositoryManager).getRepo(dirname(uri));
     if (!repo || !(repo != null && repo.remote)) return;
 

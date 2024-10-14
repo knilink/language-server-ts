@@ -7,11 +7,14 @@ import { Features } from '../experiments/features.ts';
 import { logger } from '../logger.ts';
 import { FetchResponseError, type Response } from '../networking.ts';
 
+const tenMinutesMs = 600_000;
+
 enum ChatModelFamily {
   Gpt35turbo = 'gpt-3.5-turbo',
   Gpt4 = 'gpt-4',
   Gpt4turbo = 'gpt-4-turbo',
   Gpt4o = 'gpt-4o',
+  Gpt4oMini = 'gpt-4o-mini',
   TextEmbedding3Small = 'text-embedding-3-small',
   TextEmbeddingAda002 = 'text-embedding-ada-002',
   Unknown = 'unknown',
@@ -24,21 +27,9 @@ function getSupportedModelFamiliesForPrompt(promptType: PromptType): ChatModelFa
       return [ChatModelFamily.Gpt4o, ChatModelFamily.Gpt4turbo, ChatModelFamily.Gpt4];
     case 'meta':
     case 'suggestions':
-      return [ChatModelFamily.Gpt35turbo];
+    case 'synonyms':
+      return [ChatModelFamily.Gpt4oMini, ChatModelFamily.Gpt35turbo];
   }
-}
-
-function pickModelMetadataProvider(ctx: Context): ModelMetadataProvider {
-  try {
-    if (process.env.CAPI_MODEL_METADATA_OVERRIDE) {
-      const parsedModelMetadata = JSON.parse(process.env.CAPI_MODEL_METADATA_OVERRIDE);
-      return new StaticModelMetadataProvider(parsedModelMetadata);
-    }
-  } catch (e: unknown) {
-    conversationLogger.error(ctx, 'Failed to parse models from CAPI', { error: e });
-  }
-
-  return new ExpModelMetadataProvider(ctx, new CapiModelMetadataProvider(ctx));
 }
 
 abstract class ModelMetadataProvider {
@@ -99,27 +90,16 @@ class CapiModelMetadataProvider extends ModelMetadataProvider {
   }
 
   private isLastFetchOlderTenMinutes(): boolean {
-    return Date.now() - this._lastFetchTime > 600_000;
-  }
-}
-
-class StaticModelMetadataProvider extends ModelMetadataProvider {
-  constructor(private metadata: Model.Metadata[]) {
-    super();
-  }
-
-  async getMetadata(): Promise<Model.Metadata[]> {
-    return this.metadata;
-  }
-  async fetchModel(modelId: string) {
-    throw new Error('StaticModelMetadataProvider cannot fetch models');
+    return Date.now() - this._lastFetchTime > tenMinutesMs;
   }
 }
 
 class ExpModelMetadataProvider extends ModelMetadataProvider {
+  _exp_models_cache = new Map<string, [Model.Metadata, number]>();
+
   constructor(
     readonly ctx: Context,
-    private delegate: CapiModelMetadataProvider
+    readonly delegate: CapiModelMetadataProvider
   ) {
     super();
   }
@@ -127,22 +107,42 @@ class ExpModelMetadataProvider extends ModelMetadataProvider {
   async getMetadata(): Promise<Model.Metadata[]> {
     const features = this.ctx.get(Features);
     const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
-    const expModelId = features.ideChatExpModelId(telemetryDataWithExp);
+    const expModelIdsStr = features.ideChatExpModelIds(telemetryDataWithExp);
     const experimentalModels = [];
-    if (expModelId) {
-      const expModelMetadata = await this.fetchModel(expModelId);
+    if (expModelIdsStr) {
+      let expModelIds = expModelIdsStr?.split(',');
+      for (let modelId of expModelIds) {
+        let modelMetadata = await this.fetchModel(modelId.trim());
 
-      if (expModelMetadata !== undefined) {
-        expModelMetadata.isExperimental = true;
-        experimentalModels.push(expModelMetadata);
+        if (modelMetadata !== undefined) {
+          modelMetadata.isExperimental = true;
+          experimentalModels.push(modelMetadata);
+        }
       }
     }
     return experimentalModels.concat(await this.delegate.getMetadata());
   }
 
-  async fetchModel(modelId: string) {
-    return this.delegate.fetchModel(modelId);
+  async fetchModel(modelId: string): Promise<Model.Metadata | undefined> {
+    const cachedModelData = this._exp_models_cache.get(modelId);
+    if (cachedModelData) {
+      let [modelMetadata, lastFetchTime] = cachedModelData;
+      if (Date.now() - lastFetchTime < tenMinutesMs) {
+        return modelMetadata;
+      }
+    }
+    const modelData = await this.delegate.fetchModel(modelId);
+    if (modelData) {
+      this._exp_models_cache.set(modelId, [modelData, Date.now()]);
+      return modelData;
+    }
   }
 }
 
-export { getSupportedModelFamiliesForPrompt, pickModelMetadataProvider, ModelMetadataProvider, ChatModelFamily };
+export {
+  CapiModelMetadataProvider,
+  ChatModelFamily,
+  ExpModelMetadataProvider,
+  ModelMetadataProvider,
+  getSupportedModelFamiliesForPrompt,
+};

@@ -1,6 +1,7 @@
 import SHA256 from 'crypto-js/sha256.js';
 import { LRUCacheMap } from '../../../../common/cache.ts';
 import type { DocumentChunk, ChunkId } from './IndexingTypes.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 type FilePath = string;
 
 // const hash = (content: string) => SHA256(content).toString();
@@ -36,8 +37,8 @@ class WorkspaceChunks {
     return this.chunks.get(id);
   }
 
-  chunksForFile(filepath: FilePath): DocumentChunk[] {
-    const ids = this.fileChunksIds.get(filepath) || [];
+  chunksForFile({ uri }: { uri: DocumentUri }): DocumentChunk[] {
+    const ids = this.fileChunksIds.get(uri) || [];
     return ids.length ? ids.map((id) => this.chunks.get(id)).filter((chunk) => chunk !== undefined) : [];
   }
 
@@ -54,9 +55,9 @@ class WorkspaceChunks {
     }
   }
 
-  addChunksForFile(filepath: FilePath, chunks: DocumentChunk[]): void {
+  addChunksForFile({ uri }: { uri: DocumentUri }, chunks: DocumentChunk[]): void {
     let ids = chunks.map((chunk) => chunk.id);
-    this.fileChunksIds.set(filepath, ids);
+    this.fileChunksIds.set(uri, ids);
     this.addChunks(chunks);
     this._totalChunkCount += chunks.length;
   }
@@ -72,8 +73,8 @@ class WorkspaceChunks {
     }
   }
 
-  deleteSubfolderChunks(subfolder: string): ChunkId[] {
-    let subfolderFiles = [...this.fileChunksIds.keys()].filter((key) => key.startsWith(subfolder));
+  deleteSubfolderChunks({ uri }: { uri: DocumentUri }): ChunkId[] {
+    let subfolderFiles = [...this.fileChunksIds.keys()].filter((key) => key.startsWith(uri));
     let chunksIds: ChunkId[] = [];
     for (let file of subfolderFiles) {
       let fileChunkIds = this.fileChunksIds.get(file) || [];
@@ -84,11 +85,11 @@ class WorkspaceChunks {
     return chunksIds;
   }
 
-  deleteFileChunks(filepath: FilePath): ChunkId[] {
-    let chunkIds = this.fileChunksIds.get(filepath) || [];
+  deleteFileChunks({ uri }: { uri: DocumentUri }): ChunkId[] {
+    let chunkIds = this.fileChunksIds.get(uri) || [];
     if (chunkIds.length > 0) {
       this.deleteChunks(chunkIds);
-      this.fileChunksIds.delete(filepath);
+      this.fileChunksIds.delete(uri);
     }
     return chunkIds;
   }

@@ -10,6 +10,7 @@ import {
   AbstractMessageWriter,
 } from 'vscode-languageserver';
 import { DebugServer } from './debug/debugServer.ts';
+import { default as open } from 'open';
 
 function wrapTransports(
   env: NodeJS.ProcessEnv,
@@ -18,10 +19,13 @@ function wrapTransports(
 ): [MessageReader, MessageWriter] {
   let emitter: EventEmitter | null = null;
   const debugPort = parseInt((env.GH_COPILOT_DEBUG_UI_PORT ?? env.GITHUB_COPILOT_DEBUG_UI_PORT) as any);
-
   if (!isNaN(debugPort)) {
     emitter = new EventEmitter();
-    new DebugServer(debugPort, emitter).listen();
+    let server = new DebugServer(debugPort, emitter).listen();
+
+    if (debugPort === 0) {
+      open(`http://localhost:${server.getPort()}`);
+    }
   }
 
   let logFile: number | null = null;

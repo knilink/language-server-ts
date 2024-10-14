@@ -20,6 +20,7 @@ import { ConversationProgress } from '../conversationProgress.ts';
 import { ChatFetchResultPostProcessor } from '../fetchPostProcessor.ts';
 import { conversationLogger } from '../logger.ts';
 import { countMessagesTokens } from '../openai/chatTokens.ts';
+import { filterTurns } from '../prompt/fromHistory.ts';
 import { createTelemetryWithExpWithId, extendUserMessageTelemetryData } from '../telemetry.ts';
 import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
 import { NetworkConfiguration } from '../../networkConfiguration.ts';
@@ -105,7 +106,13 @@ class RemoteAgentTurnProcessor {
       };
       await turnContext.ctx.get(ConversationInspector).inspectPrompt(promptInspection);
       await turnContext.steps.start(GENERATE_RESPONSE_STEP, 'Generating response');
-      const augmentedTelemetryWithExp = this.augmentTelemetry(conversationPrompt, telemetryWithExp, undefined, doc);
+      const augmentedTelemetryWithExp = this.augmentTelemetry(
+        conversationPrompt,
+        telemetryWithExp,
+        this.turn.template,
+        doc
+      );
+
       if (cancellationToken.isCancellationRequested) {
         (this.turn.status = 'cancelled'), await this.cancelProgress();
         return;
@@ -156,27 +163,23 @@ class RemoteAgentTurnProcessor {
     };
   }
   createMessagesFromHistory(turnContext: TurnContext): Chat.ChatMessage[] {
-    return turnContext.conversation.turns
-      .filter((t) => {
-        return t.id !== turnContext.turn.id && t.agent?.agentSlug === this.agent.slug;
-      })
-      .flatMap((turn) => {
-        let messages: Chat.ChatMessage[] = [];
+    return filterTurns(turnContext.conversation.turns.slice(0, -1), this.agent.slug).flatMap((turn) => {
+      const messages: Chat.ChatMessage[] = [];
 
-        if (turn.request) {
-          messages.push({ role: ChatRole.User, content: turn.request.message });
-        }
+      if (turn.request) {
+        messages.push({ role: 'user', content: turn.request.message });
+      }
 
-        if (turn.response && turn.response.type === 'model') {
-          const references = convertToCopilotReferences(turn.response.references);
-          messages.push({
-            role: ChatRole.Assistant,
-            content: turn.response.message,
-            copilot_references: references.length > 0 ? references : undefined,
-          });
-        }
-        return messages;
-      });
+      if (turn.response && turn.response.type === 'model') {
+        let references = convertToCopilotReferences(turn.response.references);
+        messages.push({
+          role: 'assistant',
+          content: turn.response.message,
+          copilot_references: references.length > 0 ? references : undefined,
+        });
+      }
+      return messages;
+    });
   }
   async computeCopilotReferences(turnContext: TurnContext): Promise<ConversationReference.OutgoingReference[]> {
     return await skillsToReference(turnContext);
@@ -203,9 +206,9 @@ class RemoteAgentTurnProcessor {
         this.conversationProgress
           .report(this.conversation, this.turn, {
             reply: text,
-            annotations: annotations,
+            annotations,
             references,
-            warnings: errors,
+            notifications: errors.map((e) => ({ message: (e as any).message, severity: 'warning' })),
           })
           .then();
 
@@ -242,7 +245,7 @@ class RemoteAgentTurnProcessor {
       token,
       finishCallback.appliedText,
       baseTelemetryWithExp,
-      augmentedTelemetryWithExp,
+      augmentedTelemetryWithExp.extendedBy(this.addExtensibilityInfoTelemetry()),
       this.turn.request.message,
       'conversationPanel',
       doc
@@ -277,7 +280,7 @@ class RemoteAgentTurnProcessor {
   augmentTelemetry(
     conversationPrompt: Unknown.ConversationPrompt,
     userTelemetryWithExp: TelemetryWithExp,
-    template?: IPromptTemplate,
+    template?: Turn.Template,
     doc?: TextDocument
   ): TelemetryWithExp {
     return extendUserMessageTelemetryData(
@@ -285,12 +288,22 @@ class RemoteAgentTurnProcessor {
       'conversationPanel',
       this.turn.request.message.length,
       conversationPrompt.tokens,
-      template?.id,
+      template?.templateId,
       undefined,
       userTelemetryWithExp,
       conversationPrompt.skillResolutions
     );
   }
+  addExtensibilityInfoTelemetry() {
+    return {
+      extensibilityInfoJson: JSON.stringify({
+        agent: this.agent.slug,
+        outgoingReferences: this.turn.request.references?.map((r) => r.type) ?? [],
+        incomingReferences: this.turn.response?.references?.map((r) => r.type) ?? [],
+      }),
+    };
+  }
+
   async finishGenerateResponseStep(response: unknown, turnContext: TurnContext) {
     const error = (response as any).error; // MARK
     error

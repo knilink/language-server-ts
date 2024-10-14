@@ -5,8 +5,10 @@ import { Context } from '../../../lib/src/context.ts';
 import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
 import { logger } from '../service.ts';
 import { AgentConfigProvider } from '../config.ts';
+import { CopilotCapabilitiesProvider } from '../editorFeatures/capabilities.ts';
 import { ConfigKey, getConfigKeyRecursively } from '../../../lib/src/config.ts';
 import { Fetcher } from '../../../lib/src/networking.ts';
+import { setupTelemetryReporters } from '../../../lib/src/telemetry/setupTelemetryReporters.ts';
 import { getHttpSettingsFromEnvironment, proxySettingFromUrl, HttpSettings } from '../../../lib/src/network/proxy.ts';
 import { TestingOptions } from './testingOptions.ts';
 import { SchemaValidationError } from '../schemaValidation.ts';
@@ -20,16 +22,29 @@ const NetworkProxy = Type.Object({
   rejectUnauthorized: Type.Optional(Type.Boolean()),
 });
 const GitHubEnterpriseSettings = Type.Object({ uri: Type.Optional(Type.String()) });
-const EditorConfigurationSettings = Type.Object({
+const LegacyEditorConfigurationSettings = Type.Object({
   showEditorCompletions: Type.Optional(Type.Boolean()),
   enableAutoCompletions: Type.Optional(Type.Boolean()),
   delayCompletions: Type.Optional(Type.Boolean()),
   filterCompletions: Type.Optional(Type.Boolean()),
+});
+
+const CanonicalEditorConfigurationSettings = Type.Object({
   github: Type.Optional(Type.Object({ copilot: Type.Optional(Type.Object({})) })),
   'github-enterprise': Type.Optional(GitHubEnterpriseSettings),
-  githubEnterprise: Type.Optional(GitHubEnterpriseSettings),
   http: Type.Optional(HttpSettings),
+  telemetry: Type.Optional(Type.Object({ telemetryLevel: Type.Optional(Type.String()) })),
 });
+
+const externalSections = Object.keys(CanonicalEditorConfigurationSettings.properties).filter(
+  (value) => value !== 'github'
+);
+
+const EditorConfigurationSettings = Type.Intersect([
+  CanonicalEditorConfigurationSettings,
+  LegacyEditorConfigurationSettings,
+]);
+
 const AuthProvider = Type.Object({ url: Type.Optional(Type.String()) });
 const Params = Type.Object({
   settings: Type.Optional(Type.Union([Type.Object({}), Type.Array(Type.Unknown(), { maxItems: 0 })])),
@@ -37,14 +52,21 @@ const Params = Type.Object({
   authProvider: Type.Optional(AuthProvider),
   options: Type.Optional(TestingOptions),
 });
+type ParamsType = Static<typeof Params>;
+
 const typeCheck = TypeCompiler.Compile(Params);
 const typeCheckEditorConfiguration = TypeCompiler.Compile(EditorConfigurationSettings);
 
-async function notifyChangeConfiguration(ctx: Context, params: unknown): Promise<void> {
-  if (!typeCheck.Check(params)) throw new SchemaValidationError(typeCheck.Errors(params));
+async function notifyChangeConfiguration(ctx: Context, params: ParamsType): Promise<void> {
+  if (!typeCheck.Check(params)) {
+    throw new SchemaValidationError(typeCheck.Errors(params));
+  }
 
-  if (Array.isArray(params.settings)) applySettingsToConfiguration(ctx, {});
-  else if (params.settings) applySettingsToConfiguration(ctx, params.settings);
+  const settings = Array.isArray(params.settings) ? {} : params.settings;
+
+  if (settings) {
+    applySettingsToConfiguration(ctx, settings);
+  }
 
   if (params.networkProxy) {
     applyNetworkProxyConfiguration(ctx, params.networkProxy);
@@ -53,7 +75,7 @@ async function notifyChangeConfiguration(ctx: Context, params: unknown): Promise
     ctx.get(NetworkConfiguration).updateBaseUrl(ctx, params.authProvider.url);
   }
 
-  await initializePostConfigurationDependencies(ctx);
+  await initializePostConfigurationDependencies(ctx, settings);
 }
 
 // ./setEditorInfo.ts
@@ -76,7 +98,8 @@ function applySettingsToConfiguration(ctx: Context, settings: Record<string, unk
   config.setConfig(ConfigKey.EnableAutoCompletions, settings.enableAutoCompletions);
   config.setConfig(ConfigKey.FilterCompletions, settings.filterCompletions);
 
-  const authProvider = settings['github-enterprise'] ?? settings.githubEnterprise;
+  const authProvider = settings['github-enterprise'];
+
   if (authProvider) {
     ctx.get(NetworkConfiguration).updateBaseUrl(ctx, authProvider.uri!);
   }
@@ -143,15 +166,20 @@ function applyNetworkProxyConfiguration(ctx: Context, proxySettings?: Static<typ
   fetcher.rejectUnauthorized = proxySettings.rejectUnauthorized ?? true;
 }
 
-async function initializePostConfigurationDependencies(ctx: Context): Promise<void> {
+async function initializePostConfigurationDependencies(ctx: Context, settings: ParamsType['settings']): Promise<void> {
+  if (!ctx.get(CopilotCapabilitiesProvider).getCapabilities().redirectedTelemetry) {
+    const shouldBeEnabled = ((settings as any)?.telemetry?.telemetryLevel ?? 'all') === 'all'; // MARK
+    await setupTelemetryReporters(ctx, 'agent', shouldBeEnabled);
+  }
   await new AgentInstallationManager().startup(ctx);
 }
 
 export {
   notifyChangeConfiguration,
   applyHttpConfiguration,
-  applySettingsToConfiguration,
   applyNetworkProxyConfiguration,
+  applySettingsToConfiguration,
+  externalSections,
   initializePostConfigurationDependencies,
   NetworkProxy,
   AuthProvider,

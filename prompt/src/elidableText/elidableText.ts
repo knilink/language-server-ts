@@ -1,4 +1,4 @@
-import { Document } from '../types.ts';
+import { CurrentDocument } from '../types.ts';
 import { ITokenizer, getTokenizer } from '../tokenization/index.ts';
 
 import { elidableTextForSourceCode } from './fromSourceCode.ts'; // circular deps
@@ -79,7 +79,7 @@ function makePrompt(
 }
 
 namespace ElidableText {
-  export type Chunk = string | ElidableText | Document | [string | ElidableText | Document, number];
+  export type Chunk = string | ElidableText | CurrentDocument | [string | ElidableText | CurrentDocument, number];
 }
 
 class ElidableText {
@@ -88,8 +88,8 @@ class ElidableText {
   constructor(chunks: ElidableText.Chunk[]) {
     this.lines = [];
 
-    for (let chunk of chunks) {
-      let value = Array.isArray(chunk) ? chunk[1] : 1;
+    for (const chunk of chunks) {
+      const value = Array.isArray(chunk) ? chunk[1] : 1;
       const input = Array.isArray(chunk) ? chunk[0] : chunk;
 
       if (typeof input === 'string') {

@@ -31,9 +31,10 @@ class Conversations {
   async create(
     capabilities: Capabilities,
     // ../../../agent/src/methods/conversation/conversationCreate.ts
-    source: 'inline' | 'panel' = 'panel'
+    source: 'inline' | 'panel' = 'panel',
+    userLanguage?: string
   ): Promise<Conversation> {
-    let conversation = new Conversation([], source);
+    let conversation = new Conversation([], source, userLanguage);
     this.conversations.set(conversation.id, new ConversationHolder(conversation, capabilities));
     return conversation;
   }
@@ -42,13 +43,23 @@ class Conversations {
     this.conversations.delete(conversationId);
   }
 
-  async addTurn(conversationId: string, turn: Turn, references?: Reference[], workspaceFolder?: string): Promise<Turn> {
+  async addTurn(
+    conversationId: string,
+    turn: Turn,
+    references?: Reference[],
+    workspaceFolder?: string,
+    ignoreSkills?: SkillId[]
+  ): Promise<Turn> {
     let conversation = this.getHolder(conversationId).conversation;
 
     turn.request.references = references ?? [];
 
     if (workspaceFolder) {
       turn.workspaceFolder = workspaceFolder;
+    }
+
+    if (ignoreSkills && ignoreSkills.length > 0) {
+      turn.ignoredSkills = ignoreSkills.map((skillId) => ({ skillId }));
     }
 
     await this.determineAndApplyAgent(conversation, turn);

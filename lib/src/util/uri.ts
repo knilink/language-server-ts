@@ -6,6 +6,18 @@ type UriScheme = string;
 type UriPath = string;
 type FileSystemPath = string;
 
+function decodeURIComponentGraceful(str: string): string {
+  try {
+    return decodeURIComponent(str);
+  } catch {
+    return str.length > 3 ? str.substring(0, 3) + decodeURIComponentGraceful(str.substring(3)) : str;
+  }
+}
+
+function percentDecode(str: string): string {
+  return str.match(_rEncodedAsHex) ? str.replace(_rEncodedAsHex, (match) => decodeURIComponentGraceful(match)) : str;
+}
+
 function parseUri(uri: string, strict = false): URI {
   try {
     let match = uri.match(/^(?:([^:/?#]+?:)?\/\/)(\/\/.*)$/);
@@ -48,21 +60,21 @@ function getFsPath(uri: FileSystemPath | URI): FileSystemPath | undefined {
     } else return uri.authority ? undefined : uri.path;
 }
 
-function resolveFilePath(arg: FileSystemPath, fileSystemPath: FileSystemPath): string;
-function resolveFilePath(arg: URI, fileSystemPath: FileSystemPath): URI;
-function resolveFilePath(arg: URI | FileSystemPath, fileSystemPath: FileSystemPath): URI | string;
-function resolveFilePath(arg: URI | FileSystemPath, fileSystemPath: FileSystemPath): URI | string {
+function resolveFilePath(arg: FileSystemPath, ...fileSystemPaths: FileSystemPath[]): string;
+function resolveFilePath(arg: URI, ...fileSystemPaths: FileSystemPath[]): URI;
+function resolveFilePath(arg: URI | FileSystemPath, ...fileSystemPaths: FileSystemPath[]): URI | string;
+function resolveFilePath(arg: URI | FileSystemPath, ...fileSystemPaths: FileSystemPath[]): URI | string {
   let uri = typeof arg == 'string' ? parseUri(arg, true) : arg;
   let resolved;
   if (isFsUri(uri)) {
     resolved = URI.file(
       path.resolve(
         getFsPath(uri) ?? '', // MARK idk how should it handler undefeind
-        fileSystemPath
+        ...fileSystemPaths
       )
     );
   } else {
-    resolved = Utils.resolvePath(uri, pathToURIPath(fileSystemPath));
+    resolved = Utils.resolvePath(uri, ...fileSystemPaths.map((p) => pathToURIPath(p)));
   }
   return typeof arg == 'string' ? resolved.toString() : resolved;
 }
@@ -90,7 +102,7 @@ function basename(
     // ../textDocumentManager.ts
     | FileSystemPath
 ): FileSystemPath {
-  return decodeURIComponent(
+  return percentDecode(
     uri
       .toString()
       .replace(/[#?].*$/, '')
@@ -113,17 +125,6 @@ function dirname(arg: URI | FileSystemPath): URI | FileSystemPath {
   return typeof arg == 'string' ? dir.toString() : dir;
 }
 
-export {
-  URI,
-  parseUri,
-  isSupportedUriScheme,
-  isFsScheme,
-  isFsUri,
-  getFsPath,
-  resolveFilePath,
-  joinPath,
-  pathToURIPath,
-  isWinPath,
-  basename,
-  dirname,
-};
+const _rEncodedAsHex = /(%[0-9A-Za-z][0-9A-Za-z])+/g;
+
+export { basename, dirname, getFsPath, isSupportedUriScheme, joinPath, parseUri, percentDecode, resolveFilePath };

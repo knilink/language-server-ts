@@ -9,15 +9,15 @@ class ExpConfig {
       // idechatgpt4maxtokens: number;
       // idechatgpt4maxrequesttokens: number;
       // idechatexpmodelfamily: ChatModelFamily;
-      idechatexpmodelid: string;
+      idechatexpmodelids: string;
       idechatenableprojectmetadata: boolean;
-      idechatmetapromptversion: string;
+      // idechatmetapromptversion: string;
       // idechatintentmodel: string;
       idechatenableprojectcontext: boolean;
       // idechatintentthresholdpercent: number;
       idechatprojectcontextfilecountthreshold: number;
       // idechatintenttokenizer: string;
-      idechatenableinline: boolean;
+      // idechatenableinline: boolean;
       // idechatenableprojectcontext: boolean;
       idechatenableextensibilityplatform: boolean;
       idechatmaxrequesttokens: number;
@@ -40,7 +40,7 @@ class ExpConfig {
       copilotnumberofsnippets: number;
       // copilotneighboringtabs: Lowercase<CopilotNeighboringTabs>;
       copilotcppheaders: boolean;
-      copilotrelatedfiles: boolean;
+      copilotrelatedfilesvscode: boolean;
       // copilotcachereferencetokens: boolean;
       copilotpromptorderlistpreset: 'default';
       copilotpromptprioritypreset: 'office-exp';
@@ -53,6 +53,7 @@ class ExpConfig {
       maxtopsnippetsfromsimilarfiles: number;
       maxsimilarfilesize: number;
       maxsimilarfilescount: number;
+      copilotmaxsimilarfilesize: number;
     }>,
     public assignmentContext: string,
     public features: string

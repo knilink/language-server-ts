@@ -1,4 +1,4 @@
-import { FilterHeaders, RepoInfo, FilterHeaderNames, BlockMode, LanguageId } from '../types.ts';
+import { RepoInfo, BlockMode, LanguageId } from '../types.ts';
 import { Context } from '../context.ts';
 
 import { EditorSession } from '../config.ts';
@@ -21,7 +21,7 @@ import {
 } from '../prompt/repository.ts';
 import { LRUCacheMap } from '../common/cache.ts';
 import { GranularityDirectory } from './granularityDirectory.ts';
-import { FilterSettings } from './filters.ts';
+import { FilterHeaderNames, FilterHeaders, FilterSettings } from './filters.ts';
 import { ExpConfigMaker } from './fetchExperiments.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 
@@ -95,7 +95,8 @@ class Features {
   static upcomingDynamicFilterCheckDelayMs = 20;
 
   staticFilters: FilterHeaders = {};
-  dynamicFilters: Partial<Record<FilterHeaderNames, () => FilterHeaders[FilterHeaderNames]>> = {};
+  dynamicFilters: Record<FilterHeaderNames, () => FilterHeaders[FilterHeaderNames]> = {};
+  dynamicFilterGroups: (() => FilterHeaders)[] = [];
   upcomingDynamicFilters: Record<string, () => FilterValue> = {};
   assignments: FilterSettingsToExpConfigs;
   granularityDirectory?: GranularityDirectory;
@@ -112,11 +113,16 @@ class Features {
   registerDynamicFilter(filter: FilterHeaderNames, generator: () => FilterHeaders[FilterHeaderNames]) {
     this.dynamicFilters[filter] = generator;
   }
-
+  registerDynamicFilterGroup(generator: () => FilterHeaders) {
+    this.dynamicFilterGroups.push(generator);
+  }
   getDynamicFilterValues(): FilterHeaders {
     const values: FilterHeaders = {};
+    for (let generator of this.dynamicFilterGroups) {
+      Object.assign(values, generator());
+    }
     for (const [filter, generator] of Object.entries(this.dynamicFilters)) {
-      values[filter as FilterHeaderNames] = generator(); // MARK might be better iterate over FilterHeaderNames instead
+      values[filter] = generator(); // MARK might be better iterate over FilterHeaderNames instead
     }
     return values;
   }
@@ -296,8 +302,8 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotcppheaders ?? false;
   }
 
-  relatedFiles(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfiles ?? false;
+  relatedFilesVSCode(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfilesvscode ?? false;
   }
 
   maxPromptCompletionTokens(telemetryWithExp: TelemetryWithExp): number {
@@ -329,24 +335,18 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatmaxrequesttokens ?? -1;
   }
 
-  ideChatExpModelId(telemetryWithExp: TelemetryWithExp): string {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatexpmodelid ?? '';
+  ideChatExpModelIds(telemetryWithExp: TelemetryWithExp): string {
+    return telemetryWithExp.filtersAndExp.exp.variables.idechatexpmodelids ?? '';
   }
 
   ideChatEnableProjectMetadata(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectmetadata ?? false;
-  }
-  ideChatMetaPromptVersion(telemetryWithExp: TelemetryWithExp) {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatmetapromptversion ?? '';
   }
   ideChatEnableProjectContext(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectcontext ?? false;
   }
   ideChatProjectContextFileCountThreshold(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatprojectcontextfilecountthreshold ?? 0;
-  }
-  ideChatEnableInline(telemetryWithExp: TelemetryWithExp) {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatenableinline ?? false;
   }
   ideChatEnableExtensibilityPlatform(telemetryWithExp: TelemetryWithExp) {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableextensibilityplatform ?? false;

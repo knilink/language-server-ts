@@ -1,17 +1,13 @@
-import { Type, type Static } from '@sinclair/typebox';
+import { DidChangeAuthNotification, DidChangeAuthParams, DidChangeAuthParamsType } from '../../../types/src/index.ts';
 
 import { AbstractNotification } from './abstract.ts';
 import { AuthManager } from '../../../lib/src/auth/manager.ts';
 
-export class DidChangeAuthNotification extends AbstractNotification {
-  readonly name = 'github/didChangeAuth';
-  readonly params = Type.Object({
-    accessToken: Type.Optional(Type.String({ minLength: 1 })),
-    handle: Type.Optional(Type.String({ minLength: 1 })),
-    githubAppId: Type.Optional(Type.String({ minLength: 1 })),
-  });
+export class DidChangeAuthNotificationHandler extends AbstractNotification {
+  readonly name = DidChangeAuthNotification.method;
+  readonly params = DidChangeAuthParams;
 
-  async handle(params?: Static<typeof this.params>): Promise<void> {
+  async handle(params?: DidChangeAuthParamsType): Promise<void> {
     const authManager = this.ctx.get(AuthManager);
 
     if (params && params.handle && params.accessToken) {
@@ -26,4 +22,4 @@ export class DidChangeAuthNotification extends AbstractNotification {
   }
 }
 
-export const githubNotifications = [DidChangeAuthNotification];
+export const githubNotifications: AbstractNotification.Ctor[] = [DidChangeAuthNotificationHandler];

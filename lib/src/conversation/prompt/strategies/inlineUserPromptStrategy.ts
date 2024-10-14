@@ -1,7 +1,8 @@
+import { TurnContext } from '../../turnContext.ts';
 import { AbstractUserPromptStrategy } from './userPromptStrategy.ts';
 
 class InlineUserPromptStrategy extends AbstractUserPromptStrategy {
-  suffix(): string {
+  suffix(turnContext: TurnContext): string {
     // dedented
     return `
 Use the above information, including the additional context and conversation history (if available) to answer the user's question below.
@@ -16,6 +17,7 @@ Do not repeat the user's code excerpt when answering.
 Do not prefix your answer with "GitHub Copilot".
 Do not start your answer with a programming language name.
 Do not include follow up questions or suggestions for next turns.
+Respond in the following locale: ${turnContext.conversation.userLanguage}.
 
 The user is editing an open file in their editor.
 The user's code is provided with line numbers prepended, for example: '1:code', starting at 1.

@@ -28,9 +28,15 @@ function fromHistory(history: Turn[]): ElidableText | null {
     : null;
 }
 
-function filterTurns(turns: Turn[]): Turn[] {
+function filterTurns(turns: Turn[], agent?: string): Turn[] {
   return turns
-    .filter((turn) => (turn.status === 'success' || turn.status === 'in-progress') && turn.request.message !== '')
+    .filter((turn) => {
+      return (
+        (turn.status === 'success' || turn.status === 'in-progress') &&
+        turn.request.message != '' &&
+        turn.agent?.agentSlug === agent
+      );
+    })
     .reverse()
     .slice(0, MAX_TURNS_IN_HISTORY)
     .reverse();
@@ -55,4 +61,4 @@ function formatTurnMessage(turnMessage: Turn['request'] | NonNullable<Turn['resp
   return `${indexStr}${role}:${messagePrefix}${turnMessage.message}`;
 }
 
-export { fromHistory, MAX_TURNS_IN_HISTORY };
+export { filterTurns, fromHistory };

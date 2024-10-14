@@ -1,21 +1,31 @@
 import { EventEmitter } from 'node:events';
-import { URI } from 'vscode-uri';
 import { Context } from './context.ts';
 import { TextDocument } from './textDocument.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
-type WorkspaceWatcherFileEvent = {
-  type: 'create' | 'update' | 'delete';
-  uris: URI[];
-  documents: TextDocument[];
-  workspaceFolder: URI;
-};
+type WorkspaceWatcherFileEvent =
+  | {
+      type: 'create';
+      documents: TextDocument[];
+      workspaceFolder: { uri: DocumentUri };
+    }
+  | {
+      type: 'update';
+      documents: TextDocument[];
+      workspaceFolder: { uri: DocumentUri };
+    }
+  | {
+      type: 'delete';
+      documents: { uri: DocumentUri }[];
+      workspaceFolder: { uri: DocumentUri };
+    };
 
 type WorkspaceWatcherEventListener = (event: WorkspaceWatcherFileEvent) => void;
 
 class WatchedFilesError extends Error {
   readonly name = 'WatchedFilesError';
-  constructor(message: string) {
-    super(message);
+  constructor(readonly cause: unknown) {
+    super(String(cause));
   }
 }
 
@@ -36,7 +46,7 @@ abstract class WorkspaceWatcher {
   constructor(
     readonly ctx: Context,
     // URI ../../agent/src/workspaceWatcher/agentWatcher.ts
-    readonly workspaceFolder: URI
+    readonly workspaceFolder: { uri: DocumentUri }
   ) {
     this.emitter = new EventEmitter();
     this.startWatching();
@@ -49,7 +59,6 @@ abstract class WorkspaceWatcher {
   public onFilesCreated(documents: TextDocument[]): void {
     this.emitter.emit(workspaceWatcherFileEvent, {
       type: 'create',
-      uris: documents.map((doc) => doc.vscodeUri),
       documents,
       workspaceFolder: this.workspaceFolder,
     });
@@ -58,17 +67,15 @@ abstract class WorkspaceWatcher {
   public onFilesUpdated(documents: TextDocument[]): void {
     this.emitter.emit(workspaceWatcherFileEvent, {
       type: 'update',
-      uris: documents.map((doc) => doc.vscodeUri),
       documents,
       workspaceFolder: this.workspaceFolder,
     });
   }
 
-  public onFilesDeleted(uris: URI[]): void {
+  public onFilesDeleted(documents: { uri: DocumentUri }[]): void {
     this.emitter.emit(workspaceWatcherFileEvent, {
       type: 'delete',
-      uris,
-      documents: [],
+      documents,
       workspaceFolder: this.workspaceFolder,
     });
   }

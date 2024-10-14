@@ -143,8 +143,8 @@ function redactError(original: any, replacements?: Replacement[], telemetryOptIn
   function prepareMessage(e: AdobeError) {
     if (telemetryOptIn) return redactMessage(errorMessageWithoutPath(e));
     let message = '[redacted]';
-    if ('syscall' in e && e.syscall && e.code !== undefined) {
-      message = `${redactPaths(e.syscall.toString())} ${e.code} ${message}`;
+    if (typeof e.syscall === 'string' && e.code !== undefined) {
+      message = `${redactPaths(e.syscall)} ${e.code} ${message}`;
     } else if (e instanceof FetchError && e.erroredSysCall && e.code !== undefined) {
       message = `${e.erroredSysCall} ${e.code} ${message}`;
     } else if (e.code !== void 0) {

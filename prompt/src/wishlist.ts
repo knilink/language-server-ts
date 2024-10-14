@@ -19,6 +19,8 @@ function kindForSnippetProviderType(provider: string) {
       return 'LanguageMarker';
     case 'tooltip-signature':
       return 'TooltipSignature';
+    case 'trait':
+      return 'Traits';
     default:
       throw new Error(`Unknown snippet provider type ${provider}`);
   }
@@ -102,7 +104,14 @@ class PromptOrderList {
   constructor(preset = 'default') {
     switch (preset) {
       default:
-        this._rankedList = ['LanguageMarker', 'PathMarker', 'SimilarFile', 'BeforeCursor', 'TooltipSignature'];
+        this._rankedList = [
+          'LanguageMarker',
+          'PathMarker',
+          'Traits',
+          'SimilarFile',
+          'BeforeCursor',
+          'TooltipSignature',
+        ];
     }
   }
 
@@ -126,10 +135,24 @@ class PromptPriorityList extends PromptOrderList {
   constructor(preset = 'default') {
     switch ((super(), preset)) {
       case 'office-exp':
-        this._rankedList = ['PathMarker', 'TooltipSignature', 'BeforeCursor', 'SimilarFile', 'LanguageMarker'];
+        this._rankedList = [
+          'PathMarker',
+          'TooltipSignature',
+          'BeforeCursor',
+          'SimilarFile',
+          'LanguageMarker',
+          'Traits',
+        ];
         break;
       default:
-        this._rankedList = ['TooltipSignature', 'BeforeCursor', 'SimilarFile', 'PathMarker', 'LanguageMarker'];
+        this._rankedList = [
+          'TooltipSignature',
+          'BeforeCursor',
+          'SimilarFile',
+          'PathMarker',
+          'LanguageMarker',
+          'Traits',
+        ];
     }
   }
 

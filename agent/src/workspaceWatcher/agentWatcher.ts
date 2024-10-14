@@ -5,7 +5,7 @@ import { TextDocument } from '../../../lib/src/textDocument.ts';
 class AgentWorkspaceWatcher extends WorkspaceWatcher {
   async getWatchedFiles(): Promise<TextDocument[] | WatchedFilesError> {
     const files = await this.ctx.get(LspFileWatcher).getWatchedFiles({
-      workspaceUri: this.workspaceFolder.toString(),
+      workspaceUri: this.workspaceFolder.uri,
       excludeGitignoredFiles: true,
       excludeIDEIgnoredFiles: true,
     });
@@ -25,7 +25,10 @@ class AgentWorkspaceWatcher extends WorkspaceWatcher {
   }
 
   onDidChangeWatchedFilesHandler(event: LspFileWatcher.ChangeWatchedFilesEvent): void {
-    if (event.workspaceFolder.fsPath !== this.workspaceFolder.fsPath) return;
+    if (event.workspaceFolder.uri !== this.workspaceFolder.uri) {
+      return;
+    }
+
     let createdFiles = event.created.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
     if (createdFiles.length) {
       let documents = createdFiles.map((file) => file.document).filter((doc) => doc !== undefined);
@@ -39,7 +42,7 @@ class AgentWorkspaceWatcher extends WorkspaceWatcher {
     let deletedFiles = event.deleted.filter((file) => !file.isRestricted && !file.isUnknownFileExtension);
 
     if (deletedFiles.length) {
-      this.onFilesDeleted(deletedFiles.map((file) => file.uri));
+      this.onFilesDeleted(deletedFiles.map((file) => ({ uri: file.uri })));
     }
   }
 }

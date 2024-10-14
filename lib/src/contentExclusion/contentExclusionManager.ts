@@ -8,7 +8,7 @@ import { TextDocumentManager } from '../textDocumentManager.ts';
 import { CopilotContentExclusion, type Rules } from './contentExclusions.ts';
 import { StatusReporter } from '../progress.ts';
 import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
-import { isSupportedUriScheme, parseUri } from '../util/uri.ts';
+import { isSupportedUriScheme } from '../util/uri.ts';
 import { TelemetryData, telemetry } from '../telemetry.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 
@@ -41,21 +41,20 @@ class CopilotContentExclusionManager {
   }
 
   async evaluate(
-    uri: URI | DocumentUri,
+    uri: DocumentUri,
     fileContent: string,
     shouldUpdateStatusBar?: 'UPDATE'
   ): Promise<DocumentEvaluateResult> {
     if (!this._featureEnabled || !isSupportedUriScheme(uri)) {
       return { isBlocked: false };
     }
-    if (typeof uri == 'string') {
-      uri = parseUri(uri);
-    }
 
     const events: { key: string; result: DocumentEvaluateResult; elapsedMs: number }[] = [];
     const track = async (key: string, ev: CopilotContentExclusion): Promise<DocumentEvaluateResult> => {
       const startTimeMs = Date.now();
+      logger.debug(this.ctx, key, `Attempting to evaluate policy for <${uri}>`);
       const result = await ev.evaluate(uri, fileContent);
+      logger.debug(this.ctx, key, `Evaluated policy for <${uri}>`, { result });
       const endTimeMs = Date.now();
       events.push({ key, result, elapsedMs: endTimeMs - startTimeMs });
       return result;
@@ -87,8 +86,13 @@ class CopilotContentExclusionManager {
     }
   }
 
-  private _trackEvaluationResult(key: string, uri: URI, result: DocumentEvaluateResult, elapsedMs: number): boolean {
-    const cacheKey = `${uri.path}${key}`;
+  private _trackEvaluationResult(
+    key: string,
+    uri: DocumentUri,
+    result: DocumentEvaluateResult,
+    elapsedMs: number
+  ): boolean {
+    const cacheKey = uri + key;
     if (this._evaluateResultCache.get(cacheKey) === result.reason) return false;
 
     this._evaluateResultCache.set(cacheKey, result.reason || 'UNKNOWN');
@@ -107,7 +111,7 @@ class CopilotContentExclusionManager {
     telemetry(
       this.ctx,
       key,
-      TelemetryData.createAndMarkAsIssued({ ...properties, path: uri.path }, measurements),
+      TelemetryData.createAndMarkAsIssued({ ...properties, path: uri }, measurements),
       TelemetryStore.RESTRICTED
     );
 

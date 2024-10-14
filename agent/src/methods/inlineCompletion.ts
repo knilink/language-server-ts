@@ -24,8 +24,12 @@ import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
 import { didAcceptCommand } from '../commands/completion.ts';
-
-const type = InlineCompletionRequest.type;
+import {
+  CopilotInlineCompletionParams,
+  CopilotInlineCompletionParamsType,
+  CopilotInlineCompletionRequest,
+  InlineCompletionTriggerKind,
+} from '../../../types/src/index.ts';
 
 type Item = {
   command: {
@@ -37,29 +41,6 @@ type Item = {
   range: Range;
 };
 
-const Params = Type.Object({
-  textDocument: Type.Object({ uri: Type.String(), version: Type.Optional(Type.Number()) }),
-  position: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
-  formattingOptions: Type.Optional(
-    Type.Object({ tabSize: Type.Integer({ minimum: 1 }), insertSpaces: Type.Boolean() })
-  ),
-  context: Type.Object({
-    triggerKind: Type.Integer(),
-    selectedCompletionInfo: Type.Optional(
-      Type.Object({
-        text: Type.String(),
-        range: Type.Object({
-          start: Type.Object({ line: Type.Number(), character: Type.Number() }),
-          end: Type.Object({ line: Type.Number(), character: Type.Number() }),
-        }),
-        tooltipSignature: Type.Optional(Type.String()),
-      })
-    ),
-  }),
-});
-
-type ParamsType = Static<typeof Params>;
-
 let cancellationTokenSource: CancellationTokenSource | undefined;
 
 function makeCommand(id: string): Item['command'] {
@@ -69,7 +50,7 @@ function makeCommand(id: string): Item['command'] {
 async function handleChecked(
   ctx: Context,
   clientToken: CancellationToken,
-  params: ParamsType
+  params: CopilotInlineCompletionParamsType
 ): Promise<[{ items: Item[] }, null] | [null, { code: number; message: string }]> {
   let telemetryData = TelemetryData.createAndMarkAsIssued();
 
@@ -78,24 +59,21 @@ async function handleChecked(
     cancellationTokenSource.dispose();
   }
 
-  let isCycling = params.context.triggerKind === 1;
+  const isCycling = params.context.triggerKind === InlineCompletionTriggerKind.Invoked;
   cancellationTokenSource = new CancellationTokenSource();
-  let serverToken = cancellationTokenSource.token;
-  let token = new MergedToken([clientToken, serverToken]);
-  let testCompletions = getTestCompletions(ctx, params.position, isCycling);
-  if (testCompletions)
+  const serverToken = cancellationTokenSource.token;
+  const token = new MergedToken([clientToken, serverToken]);
+  const testCompletions = getTestCompletions(ctx, params.position, isCycling);
+  if (testCompletions) {
     return [{ items: testCompletions.map((completion) => ({ command: makeCommand(uuidv4()), ...completion })) }, null];
+  }
   let textDocument = await getOpenTextDocumentChecked(ctx, params.textDocument, token);
-  let completionInfo = params.context.selectedCompletionInfo;
+  const completionInfo = params.context.selectedCompletionInfo;
   let position = params.position;
   let lineLengthIncrease = 0;
 
   if (completionInfo) {
-    ({
-      position: position,
-      textDocument: textDocument,
-      lineLengthIncrease: lineLengthIncrease,
-    } = positionAndContentForCompleting(
+    ({ position, textDocument, lineLengthIncrease } = positionAndContentForCompleting(
       ctx,
       telemetryData,
       textDocument,
@@ -113,7 +91,9 @@ async function handleChecked(
     isCycling,
     telemetryData,
     token,
-    completionInfo
+    completionInfo,
+    false,
+    params.data
   );
   let result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
   if (clientToken.isCancellationRequested) return [null, { code: -32800, message: 'Request was canceled' }];
@@ -153,7 +133,8 @@ async function handleChecked(
   ];
 }
 
-const handle = addMethodHandlerValidation(Params, (ctx: Context, token: CancellationToken, params: ParamsType) =>
+const type = CopilotInlineCompletionRequest.type;
+const handle = addMethodHandlerValidation(CopilotInlineCompletionParams, (ctx, token, params) =>
   handleChecked(ctx, token, params)
 );
 

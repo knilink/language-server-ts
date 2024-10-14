@@ -173,19 +173,10 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
   const solutions = asyncIterableMapFilter(choices, async (apiChoice: APIChoice) => {
     let display = apiChoice.completionText;
     solutionsLogger.info(ctx, `Open Copilot completion: [${apiChoice.completionText}]`);
-    let displayBefore = '';
-    let displayStartPos = await getNodeStart(ctx, document, position, apiChoice.completionText);
-
-    if (displayStartPos) {
-      [displayBefore] = trimLastLine(
-        document.getText(
-          LocationFactory.range(LocationFactory.position(displayStartPos.line, displayStartPos.character), position)
-        )
-      );
-    } else {
-      displayStartPos = LocationFactory.position(position.line, 0);
-      displayBefore = document.getText(LocationFactory.range(displayStartPos, position));
-    }
+    const displayStartPos =
+      (await getNodeStart(ctx, document, position, apiChoice.completionText)) ??
+      LocationFactory.position(position.line, 0);
+    const [displayBefore] = trimLastLine(document.getText(LocationFactory.range(displayStartPos, position)));
 
     display = displayBefore + display;
 

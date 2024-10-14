@@ -106,7 +106,7 @@ class ConversationPromptEngine {
     const nonElidableMessages: Chat.ChatMessage[] = elidableChatMessages.filter(
       (m): m is Chat.ChatMessage => typeof m.content === 'string'
     );
-    return countMessagesTokens([...nonElidableMessages, { role: Chat.Role.User, content: '' }], modelConfiguration);
+    return countMessagesTokens([...nonElidableMessages, { role: 'user', content: '' }], modelConfiguration);
   }
 
   async safetyPrompt(modelName?: string): Promise<string> {

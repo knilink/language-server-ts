@@ -1,7 +1,9 @@
 import { Context } from '../context.ts';
 import { Features } from './features.ts';
+import { CopilotRelatedPluginVersionPrefix, Filter, FilterHeaders } from './filters.ts';
 import { getConfig, ConfigKey, EditorAndPluginInfo, EditorSession } from '../config.ts';
 import { Logger, LogLevel } from '../logger.ts';
+import { telemetryExpProblem } from '../telemetry.ts';
 
 function setupExperimentationService(ctx: Context): void {
   const features = ctx.get(Features);
@@ -20,6 +22,20 @@ function setupExperimentationService(ctx: Context): void {
     trimVersionSuffix(ctx.get(EditorAndPluginInfo).getEditorInfo().version)
   );
   features.registerDynamicFilter('X-VSCode-TargetPopulation', () => getTargetPopulation(ctx));
+  features.registerDynamicFilterGroup(() => {
+    const result: FilterHeaders = {};
+    for (const plugin of ctx.get(EditorAndPluginInfo).getRelatedPluginInfo()) {
+      const filterName = CopilotRelatedPluginVersionPrefix + plugin.name.replace(/[^A-Za-z]/g, '').toLowerCase();
+      if (!Object.values(Filter).includes(filterName)) {
+        telemetryExpProblem(ctx, {
+          reason: `A filter could not be registered for the unrecognized related plugin "${plugin.name}".`,
+        });
+        continue;
+      }
+      result[filterName] = trimVersionSuffix(plugin.version);
+    }
+    return result;
+  });
 }
 
 function getTargetPopulation(ctx: Context) {

@@ -1,4 +1,4 @@
-import { Document, Snippet } from '../types.ts';
+import { CurrentDocument, Snippet } from '../types.ts';
 import { normalizeLanguageId } from '../prompt.ts';
 import { newLineEnded } from '../languageMarker.ts';
 import { announceTooltipSignatureSnippet, endsWithAttributesOrMethod } from '../tooltipSignature.ts';
@@ -8,7 +8,7 @@ import { SnippetProvider } from './snippetProvider.ts';
 class TooltipSignatureSnippetProvider extends SnippetProvider {
   type = 'tooltip-signature';
 
-  async buildSnippets(context: { currentFile: Document; tooltipSignature?: string }): Promise<Snippet[]> {
+  async buildSnippets(context: { currentFile: CurrentDocument; tooltipSignature?: string }): Promise<Snippet[]> {
     const { currentFile, tooltipSignature } = context;
     let snippets: Snippet[] = [];
 

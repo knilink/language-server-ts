@@ -1,5 +1,5 @@
 // import { TextDocument } from 'vscode-languageserver-types'; // TODO
-import { LanguageId, Document } from './types.ts';
+import { LanguageId, CurrentDocument } from './types.ts';
 
 type CommentMarker = {
   start: string;
@@ -96,7 +96,7 @@ const shebangLines: Record<LanguageId, string> = {
   yaml: '# YAML data',
 };
 
-export function hasLanguageMarker(doc: Document): boolean {
+export function hasLanguageMarker(doc: CurrentDocument): boolean {
   const { source } = doc;
   return source.startsWith('<!DOCTYPE') || source.startsWith('#!');
 }
@@ -124,13 +124,13 @@ export function commentBlockAsSingles(block: string, languageId: LanguageId): st
     .join('\n');
 }
 
-export function getLanguageMarker(doc: Document): string {
+export function getLanguageMarker(doc: CurrentDocument): string {
   const { languageId } = doc;
   if (dontAddLanguageMarker.includes(languageId) || !hasLanguageMarker(doc)) return '';
   return shebangLines[languageId] ?? comment(`Language: ${languageId}`, languageId);
 }
 
-export function getPathMarker(doc: Document): string {
+export function getPathMarker(doc: CurrentDocument): string {
   const { relativePath } = doc;
   return relativePath ? comment(`Path: ${relativePath}`, doc.languageId) : '';
 }

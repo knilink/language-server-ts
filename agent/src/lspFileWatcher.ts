@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
-import { extname } from 'path';
+import * as path from 'node:path';
 import { type Connection, ProtocolRequestType } from 'vscode-languageserver/node.js';
-import { URI } from 'vscode-uri';
+import { type URI } from 'vscode-uri';
 
 import { Context } from '../../lib/src/context.ts';
 import { Service } from './service.ts';
@@ -9,15 +9,15 @@ import { Features } from '../../lib/src/experiments/features.ts';
 import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
 import { knownFileExtensions } from '../../lib/src/language/languages.ts';
 import { telemetryException } from '../../lib/src/telemetry.ts';
-import { getFsPath } from '../../lib/src/util/uri.ts';
 import { FileReader } from '../../lib/src/fileReader.ts';
 import { TextDocument } from '../../lib/src/textDocument.ts';
 import { WatchedFilesError } from '../../lib/src/workspaceWatcher.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 const didChangeWatchedFilesEvent = 'didChangeWatchedFiles';
 
 type Info = {
-  uri: URI;
+  uri: DocumentUri;
   document?: TextDocument;
   isRestricted: boolean;
   isUnknownFileExtension: boolean;
@@ -25,8 +25,8 @@ type Info = {
 
 type WatchedFilesResponse = {
   watchedFiles: TextDocument[];
-  contentRestrictedFiles: URI[];
-  unknownFileExtensions: URI[];
+  contentRestrictedFiles: { uri: string }[];
+  unknownFileExtensions: { uri: string }[];
 };
 
 type GetWatchedFilesParams = {
@@ -43,7 +43,7 @@ const EmptyWatchedFilesResponse: WatchedFilesResponse = {
 
 namespace LspFileWatcher {
   export type ChangeWatchedFilesEvent = {
-    workspaceFolder: URI;
+    workspaceFolder: { uri: string };
     created: Info[];
     changed: Info[];
     deleted: Info[];
@@ -98,21 +98,17 @@ class LspFileWatcher {
       return error;
     }
 
-    for (const filepath of files) {
-      const uri = URI.parse(filepath);
-      const extension = extname(filepath).toLowerCase();
-
+    for (const uri of files) {
+      const extension = path.extname(uri).toLowerCase();
       if (!knownFileExtensions.includes(extension)) {
-        res.unknownFileExtensions.push(uri);
+        res.unknownFileExtensions.push({ uri });
         continue;
       }
-
-      const doc = await this.getValidDocument(uri);
+      let doc = await this.getValidDocument(uri);
       if (doc === undefined) {
-        res.contentRestrictedFiles.push(uri);
+        res.contentRestrictedFiles.push({ uri });
         continue;
       }
-
       res.watchedFiles.push(doc);
     }
 
@@ -131,15 +127,15 @@ class LspFileWatcher {
     event: any // MARK event.workspaceUri doesn't seem to align with workspace/didChangeWatchedFiles in protocol
   ): Promise<void> {
     const res: LspFileWatcher.ChangeWatchedFilesEvent = {
-      workspaceFolder: URI.parse(event.workspaceUri),
+      workspaceFolder: { uri: event.workspaceUri },
       created: [],
       changed: [],
       deleted: [],
     };
 
-    for (let change of event.changes) {
-      const uri = URI.parse(change.uri);
-      const extension = extname(change.uri).toLowerCase();
+    for (const change of event.changes) {
+      const uri = change.uri;
+      const extension = path.extname(change.uri).toLowerCase();
       const info: Info = {
         uri,
         isRestricted: false,
@@ -171,10 +167,8 @@ class LspFileWatcher {
     this.emitter.emit(didChangeWatchedFilesEvent, res);
   }
 
-  async getValidDocument(uri: URI) {
-    let filepath = getFsPath(uri);
-    if (!filepath) return;
-    let documentResult = await this.ctx.get(FileReader).readFile(filepath);
+  async getValidDocument(uri: string) {
+    let documentResult = await this.ctx.get(FileReader).readFile(uri);
     return documentResult.status === 'valid' ? documentResult.document : undefined;
   }
 }

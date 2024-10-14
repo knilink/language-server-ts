@@ -4,6 +4,10 @@ import type { WebSearchReference } from './extensibility/references.ts';
 import { Unknown } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 
+namespace Turn {
+  export type Template = { templateId: string; userQuestion: string };
+}
+
 class Turn {
   id: string = uuidv4();
   timestamp: number = Date.now();
@@ -17,6 +21,7 @@ class Turn {
   // ./turnProcessor.js
   // this.turn.skills = promptContext.skillIds.map((skill) => ({ skillId: skill }))
   skills: (Pick<Unknown.SkillResolution, 'skillId'> & Partial<Unknown.SkillResolution>)[] = [];
+  ignoredSkills: (Pick<Unknown.SkillResolution, 'skillId'> & Partial<Unknown.SkillResolution>)[] = [];
   // ./skills/ReferencesSkill.ts
   // ./conversations.ts
   // 1.40.0 deleted
@@ -33,7 +38,7 @@ class Turn {
   agent?: { agentSlug: string };
   // required ./turnProcessor.ts
   // set ./conversations.ts
-  template?: { templateId: string; userQuestion: string };
+  template?: Turn.Template;
   // lib/src/conversation/extensibility/remoteAgentTurnProcessor.ts
   // ./fetchPostProcessor.ts
   response?: {
@@ -67,7 +72,8 @@ class Conversation {
     readonly source:
       | 'panel'
       // ./skills/CurrentEditorSkill.ts
-      | 'inline' = 'panel'
+      | 'inline' = 'panel',
+    readonly userLanguage = 'en'
   ) {
     this._id = uuidv4();
     this._timestamp = Date.now();
@@ -75,7 +81,7 @@ class Conversation {
 
   copy(): Conversation {
     const turnsCopy = JSON.parse(JSON.stringify(this.turns)) as Turn[];
-    const conversationCopy = new Conversation(turnsCopy, this.source);
+    const conversationCopy = new Conversation(turnsCopy, this.source, this.userLanguage);
     conversationCopy._id = this.id;
     conversationCopy._timestamp = this.timestamp;
     return conversationCopy;

@@ -1,6 +1,7 @@
 import memoize from '@github/memoize';
-
+import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
 import { type Context } from '../../context.ts';
+import type { Entry, Trait } from '../../../../types/src/index.ts';
 
 import { LRUCacheMap } from '../../common/cache.ts';
 import { telemetry, TelemetryData } from '../../telemetry.ts';
@@ -13,42 +14,26 @@ import { LanguageId } from '../../types.ts';
 
 const relatedFilesLogger = new Logger(LogLevel.INFO, 'relatedFiles');
 
-type DocumentInfo = {
-  uri: DocumentUri;
-  languageId: LanguageId;
-};
-
-type Entry = {
-  type: string;
-  uris: DocumentUri[];
-};
-
 type CacheEntry = {
   retryCount: number;
   timestamp: number;
 };
 
-type Trait = { name: string; value: string };
-
-type RelatedFilesResult = {
-  entries: Map<string, Map<string, string>>;
-  traits: Trait[];
-};
-
 async function getRelatedFiles(
   ctx: Context,
-  docInfo: DocumentInfo,
+  docInfo: { uri: DocumentUri; clientLanguageId: string; data: unknown },
   telemetryData: TelemetryData,
+  cancellationToken: CancellationToken | undefined,
   relatedFilesProvider: RelatedFilesProvider
-): Promise<RelatedFilesResult | null> {
+): Promise<RelatedFilesProvider.RelatedFilesResult | null> {
   const startTime = Date.now();
   let result;
   try {
-    result = await relatedFilesProvider.getRelatedFiles(docInfo, telemetryData);
+    result = await relatedFilesProvider.getRelatedFiles(docInfo, telemetryData, cancellationToken);
   } catch (error) {
     relatedFilesLogger.exception(ctx, error, '.getRelatedFiles'), (result = null);
   }
-  if (!result) {
+  if (result === null) {
     if (lruCache.bumpRetryCount(docInfo.uri) >= defaultMaxRetryCount) {
       result = EmptyRelatedFiles;
     } else {
@@ -58,51 +43,55 @@ async function getRelatedFiles(
   let elapsedTime = Date.now() - startTime;
   relatedFilesLogger.debug(
     ctx,
-    result
+    result !== null
       ? `Fetched ${[...result.entries.values()].map((value) => value.size).reduce((total, current) => total + current, 0)} related files for '${docInfo.uri}' in ${elapsedTime}ms.`
-      : `Failing fecthing files for '${docInfo.uri}' in ${elapsedTime}ms.`
+      : `Failing fetching files for '${docInfo.uri}' in ${elapsedTime}ms.`
   );
-  if (!result) throw new RelatedFilesProviderFailure();
+  if (result === null) throw new RelatedFilesProviderFailure();
   return result;
 }
 
-async function getRelatedFilesList(
+async function getRelatedFilesAndTraits(
   ctx: Context,
-  docInfo: DocumentInfo,
+  doc: { uri: DocumentUri; clientLanguageId: string; detectedLanguageId: LanguageId },
   telemetryData: TelemetryData,
+  cancellationToken: CancellationToken | undefined,
+  data: unknown,
   forceComputation = false
-): Promise<Map<string, Map<string, string>>> {
+): Promise<RelatedFilesProvider.RelatedFilesResult> {
   const relatedFilesProvider = ctx.get(RelatedFilesProvider);
-  let relatedFiles: RelatedFilesResult | null;
+  let relatedFiles: RelatedFilesProvider.RelatedFilesResult | null;
   try {
+    const docInfo = { uri: doc.uri, clientLanguageId: doc.clientLanguageId, data };
     relatedFiles = forceComputation
-      ? await getRelatedFiles(ctx, docInfo, telemetryData, relatedFilesProvider)
-      : await getRelatedFilesWithCacheAndTimeout(ctx, docInfo, telemetryData, relatedFilesProvider);
+      ? await getRelatedFiles(ctx, docInfo, telemetryData, cancellationToken, relatedFilesProvider)
+      : await getRelatedFilesWithCacheAndTimeout(ctx, docInfo, telemetryData, cancellationToken, relatedFilesProvider);
   } catch (error) {
     if (error instanceof RelatedFilesProviderFailure) {
       await telemetry(ctx, 'getRelatedFilesList', telemetryData);
     }
   }
   relatedFiles ??= EmptyRelatedFiles;
-  ReportTraitsTelemetry(ctx, relatedFiles.traits, docInfo, telemetryData);
+  ReportTraitsTelemetry(ctx, relatedFiles.traits, doc, telemetryData);
   relatedFilesLogger.debug(
     ctx,
     relatedFiles != null
-      ? `Fetched following traits ${relatedFiles.traits.map((trait) => `{${trait.name} : ${trait.value}}`).join('')} for '${docInfo.uri}'`
-      : `Failing fecthing traits for '${docInfo.uri}'.`
+      ? `Fetched following traits ${relatedFiles.traits.map((trait) => `{${trait.name} : ${trait.value}}`).join('')} for '${doc.uri}'`
+      : `Failing fecthing traits for '${doc.uri}'.`
   );
-  return relatedFiles.entries;
+  return relatedFiles;
 }
 
 async function ReportTraitsTelemetry(
   ctx: Context,
   traits: Trait[],
-  docInfo: DocumentInfo,
+  docInfo: { detectedLanguageId: LanguageId; clientLanguageId: string },
   telemetryData: TelemetryData
 ) {
   if (traits.length > 0) {
     const properties: Record<string, string> = {};
-    properties.languageId = docInfo.languageId;
+    properties.detectedLanguageId = docInfo.detectedLanguageId;
+    properties.languageId = docInfo.clientLanguageId;
     for (let trait of traits) {
       let mappedTraitName = traitNamesForTelemetry.get(trait.name);
       mappedTraitName && (properties[mappedTraitName] = trait.value);
@@ -113,13 +102,13 @@ async function ReportTraitsTelemetry(
 }
 
 const EmptyRelatedFilesResponse = { entries: [] as Entry[], traits: [] as Trait[] };
-const EmptyRelatedFiles: RelatedFilesResult = {
+const EmptyRelatedFiles: RelatedFilesProvider.RelatedFilesResult = {
   entries: new Map<string, Map<string, string>>(),
   traits: [] as Trait[],
 };
 
 class LRUExpirationCacheMap<K, V> extends LRUCacheMap<K, V> {
-  private _cacheTimestamps = new Map<K, CacheEntry>();
+  _cacheTimestamps = new Map<K, CacheEntry>();
 
   constructor(
     size: number,
@@ -179,7 +168,9 @@ class LRUExpirationCacheMap<K, V> extends LRUCacheMap<K, V> {
 
 const lruCacheSize = 1000;
 const defaultMaxRetryCount = 3;
-const lruCache = new LRUExpirationCacheMap<string, Promise<RelatedFilesResult | null>>(lruCacheSize);
+const lruCache = new LRUExpirationCacheMap<string, Promise<RelatedFilesProvider.RelatedFilesResult | null>>(
+  lruCacheSize
+);
 
 class RelatedFilesProviderFailure extends Error {
   constructor() {
@@ -187,17 +178,32 @@ class RelatedFilesProviderFailure extends Error {
   }
 }
 
+namespace RelatedFilesProvider {
+  export type RelatedFilesResponse = { entries: Entry[]; traits: Trait[] };
+  export type RelatedFilesResult = {
+    entries: Map<string, Map<string, string>>;
+    traits: Trait[];
+  };
+}
+
 abstract class RelatedFilesProvider {
   constructor(readonly context: Context) {}
 
   abstract getRelatedFilesResponse(
-    docInfo: DocumentInfo,
-    telemetryData: TelemetryData
-  ): Promise<{ entries: Entry[]; traits?: Trait[] }>;
+    docInfo: { uri: DocumentUri; clientLanguageId: string; data: unknown },
+    telemetryData: TelemetryData,
+    cancellationToken: CancellationToken | undefined
+  ): Promise<RelatedFilesProvider.RelatedFilesResponse | null>;
 
-  async getRelatedFiles(docInfo: DocumentInfo, telemetryData: TelemetryData): Promise<RelatedFilesResult | null> {
-    const response = await this.getRelatedFilesResponse(docInfo, telemetryData);
-    if (!response) return null;
+  async getRelatedFiles(
+    docInfo: { uri: DocumentUri; clientLanguageId: string; data: unknown },
+    telemetryData: TelemetryData,
+    cancellationToken: CancellationToken | undefined
+  ): Promise<RelatedFilesProvider.RelatedFilesResult | null> {
+    const response = await this.getRelatedFilesResponse(docInfo, telemetryData, cancellationToken);
+    if (response === null) {
+      return null;
+    }
     const result = { entries: new Map(), traits: response.traits ?? [] };
     for (let entry of response.entries) {
       let uriToContentMap = result.entries.get(entry.type);
@@ -255,8 +261,9 @@ let getRelatedFilesWithCacheAndTimeout = memoize(getRelatedFiles, {
   cache: lruCache,
   hash: (
     ctx: Context,
-    docInfo: DocumentInfo,
+    docInfo: { uri: DocumentUri; clientLanguageId: string; data: unknown },
     telemetryData: TelemetryData,
+    cancellationToken: CancellationToken | undefined,
     symbolDefinitionProvider: RelatedFilesProvider
   ) => `${docInfo.uri} `,
 });
@@ -267,11 +274,4 @@ const traitNamesForTelemetry = new Map([
   ['LanguageVersion', 'languageVersion'],
 ]);
 
-export {
-  getRelatedFilesList,
-  relatedFilesLogger,
-  RelatedFilesProvider,
-  EmptyRelatedFilesResponse,
-  DocumentInfo,
-  Entry,
-};
+export { EmptyRelatedFilesResponse, RelatedFilesProvider, getRelatedFilesAndTraits, relatedFilesLogger, Entry, Trait };

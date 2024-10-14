@@ -4,51 +4,22 @@ import { TelemetryWithExp } from '../telemetry.ts';
 
 function getCppSimilarFilesOptions(telemetryWithExp: TelemetryWithExp) {
   return {
-    snippetLength: cppSnippetsWindowSizeForSimilarFiles(telemetryWithExp),
-    threshold: cppSimilarFileThreshold(telemetryWithExp),
-    maxTopSnippets: cppMaxTopSnippetsFromSimilarFiles(telemetryWithExp),
+    snippetLength: defaultCppSimilarFilesOptions.snippetLength,
+    threshold: defaultCppSimilarFilesOptions.threshold,
+    maxTopSnippets: defaultCppSimilarFilesOptions.maxTopSnippets,
     maxCharPerFile: cppMaxSimilarFileSize(telemetryWithExp),
-    maxNumberOfFiles: cppMaxSimilarFilesCount(telemetryWithExp),
-    maxSnippetsPerFile: cppMaxSnippetsPerSimilarFile(telemetryWithExp),
+    maxNumberOfFiles: defaultCppSimilarFilesOptions.maxNumberOfFiles,
+    maxSnippetsPerFile: defaultCppSimilarFilesOptions.maxSnippetsPerFile,
   };
 }
 function getCppNumberOfSnippets(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.copilotnumberofsnippets ?? defaultCppSimilarFilesOptions.maxTopSnippets
-  );
+  return defaultCppSimilarFilesOptions.maxTopSnippets;
 }
-function cppSnippetsWindowSizeForSimilarFiles(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.copilotsnippetswindowsizeforsimilarfiles ??
-    defaultCppSimilarFilesOptions.snippetLength
-  );
-}
-function cppSimilarFileThreshold(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.copilotsimilarfilesnippetthreshold ??
-    defaultCppSimilarFilesOptions.threshold
-  );
-}
-function cppMaxSnippetsPerSimilarFile(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.maxsnippetspersimilarfile ??
-    defaultCppSimilarFilesOptions.maxSnippetsPerFile
-  );
-}
-function cppMaxTopSnippetsFromSimilarFiles(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.maxtopsnippetsfromsimilarfiles ??
-    defaultCppSimilarFilesOptions.maxTopSnippets
-  );
-}
+
 function cppMaxSimilarFileSize(telemetryWithExp: TelemetryWithExp): number {
   return (
-    telemetryWithExp.filtersAndExp.exp.variables.maxsimilarfilesize ?? defaultCppSimilarFilesOptions.maxCharPerFile
-  );
-}
-function cppMaxSimilarFilesCount(telemetryWithExp: TelemetryWithExp): number {
-  return (
-    telemetryWithExp.filtersAndExp.exp.variables.maxsimilarfilescount ?? defaultCppSimilarFilesOptions.maxNumberOfFiles
+    telemetryWithExp.filtersAndExp.exp.variables.copilotmaxsimilarfilesize ??
+    defaultCppSimilarFilesOptions.maxCharPerFile
   );
 }
 

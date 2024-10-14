@@ -5,8 +5,7 @@ import { type GitRemoteUrl } from './gitRemoteUrl.ts';
 import { FileSystem } from '../fileSystem.ts';
 import { GitRemoteResolver } from './gitRemoteResolver.ts';
 import { LRUCacheMap } from '../common/cache.ts';
-import assert from 'assert';
-import { dirname, joinPath, parseUri, resolveFilePath } from '../util/uri.ts';
+import { dirname, joinPath, resolveFilePath } from '../util/uri.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 
 const maxRepoCacheSize: number = 100;
@@ -18,7 +17,7 @@ class GitRepository {
   private _adoOrganization?: string;
 
   constructor(
-    readonly baseFolder: URI,
+    readonly baseFolder: string,
     readonly remote?: GitRemoteUrl
   ) {
     this.setNWO();
@@ -86,8 +85,8 @@ class RepositoryManager {
 
   constructor(readonly ctx: Context) {}
 
-  async getRepo(uri: URI | DocumentUri): Promise<GitRepository | undefined> {
-    let lastFsPath: URI | DocumentUri | undefined;
+  async getRepo(uri: DocumentUri): Promise<GitRepository | undefined> {
+    let lastFsPath: DocumentUri | undefined;
     const testedPaths: string[] = [];
     const uriString = uri.toString();
     do {
@@ -112,20 +111,15 @@ class RepositoryManager {
     paths.forEach((path) => this.cache.set(path, repo));
   }
 
-  async tryGetRepoForFolder(uri: URI | DocumentUri): Promise<GitRepository | undefined> {
-    if (await this.isBaseRepoFolder(uri)) {
-      if (typeof uri === 'string') {
-        uri = parseUri(uri, true);
-      }
-      return new GitRepository(uri, await this.repoUrl(uri));
-    }
+  async tryGetRepoForFolder(uri: DocumentUri): Promise<GitRepository | undefined> {
+    return (await this.isBaseRepoFolder(uri)) ? new GitRepository(uri, await this.repoUrl(uri)) : undefined;
   }
 
-  async isBaseRepoFolder(uri: URI | DocumentUri): Promise<boolean> {
+  async isBaseRepoFolder(uri: DocumentUri): Promise<boolean> {
     return (await RepositoryManager.getRepoConfigLocation(this.ctx, uri)) !== undefined;
   }
 
-  async repoUrl(baseFolder: URI | DocumentUri): Promise<GitRemoteUrl | undefined> {
+  async repoUrl(baseFolder: DocumentUri): Promise<GitRemoteUrl | undefined> {
     return await this.remoteResolver.resolveRemote(this.ctx, baseFolder);
   }
 

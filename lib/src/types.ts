@@ -4,7 +4,6 @@ import { Context } from './context.ts';
 import { TelemetryData, TelemetryWithExp } from './telemetry.ts';
 import { TurnContext } from './conversation/turnContext.ts';
 import { ElidableText } from '../../prompt/src/elidableText/elidableText.ts';
-import { ChatRole } from './conversation/openai/openai.ts';
 import { TSchema } from '@sinclair/typebox';
 import { ChatModelFamily } from './conversation/modelMetadata.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
@@ -25,24 +24,6 @@ export type Replacement = {
 };
 
 export type ExperimentConfig = {};
-
-export type FilterHeaderNames =
-  | 'X-Copilot-Repository'
-  | 'X-Copilot-FileType'
-  | 'X-Copilot-UserKind'
-  | 'X-Copilot-Dogfood'
-  | 'X-Copilot-CustomModel'
-  // [start] ./experiments/defaultExpFilters.ts
-  | 'X-Copilot-OverrideEngine'
-  | 'X-VSCode-ExtensionName'
-  | 'X-VSCode-ExtensionVersion'
-  | 'X-VSCode-Build'
-  | 'X-VSCode-AppVersion'
-  | 'X-MSEdge-ClientId'
-  | 'X-VSCode-TargetPopulation';
-// [end]
-
-export type FilterHeaders = Partial<Record<FilterHeaderNames, string>>;
 
 // prompt/repository.ts
 export type RepoUrlInfo = {
@@ -343,10 +324,10 @@ export type FetchResult =
 
 export namespace Chat {
   // ../../agent/src/methods/testing/chatML.ts
-  export const Role = ChatRole;
+  export type Role = 'system' | 'user' | 'assistant' | 'function';
 
   export type ChatMessage = {
-    role: ChatRole;
+    role: Role;
     content: string;
     // ../../agent/src/methods/testing/chatML.ts
     name?: string;
@@ -357,7 +338,7 @@ export namespace Chat {
   export type ElidableChatMessage =
     | ChatMessage
     | {
-        role: ChatRole;
+        role: Role;
         // ./conversation/prompt/conversationPromptEngine.ts
         content: ElidableText;
         // ../../agent/src/methods/testing/chatML.ts
@@ -367,7 +348,7 @@ export namespace Chat {
 
 // ./conversation/prompt/strategies/promptStrategyFactory.ts
 // ./conversation/modelMetadata.ts
-export type PromptType = 'user' | 'inline' | 'meta' | 'suggestions';
+export type PromptType = 'user' | 'inline' | 'meta' | 'suggestions' | 'synonyms';
 
 // ../agent/src/textDocumentManager.ts
 // WorkspaceFolder from lsp
@@ -465,6 +446,7 @@ export namespace Skill {
     // required ./conversation/dump.ts
     description(): string;
     examples?(): string[];
+    isAvailable?(ctx: Context): Promise<boolean>;
   }
 
   export interface ISkill<K extends SkillId, T> extends ISkillDescriptor {
@@ -630,7 +612,7 @@ export namespace Unknown {
   export type SkillResolution = {
     skillId: SkillId | 'unknown';
     // 'resolved' | 'failed' | 'unprocessable' | 'unresolvable' conversation/prompt/fromSkills.ts
-    resolution: 'resolved' | 'failed' | 'unprocessable' | 'unresolvable';
+    resolution: 'resolved' | 'failed' | 'unprocessable' | 'unresolvable' | 'ignored';
     files?: { status: unknown; uri: string }[];
     tokensPreEliding?: number;
     resolutionTimeMs?: number;
@@ -652,6 +634,8 @@ export namespace Unknown {
       // ./conversation/turnSuggestions.ts
       followUp?: string;
       suggestedTitle?: string;
+      // conversation/prompt/strategies/userQuerySynonymsPromptStrategy.ts
+      keywords?: string[];
     };
 
     // ../lib/src/conversation/prompt/metaPrompt.ts
@@ -681,7 +665,7 @@ export namespace Unknown {
 export namespace Snippet {
   export type SnippetProviderStatus = 'not_indexed' | 'indexed' | 'indexing';
 
-  export type Resolution = Partial<{
+  export type Measurement = Partial<{
     chunkCount: number;
     fileCount: number;
     chunkingTimeMs: number;
@@ -689,12 +673,14 @@ export namespace Snippet {
   }>;
   // schema ./conversation/skills/ProjectContextSkill.ts
   export type Snippet = {
-    path: string;
+    uri: string;
     range: Range;
     snippet: string;
   };
   export interface ISnippetProvider {
-    provideSnippets(turnContext: TurnContext): Promise<{ snippets: Snippet[]; resolution: Resolution }>;
+    // ./conversation/skills/projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts
+    readonly providerType: 'local';
+    provideSnippets(turnContext: TurnContext): Promise<{ snippets: Snippet[]; measurements?: Snippet.Measurement }>;
     snippetProviderStatus(turnContext: TurnContext): Promise<SnippetProviderStatus>;
   }
 }

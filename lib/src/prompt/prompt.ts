@@ -1,13 +1,12 @@
-import { URI } from 'vscode-uri';
-
 import type { LanguageId } from '../types.ts';
 import type {
   Snippet,
   SnippetContext,
-  Document,
+  OpenDocument,
   PromptInfo,
   Prompt,
   PromptBackground,
+  CurrentDocument,
 } from '../../../prompt/src/lib.ts';
 import { ProviderTimeoutError, PromptChoices, PromptOptions } from '../../../prompt/src/lib.ts';
 
@@ -15,7 +14,7 @@ import { Context } from '../context.ts';
 import { Features } from '../experiments/features.ts';
 import { getNumberOfSnippets, getSimilarFilesOptions } from '../experiments/similarFileOptionsProvider.ts';
 import { NeighborSource, considerNeighborFile } from './similarFiles/neighborFiles.ts';
-import { TelemetryData, telemetryException, telemetryRaw, TelemetryWithExp } from '../telemetry.ts';
+import { telemetryException, telemetryRaw, TelemetryWithExp } from '../telemetry.ts';
 import {
   SnippetOrchestrator,
   providersSnippets,
@@ -30,6 +29,7 @@ import { commentBlockAsSingles } from '../../../prompt/src/languageMarker.ts';
 import { getMaxSolutionTokens } from '../openai/openai.ts';
 import { DocumentUri, Position } from 'vscode-languageserver-types';
 import { TextDocument } from '../textDocument.ts';
+import { type CancellationToken } from '../../../agent/src/cancellation.ts';
 
 type ExtractedPrompt =
   | {
@@ -56,9 +56,11 @@ async function getPromptForSource(
   uri: DocumentUri,
   languageId: LanguageId,
   telemetryData: TelemetryWithExp,
-  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
+  cancellationToken: CancellationToken | undefined,
+  ifInserted: { tooltipSignature?: SnippetContext['tooltipSignature'] } | undefined,
+  data: unknown
 ): Promise<{ neighborSource: Map<string, string[]> } & PromptInfo> {
-  const docInfo: Document = {
+  const docInfo: CurrentDocument = {
     uri: uri.toString(),
     source,
     offset,
@@ -68,10 +70,27 @@ async function getPromptForSource(
   const promptOptions = getPromptOptions(ctx, telemetryData, languageId);
 
   const snippets: Snippet[] = [];
-  let docs = new Map<string, Document>();
+  let docs = new Map<string, OpenDocument>();
   let neighborSource = new Map<string, string[]>();
+  let traits: SnippetContext['traits'] = [];
   try {
-    ({ docs, neighborSource } = await NeighborSource.getNeighborFiles(ctx, uri, languageId, telemetryData));
+    let result = await NeighborSource.getNeighborFilesAndTraits(
+      ctx,
+      uri,
+      languageId,
+      telemetryData,
+      cancellationToken,
+      data
+    );
+    docs = result.docs;
+    neighborSource = result.neighborSource;
+    traits = result.traits
+      .filter((trait) => trait.includeInPrompt)
+      .map((trait) =>
+        trait.promptTextOverride
+          ? { kind: 'string', value: trait.promptTextOverride }
+          : { kind: 'name-value', name: trait.name, value: trait.value }
+      );
   } catch (e) {
     telemetryException(ctx, e, 'prompt.getPromptForSource.exception');
   }
@@ -80,8 +99,9 @@ async function getPromptForSource(
     const spContext: SnippetContext = {
       currentFile: docInfo,
       similarFiles: Array.from(docs.values()),
+      traits,
       tooltipSignature: ifInserted?.tooltipSignature,
-      options: new PromptOptions(promptOptions, docInfo.languageId),
+      options: new PromptOptions(promptOptions, languageId),
     };
     const snippetProviderResults = await ctx.get(SnippetOrchestrator).getSnippets(spContext);
     const orchestratorSnippets = providersSnippets(snippetProviderResults);
@@ -138,7 +158,9 @@ async function extractPromptForSource(
   uri: DocumentUri,
   languageId: LanguageId,
   telemetryData: TelemetryWithExp,
-  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
+  cancellationToken: CancellationToken | undefined,
+  ifInserted: { tooltipSignature?: SnippetContext['tooltipSignature'] } | undefined,
+  data: unknown
 ): Promise<ExtractedPrompt> {
   if ((await ctx.get(CopilotContentExclusionManager).evaluate(uri, source, 'UPDATE')).isBlocked)
     return _copilotNotAvailable;
@@ -156,7 +178,18 @@ async function extractPromptForSource(
     promptBackground,
     promptElementRanges,
     neighborSource,
-  } = await getPromptForSource(ctx, source, offset, relativePath, uri, languageId, telemetryData, ifInserted);
+  } = await getPromptForSource(
+    ctx,
+    source,
+    offset,
+    relativePath,
+    uri,
+    languageId,
+    telemetryData,
+    cancellationToken,
+    ifInserted,
+    data
+  );
   const [resPrompt, trailingWs] = trimLastLine(prefix);
   const endTime = Date.now();
   return {
@@ -182,7 +215,9 @@ async function extractPromptForDocument(
   doc: TextDocument,
   position: Position,
   telemetryData: TelemetryWithExp,
-  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
+  cancellationToken: CancellationToken | undefined,
+  ifInserted: { tooltipSignature?: SnippetContext['tooltipSignature'] } | undefined,
+  data: unknown
 ): Promise<ExtractedPrompt> {
   const relativePath = await ctx.get(TextDocumentManager).getRelativePath(doc);
   return extractPromptForSource(
@@ -193,7 +228,9 @@ async function extractPromptForDocument(
     doc.uri,
     doc.languageId,
     telemetryData,
-    ifInserted
+    cancellationToken,
+    ifInserted,
+    data
   );
 }
 
@@ -209,7 +246,9 @@ async function extractPromptForNotebook(
   notebook: INotebook,
   position: Position,
   telemetryData: TelemetryWithExp,
-  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
+  cancellationToken: CancellationToken | undefined,
+  ifInserted: { tooltipSignature?: SnippetContext['tooltipSignature'] } | undefined,
+  data: unknown
 ): Promise<ExtractedPrompt> {
   const activeCell = notebook.getCellFor(doc);
   if (activeCell) {
@@ -235,10 +274,12 @@ async function extractPromptForNotebook(
       doc.uri,
       activeCell.document.languageId,
       telemetryData,
-      ifInserted
+      cancellationToken,
+      ifInserted,
+      data
     );
   } else {
-    return extractPromptForDocument(ctx, doc, position, telemetryData, ifInserted);
+    return extractPromptForDocument(ctx, doc, position, telemetryData, cancellationToken, ifInserted, data);
   }
 }
 
@@ -247,12 +288,14 @@ function extractPrompt(
   doc: TextDocument,
   position: Position,
   telemetryData: TelemetryWithExp,
-  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] }
+  cancellationToken?: CancellationToken,
+  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] },
+  data?: unknown
 ): Promise<ExtractedPrompt> {
   const notebook = ctx.get(TextDocumentManager).findNotebook(doc);
   return notebook === undefined
-    ? extractPromptForDocument(ctx, doc, position, telemetryData, ifInserted)
-    : extractPromptForNotebook(ctx, doc, notebook, position, telemetryData, ifInserted);
+    ? extractPromptForDocument(ctx, doc, position, telemetryData, cancellationToken, ifInserted, data)
+    : extractPromptForNotebook(ctx, doc, notebook, position, telemetryData, cancellationToken, ifInserted, data);
 }
 
 function getPromptOptions(

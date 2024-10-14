@@ -31,6 +31,7 @@ import {
   EditorAndPluginInfo,
   formatNameAndVersion,
   EditorSession,
+  GitHubAppInfo,
   getVersion,
   dumpForTelemetry,
   getBuild,
@@ -387,6 +388,9 @@ async function logEnginePrompt(ctx: Context, prompt: Prompt, telemetryData: Tele
   await telemetry(ctx, 'engine.prompt', telemetryDataWithPrompt, 1);
 }
 
+const MAX_PROPERTY_LENGTH = 8192;
+const MAX_CONCATENATED_PROPERTIES = 21;
+
 class TelemetryReporters {
   reporter?: IReporter;
   reporterRestricted?: IReporter;
@@ -486,6 +490,18 @@ class TelemetryData {
     this.properties.proxy = proxySettings?.proxyAuth ? 'true' : 'false';
     this.properties.proxy_kerberos = proxySettings?.kerberosServicePrincipal ? 'true' : 'false';
     this.properties.reject_unauthorized = fetcher.rejectUnauthorized ? 'true' : 'false';
+    const appInfo = ctx.get(GitHubAppInfo).githubAppId;
+    if (appInfo) {
+      let extensibilityInfoJson;
+      let extensibilityInfoJsonString = this.properties.extensibilityInfoJson ?? '';
+      try {
+        extensibilityInfoJson = JSON.parse(extensibilityInfoJsonString);
+      } catch {
+        extensibilityInfoJson = {};
+      }
+      extensibilityInfoJson.appId = appInfo;
+      this.properties.extensibilityInfoJson = JSON.stringify(extensibilityInfoJson);
+    }
   }
   extendWithConfigProperties(ctx: Context) {
     let configProperties = dumpForTelemetry(ctx);
@@ -536,6 +552,9 @@ class TelemetryData {
       }
     }
   }
+  multiplexProperties() {
+    this.properties = TelemetryData.multiplexProperties(this.properties);
+  }
   static sanitizeKeys<T>(map: Record<string, T>): Record<string, T> {
     map = map || {};
     let returnValue: Record<string, T> = {};
@@ -544,6 +563,36 @@ class TelemetryData {
       returnValue[newKey] = map[key];
     }
     return returnValue;
+  }
+  static multiplexProperties(properties: TelemetryProperties) {
+    let newProperties = { ...properties };
+    for (let key in properties) {
+      let value = properties[key];
+      let remainingValueCharactersLength = value.length;
+      if (remainingValueCharactersLength > MAX_PROPERTY_LENGTH) {
+        let lastStartIndex = 0;
+        let newPropertiesCount = 0;
+        for (; remainingValueCharactersLength > 0 && newPropertiesCount < MAX_CONCATENATED_PROPERTIES; ) {
+          newPropertiesCount += 1;
+          let propertyName = key;
+
+          if (newPropertiesCount > 1) {
+            propertyName = key + '_' + (newPropertiesCount < 10 ? '0' : '') + newPropertiesCount;
+          }
+
+          let offsetIndex = lastStartIndex + MAX_PROPERTY_LENGTH;
+
+          if (remainingValueCharactersLength < MAX_PROPERTY_LENGTH) {
+            offsetIndex = lastStartIndex + remainingValueCharactersLength;
+          }
+
+          newProperties[propertyName] = value.slice(lastStartIndex, offsetIndex);
+          remainingValueCharactersLength -= MAX_PROPERTY_LENGTH;
+          lastStartIndex += MAX_PROPERTY_LENGTH;
+        }
+      }
+    }
+    return newProperties;
   }
   updateMeasurements() {
     let timeSinceIssued = now() - this.issuedTime;
@@ -609,6 +658,8 @@ class TelemetryData {
     this.extendWithConfigProperties(ctx);
     this.extendWithEditorAgnosticFields(ctx);
     this.sanitizeKeys();
+    this.multiplexProperties();
+
     if (includeExp === 'IncludeExp') {
       await this.extendWithExpTelemetry(ctx);
     }

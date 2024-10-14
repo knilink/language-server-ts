@@ -3,9 +3,9 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
-import { RangeSchema } from '../schema.ts';
 import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { RangeSchema } from '../../../../types/src/index.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 import { Skill } from '../../types.ts';
 import { TextDocument } from '../../textDocument.ts';

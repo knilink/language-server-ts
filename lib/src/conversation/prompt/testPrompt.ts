@@ -1,12 +1,9 @@
-import { URI } from 'vscode-uri';
-
 import { TextDocumentManager } from '../../textDocumentManager.ts';
 import { isTestFile, TestFileFinder } from './testFiles.ts';
 import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { TestContextSkillId } from '../skills/TestContextSkill.ts';
 import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
 import { FileSystem } from '../../fileSystem.ts';
-import { parseUri } from '../../util/uri.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
 import { TurnContext } from '../turnContext.ts';
 import { TextDocument } from '../../textDocument.ts';
@@ -21,20 +18,16 @@ class PromptForTestGeneration {
   async fromImplementationFile(implFile: TextDocument): Promise<ElidableText | undefined> {
     const workspaceFolder = await this.turnContext.ctx.get(TextDocumentManager).getWorkspaceFolder(implFile);
     // const fileExists = this.fileExistFn();
-    const finder = new TestFileFinder(
-      this.turnContext.ctx,
-      this.fileExists,
-      workspaceFolder && parseUri(workspaceFolder.uri)
-    );
-    const correspondingTestFile = await finder.findTestFileForSourceFile(implFile.vscodeUri);
-    const activeDocumentIsTest = await isTestFile(implFile.vscodeUri);
+    const finder = new TestFileFinder(this.turnContext.ctx, this.fileExists, workspaceFolder?.uri);
+    const correspondingTestFile = await finder.findTestFileForSourceFile(implFile.uri);
+    const activeDocumentIsTest = await isTestFile(implFile.uri);
 
     if (correspondingTestFile && !activeDocumentIsTest) {
       const languageId = implFile.languageId;
       if (await this.fileExists(correspondingTestFile)) {
         return await this.asTestFilePrompt(languageId, correspondingTestFile);
       } else {
-        const exampleTestFile = finder.findExampleTestFile(implFile.vscodeUri);
+        const exampleTestFile = finder.findExampleTestFile(implFile.uri);
         if (exampleTestFile) {
           return await this.asExampleFilePrompt(languageId, exampleTestFile);
         }
@@ -43,15 +36,15 @@ class PromptForTestGeneration {
   }
 
   public async fromTestFile(testFile: TextDocument): Promise<ElidableText | undefined> {
-    if (!(await isTestFile(testFile.vscodeUri))) return;
+    if (!(await isTestFile(testFile.uri))) return;
 
     const workspaceFolder = await this.turnContext.ctx.get(TextDocumentManager).getWorkspaceFolder(testFile);
     // const fileExists = this.fileExistFn();
     const correspondingImplFile = await new TestFileFinder(
       this.turnContext.ctx,
       this.fileExists,
-      workspaceFolder && parseUri(workspaceFolder.uri)
-    ).findImplFileForTestFile(testFile.vscodeUri);
+      workspaceFolder?.uri
+    ).findImplFileForTestFile(testFile.uri);
 
     if (correspondingImplFile) {
       const languageId = testFile.languageId;
@@ -61,7 +54,7 @@ class PromptForTestGeneration {
     }
   }
 
-  async asImplFilePrompt(languageId: string, sourceFile: URI): Promise<ElidableText> {
+  async asImplFilePrompt(languageId: string, sourceFile: string): Promise<ElidableText> {
     const fileInfo = await this.fileInfoForPrompt(sourceFile);
     if (fileInfo) {
       const [code, filePath] = fileInfo;
@@ -75,7 +68,7 @@ class PromptForTestGeneration {
     return new ElidableText([]);
   }
 
-  async asTestFilePrompt(languageId: string, testFile: URI): Promise<ElidableText> {
+  async asTestFilePrompt(languageId: string, testFile: string): Promise<ElidableText> {
     const fileInfo = await this.fileInfoForPrompt(testFile);
     if (fileInfo) {
       const [code, filePath] = fileInfo;
@@ -89,7 +82,7 @@ class PromptForTestGeneration {
     return new ElidableText([]);
   }
 
-  private async asExampleFilePrompt(languageId: string, exampleTestFile: URI): Promise<ElidableText> {
+  private async asExampleFilePrompt(languageId: string, exampleTestFile: string): Promise<ElidableText> {
     const fileInfo = await this.fileInfoForPrompt(exampleTestFile);
     if (fileInfo) {
       const [code, filePath] = fileInfo;
@@ -103,7 +96,7 @@ class PromptForTestGeneration {
     return new ElidableText([]);
   }
 
-  private async fileInfoForPrompt(file: URI): Promise<[ElidableText, string] | undefined> {
+  private async fileInfoForPrompt(file: string): Promise<[ElidableText, string] | undefined> {
     if (!this.turnContext.isFileIncluded(file.toString())) {
       const fileReader = this.turnContext.ctx.get(FileReader);
       const documentResult = await fileReader.readFile(file.toString());
@@ -129,7 +122,7 @@ class PromptForTestGeneration {
   //     }
   //   };
   // }
-  fileExists = async (file: URI): Promise<boolean> => {
+  fileExists = async (file: string): Promise<boolean> => {
     try {
       await this.turnContext.ctx.get(FileSystem).stat(file);
       return true;

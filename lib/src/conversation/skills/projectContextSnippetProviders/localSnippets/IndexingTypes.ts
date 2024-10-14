@@ -26,7 +26,11 @@ interface IRanking<T = DocumentChunk> {
 
 // ./ChunkingHandler.ts
 interface IChunking {
-  chunk(doc: TextDocument, modelConfig: Model.Configuration): Promise<DocumentChunk[]>;
+  chunk(
+    // TextDocument ./FixedSizeChunking.ts
+    doc: TextDocument,
+    modelConfig: Model.Configuration
+  ): Promise<DocumentChunk[]>;
 }
 
 export { RankingAlgorithmStatus, Chunk, ChunkId, IScoring, IRanking, IChunking, DocumentChunk, ScoredDocumentChunk };

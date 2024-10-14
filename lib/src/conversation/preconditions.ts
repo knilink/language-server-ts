@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
 import { type Context } from '../context.ts';
-import { checkReachability, URLReachability } from '../reachability.ts';
+import { URLReachability } from '../reachability.ts';
 import { AuthManager } from '../auth/manager.ts';
 import { GitHubAppInfo } from '../config.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
@@ -15,16 +15,6 @@ type PreconditionsResultEvent = {
   results: PreconditionResult[];
 };
 
-class ReachabilityPreconditionCheck {
-  async check(ctx: Context): Promise<PreconditionResult> {
-    const reachability = await checkReachability(ctx, 'critical');
-    return {
-      type: 'reachability',
-      status: reachability.every((r) => r.status === 'reachable') ? 'ok' : 'failed',
-      details: reachability,
-    };
-  }
-}
 class TokenPreconditionCheck {
   async check(ctx: Context): Promise<PreconditionResult> {
     const authRecord = await ctx.get(AuthManager).getAuthRecord();
@@ -45,11 +35,7 @@ class ChatEnabledPreconditionCheck {
     };
   }
 }
-const PRECONDITION_CHECKS = [
-  new ReachabilityPreconditionCheck(),
-  new TokenPreconditionCheck(),
-  new ChatEnabledPreconditionCheck(),
-];
+const PRECONDITION_CHECKS = [new TokenPreconditionCheck(), new ChatEnabledPreconditionCheck()];
 const preconditionsChangedEvent = 'onPreconditionsChanged';
 
 class PreconditionsCheck {
@@ -105,7 +91,6 @@ class PreconditionsCheck {
 }
 
 export {
-  ReachabilityPreconditionCheck,
   TokenPreconditionCheck,
   ChatEnabledPreconditionCheck,
   PRECONDITION_CHECKS,

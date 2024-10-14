@@ -9,14 +9,7 @@ import { LanguageId } from '../types.ts';
 import { basename } from '../util/uri.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 
-function detectLanguage({
-  uri,
-  clientLanguageId,
-}: {
-  uri: DocumentUri;
-  // optionsl ../textDocument.ts
-  clientLanguageId?: LanguageId;
-}) {
+function detectLanguage({ uri, clientLanguageId }: { uri: DocumentUri; clientLanguageId: LanguageId }): LanguageId {
   const language = languageDetection.detectLanguage({ uri, languageId: 'UNKNOWN' });
   return language.languageId?.toUpperCase() === 'UNKNOWN' ? clientLanguageId : language.languageId;
 }

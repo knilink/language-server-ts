@@ -19,13 +19,10 @@ import { TestingOptions } from './testingOptions.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
 import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { DocumentUriSchema, PositionSchema } from '../../../types/src/index.ts';
 
 const Params = Type.Object({
-  doc: Type.Object({
-    position: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
-    uri: Type.String(),
-    version: Type.Number(),
-  }),
+  doc: Type.Object({ position: PositionSchema, uri: DocumentUriSchema, version: Type.Number() }),
   panelId: Type.String(),
   options: Type.Optional(TestingOptions),
 });

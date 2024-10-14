@@ -16,6 +16,11 @@ export type SkillPromptOptions =
       promptType: 'suggestions';
       languageId?: LanguageId;
       modelConfiguration: Model.Configuration;
+    }
+  | {
+      promptType: 'synonyms';
+      languageId?: LanguageId;
+      modelConfiguration: Model.Configuration;
     };
 
 export type MetaPromptOptions = {

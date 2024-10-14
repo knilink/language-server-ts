@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {} from '../openai/fetch.ts';
 import { TelemetryData, TelemetryWithExp, telemetry } from '../telemetry.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
+import { TurnContext } from './turnContext.ts';
 
 async function createTelemetryWithExpWithId(
   ctx: Context,
@@ -62,10 +63,6 @@ function mapSkillResolutionsForTelemetry(skillResolutions: Unknown.SkillResoluti
       tokensPreEliding: resolution.tokensPreEliding ?? 0,
       resolutionTimeMs: resolution.resolutionTimeMs ?? 0,
       processingTimeMs: resolution.processingTimeMs ?? 0,
-      fileCount: resolution.fileCount ?? 0,
-      chunkCount: resolution.chunkCount ?? 0,
-      chunkingTimeMs: resolution.chunkingTimeMs ?? 0,
-      rankingTimeMs: resolution.rankingTimeMs ?? 0,
     }))
   );
 }
@@ -191,6 +188,34 @@ function createSuggestionMessageTelemetryData(
   );
 
   return messageId;
+}
+
+async function telemetryCodeSearch(
+  turnContext: TurnContext,
+  provider: string,
+  measurements?: TelemetryMeasurements
+): Promise<void> {
+  const defaultMeasurements = { fileCount: 0, chunkCount: 0, chunkingTimeMs: 0, rankingTimeMs: 0 };
+  const baseTelemetryWithExP = await createTelemetryWithExpWithId(
+    turnContext.ctx,
+    turnContext.turn.id,
+    turnContext.conversation.id
+  );
+  const uiKind = turnContext.conversation.source === 'inline' ? 'conversationInline' : 'conversationPanel';
+  telemetryUserAction(
+    turnContext.ctx,
+    undefined,
+    {
+      conversationId: turnContext.conversation.id,
+      turnIndex: (turnContext.conversation.turns.length - 1).toString(),
+      userMessageId: turnContext.turn.id,
+      provider,
+      uiKind,
+    },
+    { ...defaultMeasurements, ...measurements },
+    'conversation.codeSearch',
+    baseTelemetryWithExP
+  );
 }
 
 function telemetryMessage(
@@ -340,6 +365,7 @@ export {
   createUserMessageTelemetryData,
   extendUserMessageTelemetryData,
   logEngineMessages,
+  telemetryCodeSearch,
   telemetryPrefixForUiKind,
   telemetryUserAction,
   uiKindToIntent,

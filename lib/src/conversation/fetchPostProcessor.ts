@@ -13,6 +13,7 @@ import {
   createModelMessageTelemetryData,
 } from './telemetry.ts';
 import { conversationLogger } from './logger.ts';
+import { ChunkingProvider } from './skills/projectContextSnippetProviders/localSnippets/ChunkingProvider.ts';
 import { TurnSuggestions } from './turnSuggestions.ts';
 import { ChatMLFetcher } from './chatMLFetcher.ts';
 
@@ -59,7 +60,7 @@ class ChatFetchResultPostProcessor {
       fetchResult.type === 'offTopic',
       fetchResult.requestId,
       doc,
-      augmentedTelemetryWithExp
+      augmentedTelemetryWithExp.extendedBy({}, { fileCount: this.turnContext.ctx.get(ChunkingProvider).workspaceCount })
     );
     this.turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
     switch (fetchResult.type) {
@@ -262,7 +263,7 @@ class ChatFetchResultPostProcessor {
       doc,
       baseTelemetryWithExp
     );
-    return {};
+    return { error: { message: offTopicMessage, responseIsFiltered: true } };
   }
 }
 

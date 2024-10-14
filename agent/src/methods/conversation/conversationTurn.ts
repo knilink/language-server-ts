@@ -22,6 +22,7 @@ const Params = Type.Object({
   computeSuggestions: Type.Optional(Type.Boolean()),
   references: Type.Optional(Type.Array(ReferenceSchema)),
   workspaceFolder: Type.Optional(Type.String()),
+  ignoredSkills: Type.Optional(Type.Array(Type.String())),
 });
 
 async function handleConversationTurnChecked(
@@ -45,7 +46,8 @@ async function handleConversationTurnChecked(
     conversation.id,
     new Turn({ message: params.message, type: 'user' }),
     params.references,
-    params.workspaceFolder
+    params.workspaceFolder,
+    params.ignoredSkills
   );
   const mergedToken = ctx.get(WorkDoneProgressTokens).add(params.workDoneToken, token);
   const turnContext = new TurnContext(ctx, conversation, turn, mergedToken);

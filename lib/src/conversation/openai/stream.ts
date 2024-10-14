@@ -1,5 +1,5 @@
 import { IStreamingData } from '../../openai/stream.ts';
-import { Chat, OpenAIRequestId } from '../../types.ts';
+import { OpenAIRequestId } from '../../types.ts';
 import { type TelemetryData } from '../../telemetry.ts';
 import { Context } from '../../context.ts';
 import { convertToAPIJsonData } from '../../openai/stream.ts';
@@ -35,7 +35,7 @@ function prepareChatCompletionForReturn(ctx: Context, c: CompletionDetails, tele
 
   return convertToChatCompletion(
     ctx,
-    { role: Chat.Role.Assistant, content: messageContent },
+    { role: 'assistant', content: messageContent },
     jsonData,
     c.index,
     c.requestId,

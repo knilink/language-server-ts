@@ -9,6 +9,7 @@ import { isSupportedLanguageId } from '../../prompt/src/parse.ts';
 import { CopilotConfigPrefix } from './constants.ts';
 import { Features } from './experiments/features.ts';
 import { EventEmitter } from 'node:events';
+import { NameAndVersionType } from '../../types/src/index.ts';
 
 function shouldDoParsingTrimming(blockMode: BlockMode) {
   return ['parsing', 'parsingandserver'].includes(blockMode);
@@ -23,7 +24,7 @@ enum ConfigKey {
   FilterCompletions = 'editor.filterCompletions',
   FetchStrategy = 'fetchStrategy',
   DebugOverrideCppHeaders = 'advanced.debug.overrideCppHeaders',
-  DebugOverrideRelatedFiles = 'advanced.debug.overrideRelatedFiles',
+  AdvancedOverrideRelatedFilesVSCode = 'advanced.relatedFilesVSCode',
   DebugOverrideCapiUrl = 'advanced.debug.overrideCapiUrl',
   DebugTestOverrideCapiUrl = 'advanced.debug.testOverrideCapiUrl',
   DebugOverrideProxyUrl = 'advanced.debug.overrideProxyUrl',
@@ -39,7 +40,7 @@ enum ConfigKey {
 // MARK guess should all be strings
 type DefaultConvigValueType = {
   [ConfigKey.DebugOverrideCppHeaders]: boolean;
-  [ConfigKey.DebugOverrideRelatedFiles]: boolean;
+  [ConfigKey.AdvancedOverrideRelatedFilesVSCode]: boolean;
   // ../../agent/src/config.ts
   // ../../agent/src/network/delegatingFetcher.ts
   [ConfigKey.DebugUseEditorFetcher]: 'true' | 'false' | null; // boolean | string; debugUseEditorFetcher.toString() === 'true'
@@ -75,7 +76,7 @@ type ConfigValueType = DefaultConvigValueType & AdditionalConfigValueType;
 
 const hardCodedConfigDefaults: DefaultConvigValueType = {
   [ConfigKey.DebugOverrideCppHeaders]: false,
-  [ConfigKey.DebugOverrideRelatedFiles]: false,
+  [ConfigKey.AdvancedOverrideRelatedFilesVSCode]: false,
   [ConfigKey.DebugUseEditorFetcher]: null,
   [ConfigKey.DebugUseElectronFetcher]: null,
   [ConfigKey.DebugOverrideLogLevels]: {},
@@ -354,38 +355,40 @@ class EditorSession {
 }
 
 namespace EditorAndPluginInfo {
-  export type EditorInfo = {
+  export type EditorInfo = NameAndVersionType & {
     // ../../agent/src/config.ts
-    name: 'unknown-editor' | string;
+    // name: 'unknown-editor' | string;
     // ./conversation/prompt/conversationPromptEngine.ts
-    readableName?: string;
-    version: string;
+    // readableName?: string;
+    // version: string;
     // ./telemetry/failbot.ts
     devName?: string;
     // ./telemetry.ts
     root?: string;
   };
-  export type EditorPluginInfo = {
-    // string ../../agent/src/methods/setEditorInfo.ts
-    name: string;
-    // | 'copilot-intellij'
-    // | 'copilot.vim'
-    // | 'copilot-vs'
-    // // ../../agent/src/config.ts
-    // | 'unknown-editor-plugin';
-    version: string;
-    // ../../agent/src/methods/setEditorInfo.ts
-    readableName?: string;
-  };
+  // export type EditorPluginInfo = {
+  //   // string ../../agent/src/methods/setEditorInfo.ts
+  //   name: string;
+  //   // | 'copilot-intellij'
+  //   // | 'copilot.vim'
+  //   // | 'copilot-vs'
+  //   // // ../../agent/src/config.ts
+  //   // | 'unknown-editor-plugin';
+  //   version: string;
+  //   // ../../agent/src/methods/setEditorInfo.ts
+  //   readableName?: string;
+  // };
 }
 
 abstract class EditorAndPluginInfo {
-  abstract getEditorPluginInfo(): EditorAndPluginInfo.EditorPluginInfo;
+  abstract getEditorPluginInfo(): NameAndVersionType;
   abstract getEditorInfo(): EditorAndPluginInfo.EditorInfo;
   abstract setEditorAndPluginInfo(
     editorInfo: EditorAndPluginInfo.EditorInfo,
-    editorPluginInfo: EditorAndPluginInfo.EditorPluginInfo
+    editorPluginInfo: NameAndVersionType,
+    relatedPluginInfo?: NameAndVersionType[]
   ): void;
+  abstract getRelatedPluginInfo(): NameAndVersionType[];
 }
 
 const FALLBACK_GITHUB_APP_CLIENT_ID = 'Iv1.b507a08c87ecfe98';

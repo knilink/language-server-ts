@@ -10,17 +10,17 @@ import { conversationLogger } from '../../../logger.ts';
 import { FileReader } from '../../../../fileReader.ts';
 import { telemetryException } from '../../../../telemetry.ts';
 import { LocationFactory } from '../../../../textDocument.ts';
-import { URI } from 'vscode-uri';
 import { DocumentChunk } from './IndexingTypes.ts';
 
 class LocalSnippetProviderError extends Error {
   readonly name = 'LocalSnippetProviderError';
-  constructor(message: string) {
-    super(message);
+  constructor(readonly cause: unknown) {
+    super(String(cause));
   }
 }
 
 class LocalSnippetProvider implements Snippet.ISnippetProvider {
+  readonly providerType = 'local';
   readonly rankingTimeHistory: Record<string, number> = {};
 
   async snippetProviderStatus(turnContext: TurnContext): Promise<Snippet.SnippetProviderStatus> {
@@ -38,27 +38,27 @@ class LocalSnippetProvider implements Snippet.ISnippetProvider {
   async collectLocalSnippets(turnContext: TurnContext): Promise<DocumentChunk[]> {
     const workspaceFolder = turnContext.turn.workspaceFolder;
     if (!workspaceFolder) return [];
-    const fsPath = URI.parse(workspaceFolder).fsPath;
     const ctx = turnContext.ctx;
-    const userQuery = turnContext.turn.request.message;
-    if (ctx.get(ChunkingProvider).chunkCount(fsPath) === 0) return [];
+    if (ctx.get(ChunkingProvider).chunkCount(workspaceFolder) === 0) {
+      return [];
+    }
     let keywords;
     try {
-      keywords = await parseUserQuery(ctx, userQuery, turnContext.cancelationToken);
+      keywords = await parseUserQuery(turnContext, turnContext.cancelationToken);
     } catch (e) {
-      let error = new LocalSnippetProviderError((e as any).message);
+      const error = new LocalSnippetProviderError(e);
       telemetryException(ctx, error, 'LocalSnippetProvider.parseUserQuery');
     }
     if (keywords === undefined) return [];
     const rankingProvider = ctx.get(RankingProvider);
     let documentChunks: DocumentChunk[] = [];
     try {
-      const { snippets, rankingTimeMs } = await rankingProvider.query(ctx, fsPath, keywords);
-      this.rankingTimeHistory[userQuery] = rankingTimeMs;
+      const { snippets, rankingTimeMs } = await rankingProvider.query(ctx, workspaceFolder, keywords);
+      this.rankingTimeHistory[turnContext.turn.id] = rankingTimeMs;
       documentChunks = snippets;
     } catch (e) {
-      let error = new LocalSnippetProviderError((e as any).message);
-      this.rankingTimeHistory[userQuery] = -1;
+      const error = new LocalSnippetProviderError(e);
+      this.rankingTimeHistory[turnContext.turn.id] = -1;
       telemetryException(ctx, error, 'LocalSnippetProvider.rankingQuery');
     }
     return documentChunks;
@@ -69,12 +69,11 @@ class LocalSnippetProvider implements Snippet.ISnippetProvider {
     if (!workspaceFolder) return [];
     const ctx = turnContext.ctx;
     const userQuery = turnContext.turn.request.message;
-    const fsPath = URI.parse(workspaceFolder).fsPath;
     let snippetIds: string[] = [];
     try {
-      snippetIds = await rerankSnippets(ctx, fsPath, userQuery, snippets, 5, turnContext.cancelationToken);
+      snippetIds = await rerankSnippets(ctx, workspaceFolder, userQuery, snippets, 5, turnContext.cancelationToken);
     } catch (e) {
-      let error = new LocalSnippetProviderError((e as any).message);
+      const error = new LocalSnippetProviderError(e);
       telemetryException(ctx, error, 'LocalSnippetProvider.rerankSnippets');
     }
     const projectContext = [];
@@ -87,7 +86,7 @@ class LocalSnippetProvider implements Snippet.ISnippetProvider {
         let start = file.document.positionAt(snippet.range.start);
         let end = file.document.positionAt(snippet.range.end);
         let range = LocationFactory.range(start, end);
-        projectContext.push({ path: file.document.vscodeUri.fsPath, range: range, snippet: snippet.chunk });
+        projectContext.push({ uri: file.document.uri, range, snippet: snippet.chunk });
       }
     }
     return projectContext;
@@ -95,26 +94,30 @@ class LocalSnippetProvider implements Snippet.ISnippetProvider {
 
   async provideSnippets(
     turnContext: TurnContext
-  ): Promise<{ snippets: Snippet.Snippet[]; resolution: Snippet.Resolution }> {
+  ): Promise<{ snippets: Snippet.Snippet[]; measurements?: Snippet.Measurement }> {
     const snippets = await this.collectLocalSnippets(turnContext);
+    if (snippets.length === 0) {
+      return { snippets: [], measurements: this.collectMeasurements(turnContext) };
+    }
     const ctx = turnContext.ctx;
     conversationLogger.debug(ctx, `LocalSnippetProvider: First pass: Found ${snippets.length} snippets.`);
     const rankedSnippets = await this.rerankLocalSnippets(turnContext, snippets);
-    const resolution = this.collectResolutionProperties(turnContext);
-    return { snippets: rankedSnippets, resolution };
+    const measurements = this.collectMeasurements(turnContext);
+    return { snippets: rankedSnippets, measurements };
   }
 
-  collectResolutionProperties(turnContext: TurnContext): Snippet.Resolution {
+  collectMeasurements(turnContext: TurnContext): Snippet.Measurement | undefined {
     const workspaceFolder = turnContext.turn.workspaceFolder;
-    const resolution: Snippet.Resolution = {};
-    if (!workspaceFolder) return resolution;
-    const fsPath = URI.parse(workspaceFolder).fsPath;
+    if (!workspaceFolder) {
+      return;
+    }
     const chunkingProvider = turnContext.ctx.get(ChunkingProvider);
-    resolution.chunkCount = chunkingProvider.chunkCount(fsPath);
-    resolution.fileCount = chunkingProvider.fileCount(fsPath);
-    resolution.chunkingTimeMs = Math.floor(chunkingProvider.chunkingTimeMs(fsPath));
-    resolution.rankingTimeMs = Math.floor(this.rankingTimeHistory[turnContext.turn.request.message]);
-    return resolution;
+    return {
+      chunkCount: chunkingProvider.chunkCount(workspaceFolder),
+      fileCount: chunkingProvider.fileCount(workspaceFolder),
+      chunkingTimeMs: Math.floor(chunkingProvider.chunkingTimeMs(workspaceFolder)),
+      rankingTimeMs: Math.floor(this.rankingTimeHistory[turnContext.turn.id] ?? 0),
+    };
   }
 }
 

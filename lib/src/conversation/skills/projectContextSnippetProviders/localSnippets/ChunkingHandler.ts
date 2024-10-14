@@ -1,5 +1,4 @@
 import assert from 'node:assert';
-import { URI } from 'vscode-uri';
 
 import type { Model } from '../../../../types.ts';
 import type { Chunk, ChunkId, DocumentChunk, IChunking } from './IndexingTypes.ts';
@@ -12,11 +11,12 @@ import { telemetryException } from '../../../../telemetry.ts';
 import { WorkspaceWatcherProvider } from '../../../../workspaceWatcherProvider.ts';
 import { WatchedFilesError } from '../../../../workspaceWatcher.ts';
 import { TextDocument } from '../../../../textDocument.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
 class ChunkingError extends Error {
   readonly name = 'ChunkingError';
-  constructor(message: string) {
-    super(message);
+  constructor(readonly cause: unknown) {
+    super(String(cause));
   }
 }
 
@@ -27,7 +27,7 @@ class ChunkingHandler {
   _chunkingTimeMs = 0;
   modelConfig?: Model.Configuration;
 
-  constructor(private implementation: IChunking) {}
+  constructor(readonly implementation: IChunking) {}
 
   async chunk(ctx: Context, workspaceFolder: string): Promise<WorkspaceChunks['chunks']> {
     const chunkStart = performance.now();
@@ -37,7 +37,7 @@ class ChunkingHandler {
         (this.status = 'cancelled'), this.updateChunkingTime(chunkStart, performance.now()), this.workspaceChunks.chunks
       );
     await this.updateModelConfig(ctx);
-    const watchedFiles = await ctx.get(WorkspaceWatcherProvider).getWatchedFiles(URI.file(workspaceFolder));
+    const watchedFiles = await ctx.get(WorkspaceWatcherProvider).getWatchedFiles({ uri: workspaceFolder });
     if (watchedFiles instanceof WatchedFilesError)
       return (this.status = 'cancelled'), this.terminateChunking(), this.workspaceChunks.chunks;
     const promises = watchedFiles.map(async (document) => {
@@ -46,7 +46,7 @@ class ChunkingHandler {
     try {
       await Promise.all(promises);
     } catch (e) {
-      let error = new ChunkingError((e as any).message);
+      const error = new ChunkingError(e);
       telemetryException(ctx, error, 'ChunkingProvider.chunk');
       this.terminateChunking();
     }
@@ -61,13 +61,13 @@ class ChunkingHandler {
     let promises = documents.map(async (document) => {
       if (this.cancellationToken.isCancelled()) return [];
       await this._chunk(ctx, document);
-      return this.workspaceChunks.chunksForFile(document.vscodeUri.fsPath);
+      return await this._chunk(ctx, document), this.workspaceChunks.chunksForFile(document);
     });
     let chunks: DocumentChunk[][] = [];
     try {
       chunks = await Promise.all(promises);
     } catch (e) {
-      let error = new ChunkingError((e as any).message);
+      const error = new ChunkingError(e);
       telemetryException(ctx, error, 'ChunkingProvider.chunkFiles');
       this.terminateChunking();
     }
@@ -75,14 +75,14 @@ class ChunkingHandler {
     return chunks.flat();
   }
 
-  private async _chunk(ctx: Context, document: TextDocument): Promise<void> {
+  async _chunk(ctx: Context, document: TextDocument): Promise<void> {
     if (this.cancellationToken.isCancelled()) return;
     assert(this.modelConfig);
     let docChunks = await this.implementation.chunk(document, this.modelConfig);
-    this.workspaceChunks.addChunksForFile(document.vscodeUri.fsPath, docChunks);
+    this.workspaceChunks.addChunksForFile(document, docChunks);
   }
 
-  private async updateModelConfig(ctx: Context): Promise<void> {
+  async updateModelConfig(ctx: Context): Promise<void> {
     if (!this.modelConfig) {
       this.modelConfig = await ctx
         .get(ModelConfigurationProvider)
@@ -119,12 +119,12 @@ class ChunkingHandler {
     return this.workspaceChunks.chunkId(chunk);
   }
 
-  deleteSubfolderChunks(subfolder: string): ChunkId[] {
-    return this.workspaceChunks.deleteSubfolderChunks(subfolder);
+  deleteSubfolderChunks(uri: DocumentUri): ChunkId[] {
+    return this.workspaceChunks.deleteSubfolderChunks({ uri });
   }
 
-  deleteFileChunks(filepath: { fsPath: string }): ChunkId[] {
-    return this.workspaceChunks.deleteFileChunks(filepath.fsPath);
+  deleteFileChunks(uri: DocumentUri): ChunkId[] {
+    return this.workspaceChunks.deleteFileChunks({ uri });
   }
 
   checkChunkCount(ctx: Context): void {
@@ -138,7 +138,7 @@ class ChunkingHandler {
 }
 
 class ChunkingCancellationToken {
-  private cancelled = false;
+  cancelled = false;
 
   cancel(): void {
     this.cancelled = true;

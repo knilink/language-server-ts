@@ -69,9 +69,9 @@ class StepReportingSkillProcessor<T> implements Skill.ISkillProcessor<T> {
 }
 
 class SingleStepReportingSkill<K extends SkillId, T> implements Skill.ISkill<K, T> {
-  protected _description: string;
-  protected _resolver: (turnContext: TurnContext) => Skill.ISkillResolver<T>;
-  private _processor: (turnContext: TurnContext) => Skill.ISkillProcessor<T>;
+  _description: string;
+  _resolver: (turnContext: TurnContext) => Skill.ISkillResolver<T>;
+  _processor: (turnContext: TurnContext) => Skill.ISkillProcessor<T>;
 
   constructor(
     readonly id: K,
@@ -79,7 +79,9 @@ class SingleStepReportingSkill<K extends SkillId, T> implements Skill.ISkill<K, 
     readonly stepTitle: string,
     resolver: (turnContext: TurnContext) => Skill.ISkillResolver<T>,
     processor: (turnContext: TurnContext) => Skill.ISkillProcessor<T>,
-    readonly type: 'implicit' | 'explicit' = 'explicit'
+    readonly type: 'implicit' | 'explicit' = 'explicit',
+    readonly _examples: string[] = [],
+    readonly _isAvailable: (ctx: Context) => Promise<boolean> = async () => true
   ) {
     this._description = description;
     this._resolver = resolver;
@@ -88,6 +90,14 @@ class SingleStepReportingSkill<K extends SkillId, T> implements Skill.ISkill<K, 
 
   description() {
     return this._description;
+  }
+
+  examples(): string[] {
+    return this._examples;
+  }
+
+  isAvailable(ctx: Context): Promise<boolean> {
+    return this._isAvailable(ctx);
   }
 
   resolver(turnContext: TurnContext): Skill.ISkillResolver<T> {

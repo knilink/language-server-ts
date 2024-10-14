@@ -19,14 +19,13 @@ class ChunkingProvider {
   }
 
   getImplementation(workspaceFolder: string, type: ChunkingAlgorithmType = 'default'): ChunkingHandler {
-    const { fsPath } = workspaceFolder.startsWith('file://') ? URI.parse(workspaceFolder) : URI.file(workspaceFolder);
     const parentFolder = this.getParentFolder(workspaceFolder);
     if (parentFolder) return this.workspaceChunkingProviders.get(parentFolder)!;
-    let provider = this.workspaceChunkingProviders.get(fsPath);
+    let provider = this.workspaceChunkingProviders.get(workspaceFolder);
 
     if (!provider) {
       provider = this.createImplementation(type);
-      this.workspaceChunkingProviders.set(fsPath, provider);
+      this.workspaceChunkingProviders.set(workspaceFolder, provider);
       this.workspaceCount++;
     }
 
@@ -34,12 +33,9 @@ class ChunkingProvider {
   }
 
   getParentFolder(workspaceFolder: string): string | undefined {
-    let fsPath = (
-      workspaceFolder.startsWith('file://') ? URI.parse(workspaceFolder) : URI.file(workspaceFolder)
-    ).fsPath.toLowerCase();
     for (const folder of this.workspaceChunkingProviders.keys()) {
-      const lowercase = folder.toLowerCase();
-      if (fsPath !== lowercase && fsPath.startsWith(lowercase)) {
+      const parentFolder = folder.replace(/[#?].*/, '').replace(/\/?$/, '/');
+      if (workspaceFolder !== folder && workspaceFolder.startsWith(parentFolder)) {
         return folder;
       }
     }
@@ -85,7 +81,7 @@ class ChunkingProvider {
     return this.getImplementation(parentFolder).deleteSubfolderChunks(workspaceFolder);
   }
 
-  deleteFileChunks(workspaceFolder: string, filepaths: URI | URI[]): ChunkId[] {
+  deleteFileChunks(workspaceFolder: string, filepaths: string[]): ChunkId[] {
     const impl = this.getImplementation(workspaceFolder);
     if (!Array.isArray(filepaths)) {
       return impl.deleteFileChunks(filepaths);

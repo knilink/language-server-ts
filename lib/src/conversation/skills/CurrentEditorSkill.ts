@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { type Static } from '@sinclair/typebox';
 import { Skill } from '../../types.ts';
 import { type TurnContext } from '../turnContext.ts';
@@ -62,6 +63,8 @@ class CurrentEditorSkillProcessor implements Skill.ISkillProcessor<Document> {
       }
 
       return new ElidableText([...editorExcerpt, ...selectionExcerpt]);
+    } else if (documentResult.status === 'invalid') {
+      return new ElidableText([`The currently open file \`${path.basename(skill.uri)}\` is content excluded.`]);
     }
   }
 }

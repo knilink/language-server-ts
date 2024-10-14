@@ -2,7 +2,7 @@ import { DocumentUri } from 'vscode-languageserver-types';
 
 import { TextDocument } from '../../textDocument.ts';
 
-import { Document, LanguageId } from '../../../../prompt/src/lib.ts';
+import { LanguageId, OpenDocument } from '../../../../prompt/src/lib.ts';
 import { TextDocumentManager } from '../../textDocumentManager.ts';
 
 import { NeighborSource, considerNeighborFile } from './neighborFiles.ts';
@@ -20,8 +20,8 @@ class OpenTabFiles {
     uri: DocumentUri,
     languageId: LanguageId,
     maxNumNeighborFiles: number
-  ): Promise<Map<string, Document>> {
-    const openFiles: Map<string, Document> = new Map();
+  ): Promise<Map<string, OpenDocument>> {
+    const openFiles = new Map<string, OpenDocument>();
     let totalLen = 0;
 
     for (const doc of docs) {
@@ -35,7 +35,6 @@ class OpenTabFiles {
         openFiles.set(doc.uri.toString(), {
           uri: doc.uri.toString(),
           relativePath: await this.docManager.getRelativePath(doc),
-          languageId: doc.languageId,
           source: doc.getText(),
         });
         totalLen += doc.getText().length;
@@ -49,7 +48,10 @@ class OpenTabFiles {
     uri: DocumentUri,
     languageId: LanguageId,
     maxNumNeighborFiles: number
-  ): Promise<{ docs: Map<string, Document>; neighborSource: Map<string, DocumentUri[]> }> {
+  ): Promise<{
+    docs: Map<string, OpenDocument>;
+    neighborSource: Map<string, DocumentUri[]>;
+  }> {
     // const neighborFiles = new Map<string, Documen[]>();
     const neighborSource = new Map<string, string[]>();
 

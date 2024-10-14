@@ -18,6 +18,7 @@ import { TestingOptions } from './testingOptions.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
 import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { DocumentUriSchema, PositionSchema } from '../../../types/src/index.ts';
 
 type _Completion = {
   uuid: string;
@@ -34,10 +35,10 @@ const logger = new Logger(LogLevel.DEBUG, 'getCompletions');
 
 const Params = Type.Object({
   doc: Type.Object({
-    position: Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) }),
+    position: PositionSchema,
     insertSpaces: Type.Optional(Type.Boolean()),
     tabSize: Type.Optional(Type.Number()),
-    uri: Type.String(),
+    uri: DocumentUriSchema,
     version: Type.Number(),
     ifInserted: Type.Optional(
       Type.Object({
@@ -283,8 +284,9 @@ async function getGhostTextWithAbortHandling(
   isCycling: boolean,
   telemetryData: TelemetryData,
   token: CancellationToken,
-  ifInserted?: ParamsType['doc']['ifInserted'],
-  promptOnly?: boolean
+  ifInserted: ParamsType['doc']['ifInserted'],
+  promptOnly: boolean,
+  data?: unknown
 ): Promise<GhostTextResult> {
   try {
     return await getGhostText(
@@ -295,7 +297,8 @@ async function getGhostTextWithAbortHandling(
       telemetryData,
       token,
       ifInserted,
-      promptOnly
+      promptOnly,
+      data
     );
   } catch (e) {
     if (isAbortError(e))

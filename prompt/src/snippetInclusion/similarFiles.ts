@@ -1,20 +1,13 @@
-import { Document, Snippet, type SimilarFilesOptions } from '../types.ts';
+import { OpenDocument, CurrentDocument, Snippet, type SimilarFilesOptions } from '../types.ts';
 import { FixedWindowSizeJaccardMatcher } from './jaccardMatching.ts';
 
-function parseNumberFromEnv(envName: string, defaultValue: number) {
-  let env = process.env[envName];
-  if (env === undefined) return defaultValue;
-  let n = parseInt(env);
-  return isNaN(n) ? defaultValue : n;
-}
-
-function getMatcher(doc: Document, selection: SimilarFilesOptions): FixedWindowSizeJaccardMatcher {
+function getMatcher(doc: CurrentDocument, selection: SimilarFilesOptions): FixedWindowSizeJaccardMatcher {
   return FixedWindowSizeJaccardMatcher.FACTORY(selection.snippetLength).to(doc);
 }
 
 async function getSimilarSnippets(
-  doc: Document,
-  similarFiles: Document[],
+  doc: CurrentDocument,
+  similarFiles: OpenDocument[],
   options: SimilarFilesOptions
 ): Promise<Snippet[]> {
   const matcher = getMatcher(doc, options);
@@ -55,12 +48,12 @@ const defaultSimilarFilesOptions: SimilarFilesOptions = {
   maxSnippetsPerFile: DEFAULT_MAX_SNIPPETS_PER_FILE,
 };
 const defaultCppSimilarFilesOptions: SimilarFilesOptions = {
-  snippetLength: parseNumberFromEnv('GH_COPILOT_CPP_SNIPPET_WINDOW_SIZE', DEFAULT_SNIPPET_WINDOW_SIZE),
-  threshold: parseNumberFromEnv('GH_COPILOT_CPP_SNIPPET_THRESHOLD', DEFAULT_SNIPPET_THRESHOLD),
-  maxTopSnippets: parseNumberFromEnv('GH_COPILOT_CPP_MAX_TOP_SNIPPETS', DEFAULT_MAX_TOP_SNIPPETS),
-  maxCharPerFile: parseNumberFromEnv('GH_COPILOT_CPP_MAX_CHARACTERS_PER_FILE', DEFAULT_MAX_CHARACTERS_PER_FILE),
-  maxNumberOfFiles: parseNumberFromEnv('GH_COPILOT_CPP_MAX_NUMBER_OF_FILES', DEFAULT_MAX_NUMBER_OF_FILES),
-  maxSnippetsPerFile: parseNumberFromEnv('GH_COPILOT_CPP_MAX_SNIPPETS_PER_FILE', DEFAULT_MAX_SNIPPETS_PER_FILE),
+  snippetLength: 60,
+  threshold: 0,
+  maxTopSnippets: 16,
+  maxCharPerFile: 1e5,
+  maxNumberOfFiles: 200,
+  maxSnippetsPerFile: 4,
 };
 
 export { defaultCppSimilarFilesOptions, defaultSimilarFilesOptions, getSimilarSnippets, SimilarFilesOptions };

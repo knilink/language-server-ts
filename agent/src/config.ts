@@ -5,6 +5,7 @@ import {
   ConfigKey,
   type ConfigValueType,
 } from '../../lib/src/config.ts';
+import { NameAndVersionType } from '../../types/src/index.ts';
 
 class AgentConfigProvider extends InMemoryConfigProvider {
   readonly env: NodeJS.ProcessEnv;
@@ -33,28 +34,35 @@ class AgentConfigProvider extends InMemoryConfigProvider {
     this._set(ConfigKey.DebugOverrideProxyUrl, 'OVERRIDE_PROXY_URL', (v) => v);
     this._set(ConfigKey.DebugOverrideCapiUrl, 'OVERRIDE_CAPI_URL', (v) => v);
     this._set(ConfigKey.DebugUseEditorFetcher, 'USE_EDITOR_FETCHER', (v) => (v == 'true' || v == 'false' ? v : null));
-    this._set(ConfigKey.DebugOverrideRelatedFiles, 'OVERRIDE_RELATED_FILES', (v) => !!v);
+    // this._set(ConfigKey.DebugOverrideRelatedFiles, 'OVERRIDE_RELATED_FILES', (v) => !!v);
   }
 }
 
 class AgentEditorInfo extends EditorAndPluginInfo {
-  private _editorInfo?: EditorAndPluginInfo.EditorInfo;
-  private _editorPluginInfo?: EditorAndPluginInfo.EditorPluginInfo;
+  _editorInfo?: NameAndVersionType;
+  _editorPluginInfo?: NameAndVersionType;
+  _relatedPluginInfo?: NameAndVersionType[];
 
   setEditorAndPluginInfo(
     editorInfo: EditorAndPluginInfo.EditorInfo,
-    editorPluginInfo: EditorAndPluginInfo.EditorPluginInfo
+    editorPluginInfo: NameAndVersionType,
+    relatedPluginInfo: NameAndVersionType[] = []
   ): void {
     this._editorInfo = editorInfo;
     this._editorPluginInfo = editorPluginInfo;
+    this._relatedPluginInfo = relatedPluginInfo;
   }
 
   getEditorInfo(): EditorAndPluginInfo.EditorInfo {
     return this._editorInfo ? this._editorInfo : { name: 'unknown-editor', version: '0' };
   }
 
-  getEditorPluginInfo(): EditorAndPluginInfo.EditorPluginInfo {
+  getEditorPluginInfo(): NameAndVersionType {
     return this._editorPluginInfo ? this._editorPluginInfo : { name: 'unknown-editor-plugin', version: '0' };
+  }
+
+  getRelatedPluginInfo(): NameAndVersionType[] {
+    return this._relatedPluginInfo ?? [];
   }
 }
 

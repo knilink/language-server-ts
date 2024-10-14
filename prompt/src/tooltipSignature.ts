@@ -1,12 +1,12 @@
 import { commentBlockAsSingles } from './languageMarker.ts';
-import { Document, Snippet } from './types.ts';
+import { CurrentDocument, Snippet } from './types.ts';
 
 function announceTooltipSignatureSnippet(snippet: string, targetDocLanguageId: string): string {
   const formattedSnippet = `Use ${snippet}`;
   return commentBlockAsSingles(formattedSnippet, targetDocLanguageId);
 }
 
-function endsWithAttributesOrMethod(doc: Document): boolean {
+function endsWithAttributesOrMethod(doc: CurrentDocument): boolean {
   const directContext = doc.source.substring(0, doc.offset);
   return regexAttributeOrMethod.test(directContext);
 }

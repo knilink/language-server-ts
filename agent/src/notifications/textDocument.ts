@@ -1,4 +1,11 @@
-import { Type, type Static } from '@sinclair/typebox';
+import {
+  DidPartiallyAcceptCompletionNotification,
+  DidPartiallyAcceptCompletionParams,
+  DidPartiallyAcceptCompletionParamsType,
+  DidShowCompletionNotification,
+  DidShowCompletionParams,
+  DidShowCompletionParamsType,
+} from '../../../types/src/index.ts';
 
 import { AbstractNotification } from './abstract.ts';
 
@@ -9,15 +16,11 @@ import {
   handlePartialGhostTextPostInsert,
 } from '../../../lib/src/ghostText/last.ts';
 
-const ItemParam = Type.Object({
-  command: Type.Object({ arguments: Type.Tuple([Type.String({ minLength: 1 })]) }),
-});
+class DidShowCompletionNotificationHandler extends AbstractNotification {
+  readonly name = DidShowCompletionNotification.method;
+  readonly params = DidShowCompletionParams;
 
-class DidShowCompletionNotification extends AbstractNotification {
-  readonly name = 'textDocument/didShowCompletion';
-  readonly params = Type.Object({ item: ItemParam });
-
-  async handle(params: Static<DidShowCompletionNotification['params']>) {
+  async handle(params: DidShowCompletionParamsType) {
     const id = params.item.command.arguments[0];
     const completion = this.ctx.get(CopilotCompletionCache).get(id);
     if (completion) {
@@ -26,11 +29,11 @@ class DidShowCompletionNotification extends AbstractNotification {
   }
 }
 
-class DidPartiallyAcceptCompletionNotification extends AbstractNotification {
-  readonly name = 'textDocument/didPartiallyAcceptCompletion';
-  readonly params = Type.Object({ item: ItemParam, acceptedLength: Type.Number({ minimum: 1 }) });
+class DidPartiallyAcceptCompletionNotificationHandler extends AbstractNotification {
+  readonly name = DidPartiallyAcceptCompletionNotification.method;
+  readonly params = DidPartiallyAcceptCompletionParams;
 
-  async handle(params: Static<DidPartiallyAcceptCompletionNotification['params']>) {
+  async handle(params: DidPartiallyAcceptCompletionParamsType) {
     const id = params.item.command.arguments[0];
     const length = params.acceptedLength;
     const cache = this.ctx.get(CopilotCompletionCache);
@@ -47,6 +50,9 @@ class DidPartiallyAcceptCompletionNotification extends AbstractNotification {
   }
 }
 
-const textDocumentNotifications = [DidShowCompletionNotification, DidPartiallyAcceptCompletionNotification];
+const textDocumentNotifications: AbstractNotification.Ctor[] = [
+  DidShowCompletionNotificationHandler,
+  DidPartiallyAcceptCompletionNotificationHandler,
+];
 
 export { textDocumentNotifications };

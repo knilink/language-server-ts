@@ -1,4 +1,4 @@
-import { Document, LanguageId, Snippet } from '../types.ts';
+import { CurrentDocument, OpenDocument, LanguageId, Snippet } from '../types.ts';
 import {} from './snippets.ts';
 
 function splitIntoWords(a: string) {
@@ -42,7 +42,7 @@ class FifoCache<V> {
 
 class Tokenizer {
   stopsForLanguage: Set<string>;
-  constructor(doc: Document) {
+  constructor(doc: CurrentDocument) {
     this.stopsForLanguage = SPECIFIC_STOPS.get(doc.languageId) ?? GENERIC_STOPS;
   }
   tokenize(a: string) {
@@ -54,9 +54,9 @@ type TokenWindow = Set<string>;
 const WINDOWED_TOKEN_SET_CACHE = new FifoCache<TokenWindow[]>(20);
 
 abstract class WindowedMatcher {
-  private tokenizer: Tokenizer;
-  private referenceTokensCache?: Set<string>;
-  constructor(private referenceDoc: Document) {
+  readonly tokenizer: Tokenizer;
+  referenceTokensCache?: Set<string>;
+  constructor(readonly referenceDoc: CurrentDocument) {
     this.tokenizer = new Tokenizer(referenceDoc);
   }
 
@@ -78,7 +78,7 @@ abstract class WindowedMatcher {
   }
 
   private retrieveAllSnippets(
-    objectDoc: Document,
+    objectDoc: OpenDocument,
     sortOption: 'ascending' | 'descending' = 'descending'
   ): { score: number; startLine: number; endLine: number }[] {
     const snippets: { score: number; startLine: number; endLine: number }[] = [];
@@ -119,11 +119,11 @@ abstract class WindowedMatcher {
     return this.sortScoredSnippets(snippets, sortOption);
   }
 
-  findMatches(objectDoc: Document, maxSnippetsPerFile: number): Snippet[] {
+  findMatches(objectDoc: OpenDocument, maxSnippetsPerFile: number): Snippet[] {
     return this.findBestMatch(objectDoc, maxSnippetsPerFile);
   }
 
-  findBestMatch(objectDoc: Document, maxSnippetsPerFile: number): Snippet[] {
+  findBestMatch(objectDoc: OpenDocument, maxSnippetsPerFile: number): Snippet[] {
     if (objectDoc.source.length === 0 || this.referenceTokens.size === 0) return [];
 
     const lines = objectDoc.source.split('\n');
@@ -139,7 +139,7 @@ abstract class WindowedMatcher {
     return bestSnippets;
   }
 
-  abstract _getCursorContextInfo(referenceDoc: Document): { context: string };
+  abstract _getCursorContextInfo(referenceDoc: CurrentDocument): { context: string };
 
   abstract getWindowsDelineations(lines: string[]): [number, number][];
 

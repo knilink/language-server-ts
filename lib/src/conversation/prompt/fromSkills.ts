@@ -22,6 +22,7 @@ async function fromSkills(
   promptOptions?: SkillPromptOptions
 ): Promise<[ElidableText | null, Unknown.SkillResolution[]]> {
   const [elidableSkills, nonElidableSkills, skillResolutions] = await handleSkillsInReverse(turnContext, promptOptions);
+  skillResolutions.push(...handleIgnoredSkills(turnContext));
   return elidableSkills.length > 0 || nonElidableSkills.length > 0
     ? [
         new ElidableText([
@@ -130,7 +131,6 @@ async function determineResolution(
     files,
     resolutionTimeMs,
     processingTimeMs,
-    ...turnContext.skillResolutionProperties(skill?.id),
   };
 
   if (elidableSkill) {
@@ -142,6 +142,10 @@ async function determineResolution(
   }
   turnContext.ctx.get(ConversationDumper).addResolution(turnContext.turn.id, resolution);
   return resolution;
+}
+
+function handleIgnoredSkills(turnContext: TurnContext): Unknown.SkillResolution[] {
+  return turnContext.turn.ignoredSkills.map((skill) => ({ skillId: skill.skillId, resolution: 'ignored' }));
 }
 
 async function includeSkill(turnContext: TurnContext, skillId: SkillId, languageId?: LanguageId): Promise<boolean> {

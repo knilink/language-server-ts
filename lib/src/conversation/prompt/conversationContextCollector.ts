@@ -11,11 +11,11 @@ import { Conversations } from '../conversations.ts';
 import { ProjectMetadataSkillId } from '../skills/ProjectMetadataSkill.ts';
 import { ConversationSkillRegistry } from './conversationSkill.ts';
 import { MetaPromptFetcher } from './metaPrompt.ts';
-import { getAgents, localAgents } from '../agents/agents.ts';
+import { getAgents } from '../agents/agents.ts';
 import { ReferencesSkillId } from '../skills/ReferencesSkill.ts';
 import { type ChatMLFetcher } from '../chatMLFetcher.ts';
 import { IPromptTemplate } from '../promptTemplates.ts';
-import { Conversation } from '../conversation.ts';
+import { Conversation, Turn } from '../conversation.ts';
 
 namespace ConversationContextCollector {
   export type Agent = { additionalSkills: (ctx: Context) => Promise<SkillId[]> };
@@ -46,7 +46,7 @@ class ConversationContextCollector {
     template?: IPromptTemplate,
     agent?: ConversationContextCollector.Agent
   ): Promise<{ skillIds: SkillId[] }> {
-    const turnSkills: SkillId[] = [];
+    let turnSkills: SkillId[] = [];
 
     if (template) {
       const templateSkills = template.requiredSkills ? await template.requiredSkills(turnContext.ctx) : [];
@@ -55,7 +55,7 @@ class ConversationContextCollector {
       (
         await this.metaPromptFetcher.fetchPromptContext(
           turnContext,
-          await this.selectableSkillDescriptors(turnContext.ctx, turnContext.conversation),
+          await this.selectableSkillDescriptors(turnContext.ctx, turnContext.conversation, turnContext.turn),
           token,
           baseTelemetryWithExp,
           uiKind
@@ -75,26 +75,42 @@ class ConversationContextCollector {
     }
 
     turnSkills.push(...mandatorySkills());
+    turnSkills = turnSkills.filter((skillId) => !this.isIgnoredSkill(skillId, turnContext.turn));
 
     return {
       skillIds: turnContext.ctx.get(Conversations).filterSupportedSkills(turnContext.conversation.id, turnSkills),
     };
   }
 
-  async selectableSkillDescriptors(ctx: Context, conversation: Conversation): Promise<Skill.ISkillDescriptor[]> {
+  async selectableSkillDescriptors(
+    ctx: Context,
+    conversation: Conversation,
+    turn: Turn
+  ): Promise<Skill.ISkillDescriptor[]> {
     const nonSelectableSkills = await this.getNonSelectableSkills(ctx);
     const supportedSkills = ctx.get(Conversations).getSupportedSkills(conversation.id);
-    return ctx
-      .get(ConversationSkillRegistry)
-      .getDescriptors()
-      .filter((s) => !nonSelectableSkills.includes(s.id) && supportedSkills.includes(s.id));
+    const descriptors = ctx.get(ConversationSkillRegistry).getDescriptors();
+    const skills = [];
+    for (let desc of descriptors) {
+      if (nonSelectableSkills.includes(desc.id) || !supportedSkills.includes(desc.id)) {
+        continue;
+      }
+
+      if (((await desc.isAvailable?.(ctx)) ?? true) && !this.isIgnoredSkill(desc.id, turn)) {
+        skills.push(desc);
+      }
+    }
+    return skills;
   }
 
   async getNonSelectableSkills(ctx: Context): Promise<string[]> {
     const agents = await getAgents(ctx);
-    agents.push(...localAgents);
     const agentSkills = (await Promise.all(agents.map((agent) => agent.additionalSkills(ctx)))).flat();
     return [...mandatorySkills(), ...agentSkills];
+  }
+
+  isIgnoredSkill(id: SkillId, turn: Turn) {
+    return turn.ignoredSkills?.some((ignoredSkill) => ignoredSkill.skillId === id);
   }
 }
 

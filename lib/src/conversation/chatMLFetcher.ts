@@ -254,9 +254,8 @@ class ChatMLFetcher {
   ): Promise<ChatCompletion | undefined> {
     if (isRepetitive(chatCompletion.tokens)) {
       baseTelemetryWithExp.extendWithRequestId(chatCompletion.requestId);
-      telemetry(this.ctx, 'conversation.repetition.detected', baseTelemetryWithExp, TelemetryStore.RESTRICTED);
-      conversationLogger.info(this.ctx, 'Filtered out repetitive conversation result');
-      return;
+      telemetry(this.ctx, 'conversation.repetition.detected', baseTelemetryWithExp, 0);
+      return chatCompletion.finishReason !== '' ? chatCompletion : undefined;
     }
     return chatCompletion.message ? chatCompletion : undefined;
   }

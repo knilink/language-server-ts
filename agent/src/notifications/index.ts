@@ -27,7 +27,7 @@ function registerNotifications(ctx: Context, connection: Connection): void {
   }
 }
 
-const notifications: (new (ctx: Context) => AbstractNotification)[] = [
+const notifications: AbstractNotification.Ctor[] = [
   ...githubNotifications,
   ...textDocumentNotifications,
   WorkDoneProgressCancelNotification,

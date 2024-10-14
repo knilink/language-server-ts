@@ -1,8 +1,8 @@
-import { Document } from '../types.ts';
+import { CurrentDocument } from '../types.ts';
 import { getTokenizer } from '../tokenization/index.ts';
 
 export function getCursorContext(
-  doc: Document,
+  doc: CurrentDocument,
   options: {
     tokenizerName?: string;
     maxLineCount?: number;

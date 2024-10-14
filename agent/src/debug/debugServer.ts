@@ -8,9 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class DebugServer {
-  private server: http.Server;
-  private port: number;
-  private emitter: EventEmitter;
+  server: http.Server;
+  port: number;
+  emitter: EventEmitter;
 
   constructor(port: number, emitter: EventEmitter) {
     this.server = http.createServer((req, res) => this.handleRequest(req, res));
@@ -19,8 +19,13 @@ class DebugServer {
     this.server.on('error', (e) => console.error(e));
   }
 
-  public listen(): void {
+  listen(): DebugServer {
     this.server.listen(this.port);
+    return this;
+  }
+
+  getPort(): number {
+    return (this.server.address() as any).port; // MARK
   }
 
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {

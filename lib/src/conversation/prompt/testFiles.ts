@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { URI } from 'vscode-uri';
-import { basename, dirname, joinPath } from '../../util/uri.ts';
+import { basename, dirname, getFsPath, joinPath } from '../../util/uri.ts';
 import { Context } from '../../context.ts';
 import { logger } from '../../logger.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
@@ -27,7 +27,7 @@ const testFileHints: {
   kt: { suffix: ['Test'], location: 'testFolder' },
 };
 
-export async function isTestFile(potentialTestFile: URI): Promise<boolean> {
+export async function isTestFile(potentialTestFile: string): Promise<boolean> {
   const sourceFileName = basename(potentialTestFile);
   const sourceFileExtension = path.extname(sourceFileName);
 
@@ -46,11 +46,11 @@ export async function isTestFile(potentialTestFile: URI): Promise<boolean> {
 class TestFileFinder {
   constructor(
     readonly ctx: Context,
-    readonly fileExists: (filePath: URI) => Promise<boolean>,
-    readonly basePath?: URI
+    readonly fileExists: (filePath: string) => Promise<boolean>,
+    public baseUri?: DocumentUri
   ) {}
 
-  public async findTestFileForSourceFile(sourceFile: URI): Promise<URI | undefined> {
+  public async findTestFileForSourceFile(sourceFile: string): Promise<string | undefined> {
     const sourceFileName = basename(sourceFile);
     const sourceFileExtension = path.extname(sourceFileName).replace('.', '');
     const fileHint = testFileHints[sourceFileExtension] ?? {
@@ -71,12 +71,19 @@ class TestFileFinder {
     }
 
     const location = fileHint.location ?? 'sameFolder';
-    let testFolder: string;
+    let testFolder: string | undefined;
 
     if (location === 'sameFolder') {
-      testFolder = dirname(sourceFile).fsPath;
+      testFolder = getFsPath(dirname(sourceFile));
+      if (testFolder === undefined) {
+        return;
+      }
     } else {
-      testFolder = this.determineTestFolder(sourceFile.fsPath, location);
+      const fsPath = getFsPath(sourceFile);
+      if (fsPath === undefined) {
+        return;
+      }
+      testFolder = this.determineTestFolder(fsPath, location);
     }
 
     for (const testFileName of testFileNames) {
@@ -85,22 +92,22 @@ class TestFileFinder {
       if (candidate && (await this.fileExists(candidate))) return candidate;
     }
 
-    if (await this.fileExists(URI.file(testFolder))) {
-      const testFilePath = path.join(testFolder, testFileNames[0]);
-      return URI.file(testFilePath);
+    const testFolderUri = URI.file(testFolder).toString();
+    if (await this.fileExists(testFolderUri)) {
+      return joinPath(testFolderUri, testFileNames[0]);
     }
   }
 
-  private parseTestFilePath(testFilePath: string): URI | undefined {
+  private parseTestFilePath(testFilePath: string): string | undefined {
     try {
-      return URI.file(testFilePath);
+      return URI.file(testFilePath).toString();
     } catch (e) {
       logger.error(this.ctx, `Failed to parse test file path: ${testFilePath} `, e);
       return;
     }
   }
 
-  public async findImplFileForTestFile(sourceFile: URI): Promise<URI | undefined> {
+  public async findImplFileForTestFile(sourceFile: string): Promise<string | undefined> {
     const testFileName = basename(sourceFile);
     const testFileExtension = path.extname(testFileName).replace('.', '');
     const fileHint = testFileHints[testFileExtension] ?? {
@@ -123,7 +130,7 @@ class TestFileFinder {
     }
 
     const location = fileHint.location ?? 'sameFolder';
-    let implFolder: URI;
+    let implFolder: string;
 
     if (location === 'sameFolder') {
       implFolder = dirname(sourceFile);
@@ -137,9 +144,13 @@ class TestFileFinder {
     }
   }
 
-  public findExampleTestFile(sourceFile: URI): URI | undefined {
-    const sourceFilePath = sourceFile.fsPath;
-    const sourceFileExtension = path.extname(sourceFilePath).replace('.', '');
+  public findExampleTestFile(sourceFile: string): string | undefined {
+    const sourceFilePath = getFsPath(sourceFile);
+    if (sourceFilePath === undefined) {
+      return;
+    }
+    const sourceFileExtension = path.extname(basename(sourceFile)).replace('.', '');
+
     let testFolder: string;
     const location = testFileHints[sourceFileExtension]?.location ?? 'sameFolder';
 
@@ -150,7 +161,7 @@ class TestFileFinder {
     }
 
     const testFiles = this.findFiles(testFolder, `.${sourceFileExtension}`, testFileHints[sourceFileExtension]);
-    if (testFiles.length > 0) return URI.file(testFiles[0]);
+    if (testFiles.length > 0) return URI.file(testFiles[0]).toString();
   }
 
   private findFiles(
@@ -173,22 +184,22 @@ class TestFileFinder {
     return files;
   }
 
-  private _readdir(dir: string): string[] {
+  _readdir(dir: string): string[] {
     return fs
       .readdirSync(dir, { withFileTypes: true })
       .filter((dirent) => dirent.isFile())
       .map((dirent) => dirent.name);
   }
 
-  private determineTestFolder(sourceFilePath: string, location: 'sameFolder' | 'testFolder'): string {
-    const basePath = this.basePath?.fsPath ?? '';
+  determineTestFolder(sourceFilePath: string, location: 'sameFolder' | 'testFolder'): string {
+    const basePath = (this.baseUri && getFsPath(this.baseUri)) ?? '';
     const extension = path.extname(sourceFilePath).replace('.', '');
     const relativeTestFolder = this.getRelativeTestFolder(sourceFilePath, basePath, extension, location);
     // return [basePath, ...relativeTestFolder].filter((x) => x).join(path.sep);
     return path.join(basePath, ...relativeTestFolder);
   }
 
-  private getRelativeTestFolder(
+  getRelativeTestFolder(
     sourceFilePath: string,
     basePath: string,
     extension: string,
@@ -218,31 +229,27 @@ class TestFileFinder {
     }
   }
 
-  private determineImplFolder(testFile: URI): URI {
+  private determineImplFolder(testFile: string): string {
     const extension = path.extname(basename(testFile)).replace('.', '');
-    const testFolder = dirname(testFile).toString();
+    const testFolder = dirname(testFile);
 
     switch (extension) {
       case 'php':
       case 'dart':
       case 'py':
-        return URI.parse(testFolder.replace('tests', 'src'));
+        return testFolder.replace('tests', 'src');
       case 'ps1':
-        return URI.parse(testFolder.replace('Tests', 'src'));
+        return testFolder.replace('Tests', 'src');
       case 'rb':
-        // return URI.parse(testFolder.fsPath.replace('/test', ''));
-        return URI.parse(testFolder.replace(path.sep + 'test', ''));
+        return testFolder.replace(path.sep + 'test', '');
       case 'cs':
-        // return URI.parse(testFolder.fsPath.replace('src/tests', 'src'));
-        return URI.parse(testFolder.replace(path.join('src', 'tests'), 'src'));
+        return testFolder.replace(path.join('src', 'tests'), 'src');
       case 'java':
       case 'scala':
       case 'kt':
-        // return URI.parse(testFolder.fsPath.replace('src/test', 'src/main'));
-        return URI.parse(testFolder.replace(path.join('src', 'test'), path.join('src', 'main')));
+        return testFolder.replace(path.join('src', 'test'), path.join('src', 'main'));
       default:
-        // return URI.parse(testFolder.fsPath.replace('test/', 'src/'));
-        return URI.parse(testFolder.replace('test' + path.sep, 'src' + path.sep));
+        return testFolder.replace('test' + path.sep, 'src' + path.sep);
     }
   }
 }

@@ -18,6 +18,7 @@ import { Logger, LogLevel } from '../../lib/src/logger.ts';
 import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
 // import { Document } from '../../prompt/src/types';
 import { DocumentUri, WorkspaceFolder } from 'vscode-languageserver-types';
+import { DidFocusTextDocumentNotification } from '../../types/src/index.ts';
 
 const configLogger = new Logger(LogLevel.DEBUG, 'AgentTextDocumentConfiguration');
 
@@ -78,9 +79,9 @@ class AgentTextDocumentManager extends TextDocumentManager {
 
   // EDITED this.onDidFocusTextDocument = (listener, thisArgs, disposables)
   onDidFocusTextDocument(listener: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams>) {
-    return this.connection.onNotification('textDocument/didFocus', (event) => {
-      let uri = event.textDocument?.uri ?? event.uri;
-      listener({ document: { uri: uri } });
+    return this.connection.onNotification(DidFocusTextDocumentNotification.type, (event) => {
+      let document = 'textDocument' in event ? event.textDocument : event;
+      listener({ document });
     });
   }
 

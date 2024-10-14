@@ -1,4 +1,3 @@
-import type { URI } from 'vscode-uri';
 import { detectLanguage } from './language/languageDetection.ts';
 import { parseUri } from './util/uri.ts';
 import { TextDocument as LSPTextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
@@ -22,13 +21,13 @@ class LocationFactory {
 
 class TextDocument {
   constructor(
-    private _uri: URI,
-    private _textDocument: LSPTextDocument,
+    readonly uri: DocumentUri,
+    readonly _textDocument: LSPTextDocument,
     readonly detectedLanguageId: LanguageId
   ) {}
 
   static withChanges(textDocument: TextDocument, changes: TextDocumentContentChangeEvent[], version: number) {
-    let lspDoc = TextDocument.create(
+    const lspDoc = LSPTextDocument.create(
       textDocument.clientUri,
       textDocument.clientLanguageId,
       version,
@@ -36,39 +35,31 @@ class TextDocument {
     );
 
     LSPTextDocument.update(lspDoc, changes, version);
-    return new TextDocument(textDocument.vscodeUri, lspDoc, textDocument.detectedLanguageId);
+    return new TextDocument(textDocument.uri, lspDoc, textDocument.detectedLanguageId);
   }
 
   static create(
-    uri: URI | string,
+    uri: string,
     clientLanguageId: LanguageId,
     version: number,
     text: string,
-    detectedLanguageId = detectLanguage({ uri: uri.toString() }) ?? clientLanguageId
+    detectedLanguageId = detectLanguage({ uri, clientLanguageId })
   ): TextDocument {
-    return typeof uri == 'string'
-      ? new TextDocument(
-          parseUri(uri),
-          LSPTextDocument.create(uri, clientLanguageId, version, text),
-          detectedLanguageId
-        )
-      : new TextDocument(
-          uri,
-          LSPTextDocument.create(uri.toString(), clientLanguageId, version, text),
-          detectedLanguageId
-        );
-  }
-
-  get uri(): DocumentUri {
-    return this._uri.toString();
+    let normalizedUri: DocumentUri;
+    try {
+      normalizedUri = parseUri(uri, !1).toString();
+    } catch {
+      normalizedUri = uri;
+    }
+    return new TextDocument(
+      normalizedUri,
+      LSPTextDocument.create(uri, clientLanguageId, version, text),
+      detectedLanguageId
+    );
   }
 
   get clientUri(): DocumentUri {
     return this._textDocument.uri;
-  }
-
-  get vscodeUri(): URI {
-    return this._uri;
   }
 
   get clientLanguageId(): LanguageId {
