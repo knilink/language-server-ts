@@ -35,7 +35,7 @@ class TurnSuggestions {
     const modelConfiguration = await this.ctx
       .get(ModelConfigurationProvider)
       .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('suggestions'), { tool_calls: true });
-    const promptOptions = { promptType: 'suggestions' as 'suggestions', modelConfiguration: modelConfiguration };
+    const promptOptions = { promptType: 'suggestions' as 'suggestions', modelConfiguration };
     const prompt = await this.ctx.get(ConversationPromptEngine).toPrompt(turnContext, promptOptions);
     const extendedTelemetry = baseTelemetryWithExp.extendedBy(
       { messageSource: 'chat.suggestions' },
@@ -62,7 +62,7 @@ class TurnSuggestions {
         return;
       }
       let firstToolCall = response.toolCalls[0];
-      let { followUp: followUp, suggestedTitle: suggestedTitle } = prompt.toolConfig.extractArguments(firstToolCall);
+      let { followUp, suggestedTitle } = prompt.toolConfig.extractArguments(firstToolCall);
       if (!followUp || !suggestedTitle) {
         conversationLogger.error(this.ctx, 'Missing follow-up or suggested title in suggestions response');
         return;

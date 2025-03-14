@@ -114,11 +114,7 @@ async function getPrompt(
   promptWishlist.append(directContext, 'BeforeCursor');
 
   let suffixText = source.slice(offset);
-  let { promptInfo: promptInfo, newCachedSuffix: newCachedSuffix } = promptWishlist.fulfill(
-    suffixText,
-    completeOptions,
-    cachedSuffix
-  );
+  let { promptInfo, newCachedSuffix } = promptWishlist.fulfill(suffixText, completeOptions, cachedSuffix);
   cachedSuffix = newCachedSuffix;
   return promptInfo;
 }

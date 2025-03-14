@@ -9,7 +9,7 @@ import { Chat, ToolCall, Unknown } from '../../../types.ts';
 import { IPromptStrategy } from './types.ts';
 
 class SuggestionsPromptStrategy implements IPromptStrategy {
-  public toolConfig(): Unknown.ToolConfig {
+  toolConfig(): Unknown.ToolConfig {
     return {
       tool_choice: { type: 'function', function: { name: 'showSuggestions' } },
       tools: [
@@ -34,7 +34,7 @@ class SuggestionsPromptStrategy implements IPromptStrategy {
     };
   }
 
-  private suffix(turnContext: TurnContext): string {
+  suffix(turnContext: TurnContext): string {
     return dedent`
             Your task is to come up with two suggestions:
 

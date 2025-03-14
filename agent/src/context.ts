@@ -91,7 +91,7 @@ export const createLanguageServerContext = (connection: Connection): Context => 
   ctx.set(UrlOpener, new AgentUrlOpener(ctx));
   ctx.set(StatusReporter, new NotificationStatusReporter(ctx));
   ctx.set(FeatureFlagsNotifier, new FeatureFlagsNotifier(ctx));
-  let tdm = new AgentTextDocumentManager(ctx);
+  const tdm = new AgentTextDocumentManager(ctx);
   ctx.set(TextDocumentManager, tdm);
   ctx.set(AgentTextDocumentManager, tdm);
   ctx.set(FileReader, new FileReader(ctx));
