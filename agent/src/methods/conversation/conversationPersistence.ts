@@ -1,6 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-import { type CancellationToken } from '../../cancellation.ts';
 import { type Context } from '../../../../lib/src/context.ts';
 
 import { PersistenceManager } from '../../../../lib/src/persist.ts';
@@ -12,7 +11,7 @@ const Params = Type.Object({ options: Type.Optional(TestingOptions) });
 
 async function handleConversationPersistenceChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[{ path: string }, null]> {
   return [{ path: ctx.get(PersistenceManager).directory }, null];

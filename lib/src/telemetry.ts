@@ -6,7 +6,6 @@ import Utf16 from 'crypto-js/enc-utf16.js';
 import { ConnectionError, ResponseError } from 'vscode-languageserver-protocol';
 
 import {
-  Replacement,
   TelemetryProperties,
   TelemetryMeasurements,
   TelemetryStore,
@@ -17,7 +16,7 @@ import {
 } from './types.ts';
 import { Prompt } from '../../prompt/src/types.ts';
 
-import { Context } from './context.ts';
+import type { Context } from './context.ts';
 
 import { buildPayload, Payload } from './telemetry/failbot.ts';
 import { ExceptionRateLimiter } from './telemetry/rateLimiter.ts';
@@ -31,7 +30,6 @@ import {
   EditorAndPluginInfo,
   formatNameAndVersion,
   EditorSession,
-  GitHubAppInfo,
   getVersion,
   dumpForTelemetry,
   getBuild,
@@ -154,11 +152,11 @@ function telemetrizePromptLength(prompt: {
 }
 
 function now() {
-  return Date.now();
+  return performance.now();
 }
 
-function nowSeconds() {
-  return Math.floor(now() / 1000);
+function nowSeconds(now: number) {
+  return Math.floor(now / 1000);
 }
 
 function shouldSendRestricted(ctx: Context) {
@@ -170,18 +168,19 @@ function shouldSendFinetuningTelemetry(ctx: Context) {
 }
 
 // telemetry(ctx, 'networking.disconnectAll');
-async function telemetry(ctx: Context, name: string, telemetryData?: TelemetryData, store?: TelemetryStore) {
-  await ctx.get(PromiseQueue).register(_telemetry(ctx, name, telemetryData, store));
+function telemetry(ctx: Context, name: string, telemetryData?: TelemetryData, store?: TelemetryStore): void {
+  return ctx.get(PromiseQueue).register(_telemetry(ctx, name, now(), telemetryData?.extendedBy(), store));
 }
 
 async function _telemetry(
   ctx: Context,
   name: string,
+  now: number,
   telemetryData?: TelemetryData,
   store: TelemetryStore = TelemetryStore.RESTRICTED
 ) {
   let definedTelemetryData = telemetryData || TelemetryData.createAndMarkAsIssued({}, {});
-  await definedTelemetryData.makeReadyForSending(ctx, store ?? false, 'IncludeExp'); // TODO store ?? false ???
+  await definedTelemetryData.makeReadyForSending(ctx, store ?? false, 'IncludeExp', now); // TODO store ?? false ???
   if (!isRestricted(store) || shouldSendRestricted(ctx)) {
     sendTelemetryEvent(ctx, store, name, definedTelemetryData);
   }
@@ -190,46 +189,65 @@ async function _telemetry(
   }
 }
 
-async function telemetryExpProblem(ctx: Context, telemetryProperties: TelemetryProperties) {
-  await ctx.get(PromiseQueue).register(_telemetryExpProblem(ctx, telemetryProperties));
+function telemetryExpProblem(ctx: Context, telemetryProperties: TelemetryProperties): void {
+  return ctx.get(PromiseQueue).register(_telemetryExpProblem(ctx, telemetryProperties, now()));
 }
 
-async function _telemetryExpProblem(ctx: Context, telemetryProperties: TelemetryProperties) {
+async function _telemetryExpProblem(
+  ctx: Context,
+  telemetryProperties: TelemetryProperties,
+  now: number
+): Promise<void> {
   const definedTelemetryData = TelemetryData.createAndMarkAsIssued(telemetryProperties, {});
-  await definedTelemetryData.makeReadyForSending(ctx, TelemetryStore.OPEN, 'SkipExp');
+  await definedTelemetryData.makeReadyForSending(ctx, TelemetryStore.OPEN, 'SkipExp', now);
   sendTelemetryEvent(ctx, TelemetryStore.OPEN, 'expProblem', definedTelemetryData);
 }
 
-async function telemetryRaw(
+function telemetryRaw(
   ctx: Context,
   name: string,
   properties: TelemetryRawProperties,
   measurements: TelemetryMeasurements
-) {
-  await ctx.get(PromiseQueue).register(_telemetryRaw(ctx, name, properties, measurements));
+): void {
+  return ctx.get(PromiseQueue).register(_telemetryRaw(ctx, name, properties, measurements));
 }
 
 async function _telemetryRaw(
   ctx: Context,
   name: string,
-  properties: TelemetryRawProperties,
+  props: TelemetryRawProperties,
   measurements: TelemetryMeasurements
 ) {
-  addRequiredProperties(ctx, properties);
-  sendTelemetryEvent(ctx, TelemetryStore.OPEN, name, { properties, measurements });
+  const properties = { ...props, ...createRequiredProperties(ctx) };
+  sendTelemetryEvent(ctx, 0, name, { properties, measurements });
 }
 
-function addRequiredProperties(ctx: Context, properties: TelemetryRawProperties) {
-  properties.unique = uuidv4();
-  let editorInfo = ctx.get(EditorAndPluginInfo);
-  properties.common_extname = editorInfo.getEditorPluginInfo().name;
-  properties.common_extversion = editorInfo.getEditorPluginInfo().version;
-  properties.common_vscodeversion = formatNameAndVersion(editorInfo.getEditorInfo());
+function createRequiredProperties(ctx: Context) {
+  const editorInfo = ctx.get(EditorAndPluginInfo);
+  return {
+    unique_id: uuidv4(),
+    common_extname: editorInfo.getEditorPluginInfo().name,
+    common_extversion: editorInfo.getEditorPluginInfo().version,
+    common_vscodeversion: formatNameAndVersion(editorInfo.getEditorInfo()),
+  };
 }
 
-async function telemetryException(
+function telemetryException(
   ctx: Context,
   maybeError: unknown,
+  transaction?: string,
+  properties?: TelemetryProperties,
+  failbotPayload?: Payload
+): void {
+  return ctx
+    .get(PromiseQueue)
+    .register(_telemetryException(ctx, maybeError, now(), transaction, { ...properties }, failbotPayload));
+}
+
+async function _telemetryException(
+  ctx: Context,
+  maybeError: unknown,
+  now: number,
   transaction?: string,
   properties?: TelemetryProperties,
   failbotPayload?: Payload
@@ -243,121 +261,143 @@ async function telemetryException(
       error instanceof CopilotAuthError ||
       error instanceof ConnectionError ||
       error instanceof ResponseError
-    )
+    ) {
       return;
+    }
   } else {
     error = new CopilotNonError(maybeError);
-    if ((maybeError as any)?.name === 'ExitStatus') return;
+    if (maybeError && typeof maybeError == 'object' && (maybeError as any).name === 'ExitStatus') {
+      return;
+    }
     if (error.stack?.startsWith(`${error}\n`)) {
-      let frames = error.stack.slice(`${error}\n`.length).split(`\n`);
-      if (/^\s*(?:at )?(?:\w+\.)*telemetryException\b/.test(frames[0])) {
+      let frames = error.stack.slice(`${error}\n`.length).split('\n');
+
+      if (/^\s*(?:at )?(?:\w+\.)*_telemetryException\b/.test(frames[0] ?? '')) {
         frames.shift();
       }
+
+      if (/^\s*(?:at )?(?:\w+\.)*telemetryException\b/.test(frames[0] ?? '')) {
+        frames.shift();
+      }
+
       error.stack = `${error}\n${frames.join(`\n`)}`;
     }
   }
-  await ctx.get(PromiseQueue).register(_telemetryException(ctx, error, transaction, properties, failbotPayload));
-}
-
-async function _telemetryException(
-  ctx: Context,
-  error: unknown,
-  transaction?: string,
-  properties?: TelemetryProperties,
-  failbotPayload?: Payload
-) {
   const editorInfo = ctx.get(EditorAndPluginInfo).getEditorInfo();
-  let stackPaths: Replacement[] | undefined;
+  let stackPaths;
+
   if (editorInfo.root) {
     stackPaths = [{ prefix: `${editorInfo.name}:`, path: editorInfo.root }];
   }
+
   const redactedError = redactError(error, stackPaths);
   const sendRestricted = shouldSendRestricted(ctx);
   const errorType = getErrorType(error);
   const sendAsException = errorType === 'exception';
   const definedTelemetryDataStub = TelemetryData.createAndMarkAsIssued({
     origin: transaction ?? '',
-    type: (error as any).name,
+    type: error.name,
     code: `${(error as any).code ?? ''}`,
     reason: redactedError.stack || redactedError.toString(),
     message: redactedError.message,
     ...properties,
   });
-  await definedTelemetryDataStub.makeReadyForSending(ctx, 0, 'IncludeExp');
+  await definedTelemetryDataStub.makeReadyForSending(ctx, 0, 'IncludeExp', now);
   if (failbotPayload?.exception_detail) {
-    for (let ed of failbotPayload.exception_detail) {
-      if (ed.value) {
-        if (sendRestricted) {
-          ed.value = redactMessage(ed.value);
-        } else {
-          ed.value = '[redacted]';
-        }
-      }
-    }
+    for (let ed of failbotPayload.exception_detail)
+      ed.value && (sendRestricted ? (ed.value = redactMessage(ed.value)) : (ed.value = '[redacted]'));
   }
-  if (!failbotPayload) {
+
+  if (!(failbotPayload != null)) {
     failbotPayload = buildPayload(ctx, redactError(error, stackPaths, sendRestricted));
   }
 
   failbotPayload.context = {
     ...failbotPayload.context,
-    'copilot_event.unique_id': definedTelemetryDataStub.properties.unique,
+    'copilot_event.unique_id': definedTelemetryDataStub.properties.unique_id,
     '#restricted_telemetry': sendRestricted ? 'true' : 'false',
   };
+
   if (transaction) {
     failbotPayload.context['#origin'] = transaction;
     failbotPayload.transaction = transaction;
   }
+
   if (failbotPayload.rollup_id !== 'auto') {
     definedTelemetryDataStub.properties.errno = failbotPayload.rollup_id;
   }
 
-  failbotPayload.created = new Date(definedTelemetryDataStub.issuedTime).toISOString();
-
+  failbotPayload.created_at = new Date(definedTelemetryDataStub.issuedTime).toISOString();
   if (sendRestricted) {
     let restrictedError = prepareErrorForRestrictedTelemetry(error, stackPaths);
     let definedTelemetryDataRestricted = TelemetryData.createAndMarkAsIssued({
-      origin: transaction != null ? transaction : '',
-      type: (error as any).name,
+      origin: transaction ?? '',
+      type: error.name,
       code: `${(error as any).code ?? ''}`,
       reason: restrictedError.stack || restrictedError.toString(),
       message: restrictedError.message,
       ...properties,
     });
+
     if (failbotPayload.rollup_id !== 'auto') {
       definedTelemetryDataRestricted.properties.errno = failbotPayload.rollup_id;
     }
-    await definedTelemetryDataRestricted.makeReadyForSending(ctx, 1, 'IncludeExp'); // TODO 1 -> Store.RESTRICTED
-    definedTelemetryDataRestricted.properties.unique = definedTelemetryDataStub.properties.unique;
-    definedTelemetryDataStub.properties.restricted_unique = definedTelemetryDataRestricted.properties.unique;
+
+    await definedTelemetryDataRestricted.makeReadyForSending(ctx, TelemetryStore.RESTRICTED, 'IncludeExp', now);
+    definedTelemetryDataRestricted.properties.unique_id = definedTelemetryDataStub.properties.unique_id;
+    definedTelemetryDataStub.properties.restricted_unique_id = definedTelemetryDataRestricted.properties.unique_id;
     sendTelemetryEvent(ctx, TelemetryStore.RESTRICTED, `error.${errorType}`, definedTelemetryDataRestricted);
   }
-  let cacheKey = failbotPayload.rollup_id === 'auto' ? ((error as any).stack ?? '') : failbotPayload.rollup_id;
+  let cacheKey = failbotPayload.rollup_id === 'auto' ? (error.stack ?? '') : failbotPayload.rollup_id;
+
   if (sendAsException && !ctx.get(ExceptionRateLimiter).isThrottled(cacheKey)) {
     definedTelemetryDataStub.properties.failbot_payload = JSON.stringify(failbotPayload);
   }
+
   sendTelemetryEvent(ctx, TelemetryStore.OPEN, `error.${errorType}`, definedTelemetryDataStub);
 }
 
-async function telemetryError(ctx: Context, name: string, telemetryData?: TelemetryData, store?: TelemetryStore) {
-  await ctx.get(PromiseQueue).register(_telemetryError(ctx, name, telemetryData, store));
+function telemetryCatch<Args extends any[]>(
+  ctx: Context,
+  fn: (...args: Args) => void | Promise<void>,
+  transaction?: string,
+  properties?: TelemetryProperties
+): (...args: Args) => void {
+  const wrapped: (...args: Args) => Promise<void> = async (...args) => {
+    try {
+      await fn(...args);
+    } catch (error) {
+      await _telemetryException(ctx, error, now(), transaction, properties);
+    }
+  };
+  return (...args) => ctx.get(PromiseQueue).register(wrapped(...args));
 }
 
-async function _telemetryError(ctx: Context, name: string, telemetryData?: TelemetryData, store = TelemetryStore.OPEN) {
+function telemetryError(ctx: Context, name: string, telemetryData?: TelemetryData, store?: TelemetryStore) {
+  return ctx.get(PromiseQueue).register(_telemetryError(ctx, name, now(), telemetryData?.extendedBy(), store));
+}
+
+async function _telemetryError(
+  ctx: Context,
+  name: string,
+  now: number,
+  telemetryData?: TelemetryData,
+  store = TelemetryStore.OPEN
+): Promise<void> {
   if (isRestricted(store) && !shouldSendRestricted(ctx)) return;
   let definedTelemetryData = telemetryData || TelemetryData.createAndMarkAsIssued({}, {});
-  await definedTelemetryData.makeReadyForSending(ctx, store, 'IncludeExp');
+  await definedTelemetryData.makeReadyForSending(ctx, store, 'IncludeExp', now);
   sendTelemetryErrorEvent(ctx, store, name, definedTelemetryData);
 }
 
-async function logEngineCompletion(
+function logEngineCompletion(
   ctx: Context,
   completionText: string,
   jsonData: JsonData,
   requestId: OpenAIRequestId,
   // ./openai/openai.ts
   choiceIndex: number
-) {
+): void {
   let telemetryData = TelemetryData.createAndMarkAsIssued({
     completionTextJson: JSON.stringify(completionText),
     choiceIndex: choiceIndex.toString(),
@@ -369,10 +409,10 @@ async function logEngineCompletion(
     }
 
   telemetryData.extendWithRequestId(requestId);
-  await telemetry(ctx, 'engine.completion', telemetryData, TelemetryStore.RESTRICTED);
+  return telemetry(ctx, 'engine.completion', telemetryData, TelemetryStore.RESTRICTED);
 }
 
-async function logEnginePrompt(ctx: Context, prompt: Prompt, telemetryData: TelemetryData) {
+function logEnginePrompt(ctx: Context, prompt: Prompt, telemetryData: TelemetryData): void {
   const promptTelemetry: TelemetryProperties = prompt.isFimEnabled
     ? {
         promptPrefixJson: JSON.stringify(prompt.prefix),
@@ -385,7 +425,7 @@ async function logEnginePrompt(ctx: Context, prompt: Prompt, telemetryData: Tele
       };
 
   const telemetryDataWithPrompt = telemetryData.extendedBy(promptTelemetry);
-  await telemetry(ctx, 'engine.prompt', telemetryDataWithPrompt, 1);
+  return telemetry(ctx, 'engine.prompt', telemetryDataWithPrompt, TelemetryStore.RESTRICTED);
 }
 
 const MAX_PROPERTY_LENGTH = 8192;
@@ -490,18 +530,6 @@ class TelemetryData {
     this.properties.proxy = proxySettings?.proxyAuth ? 'true' : 'false';
     this.properties.proxy_kerberos = proxySettings?.kerberosServicePrincipal ? 'true' : 'false';
     this.properties.reject_unauthorized = fetcher.rejectUnauthorized ? 'true' : 'false';
-    const appInfo = ctx.get(GitHubAppInfo).githubAppId;
-    if (appInfo) {
-      let extensibilityInfoJson;
-      let extensibilityInfoJsonString = this.properties.extensibilityInfoJson ?? '';
-      try {
-        extensibilityInfoJson = JSON.parse(extensibilityInfoJsonString);
-      } catch {
-        extensibilityInfoJson = {};
-      }
-      extensibilityInfoJson.appId = appInfo;
-      this.properties.extensibilityInfoJson = JSON.stringify(extensibilityInfoJson);
-    }
   }
   extendWithConfigProperties(ctx: Context) {
     let configProperties = dumpForTelemetry(ctx);
@@ -594,15 +622,15 @@ class TelemetryData {
     }
     return newProperties;
   }
-  updateMeasurements() {
-    let timeSinceIssued = now() - this.issuedTime;
+  updateMeasurements(now: number) {
+    let timeSinceIssued = now - this.issuedTime;
     this.measurements.timeSinceIssuedMs = timeSinceIssued;
     if (this.displayedTime) {
-      const timeSinceDisplayed = now() - this.displayedTime;
+      const timeSinceDisplayed = now - this.displayedTime;
       this.measurements.timeSinceDisplayedMs = timeSinceDisplayed;
     }
     if (!this.measurements.current) {
-      this.measurements.current = nowSeconds();
+      this.measurements.current = nowSeconds(now);
     }
   }
   validateData(ctx: Context, store: TelemetryStore) {
@@ -654,7 +682,7 @@ class TelemetryData {
     }
     return false;
   }
-  async makeReadyForSending(ctx: Context, store: TelemetryStore, includeExp: IncludeExp) {
+  async makeReadyForSending(ctx: Context, store: TelemetryStore, includeExp: IncludeExp, now: number) {
     this.extendWithConfigProperties(ctx);
     this.extendWithEditorAgnosticFields(ctx);
     this.sanitizeKeys();
@@ -663,31 +691,25 @@ class TelemetryData {
     if (includeExp === 'IncludeExp') {
       await this.extendWithExpTelemetry(ctx);
     }
-    this.updateMeasurements();
+    this.updateMeasurements(now);
     if (!this.validateData(ctx, store)) {
       this.properties.telemetry_failed_validation = 'true';
     }
-    addRequiredProperties(ctx, this.properties);
+    Object.assign(this.properties, createRequiredProperties(ctx));
   }
 }
 
 class TelemetryWithExp extends TelemetryData {
-  filtersAndExp: {
-    filters: FilterSettings;
-    exp: ExpConfig;
-  };
-
   constructor(
     properties: TelemetryProperties,
     measurements: TelemetryMeasurements,
     issuedTime: number,
-    filtersAndExp: {
+    readonly filtersAndExp: {
       filters: FilterSettings;
       exp: ExpConfig;
     }
   ) {
     super(properties, measurements, issuedTime);
-    this.filtersAndExp = filtersAndExp;
   }
   extendedBy(properties?: TelemetryProperties, measurements?: TelemetryMeasurements) {
     const newProperties = { ...this.properties, ...properties };
@@ -717,8 +739,6 @@ class CopilotNonError extends Error {
     try {
       message = JSON.stringify(thrown);
     } catch {
-      // EDITED
-      // message = thrown.toString();
       message = String(thrown);
     }
     super(message);
@@ -731,6 +751,7 @@ export {
   telemetryException,
   telemetryError,
   telemetry,
+  telemetryCatch,
   TelemetryReporters,
   TelemetryData,
   TelemetryWithExp,

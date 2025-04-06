@@ -1,11 +1,11 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
-
-import { Context } from '../../../../lib/src/context.ts';
-import { addMethodHandlerValidation } from '../../schemaValidation.ts';
-import { EditorFetcher } from '../../editorFeatures/fetcher.ts';
-
+import type { Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../../lib/src/context.ts';
 import type { Response } from '../../../../lib/src/networking.ts';
+
+import { EditorFetcher, EditorFetcherError } from '../../editorFeatures/fetcher.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({
   url: Type.String(),
@@ -45,7 +45,7 @@ async function handleTestingFetchChecked(
   try {
     response = await responsePromise;
   } catch (e: any) {
-    return [{ error: `Fetch request error: ${e.message}` }, null];
+    return [{ error: `Fetch stream error: ${e instanceof EditorFetcherError ? e.message : String(e)}` }, null];
   }
 
   const { status } = response;
@@ -53,7 +53,7 @@ async function handleTestingFetchChecked(
 
   try {
     if (cancelAfterFirstChunk) {
-      const stream = await response.body();
+      const stream = response.body();
       for await (const chunk of stream) {
         const body = chunk.toString();
         abortController.abort();
@@ -64,7 +64,7 @@ async function handleTestingFetchChecked(
     const body = await response.text();
     return [{ status, headers, body }, null];
   } catch (e: any) {
-    return [{ error: `Fetch stream error: ${e.message}` }, null];
+    return [{ error: `Fetch stream error: ${e instanceof EditorFetcherError ? e.message : String(e)}` }, null];
   }
 }
 

@@ -1,52 +1,57 @@
-import { NotificationType } from 'vscode-languageserver';
-import { type Context } from '../../../lib/src/context.ts';
-import { CopilotTokenNotifier } from '../../../lib/src/auth/copilotTokenNotifier.ts';
-import { Service } from '../service.ts';
-import { Features } from '../../../lib/src/experiments/features.ts';
+import type { Context } from '../../../lib/src/context.ts';
 
-type FeatureFlagsNotification = {
+import { NotificationType } from '../../../node_modules/vscode-languageserver/node.js';
+import { Service } from '../service.ts';
+import { onCopilotToken } from '../../../lib/src/auth/copilotTokenNotifier.ts';
+import { Features } from '../../../lib/src/experiments/features.ts';
+import { isDebugEnabled } from '../../../lib/src/testing/runtimeMode.ts';
+
+interface FeatureFlagsNotification {
   rt: boolean;
   sn: boolean;
   chat: boolean;
   ic: boolean;
-  ep: boolean;
   pc: boolean;
-  x?: boolean;
+  jcp: boolean;
+  ce: boolean;
   xc?: boolean;
-};
+}
 
 class FeatureFlagsNotifier {
   notificationType = new NotificationType<FeatureFlagsNotification>('featureFlagsNotbification');
   notificationEndpoint = 'featureFlagsNotification';
 
   constructor(readonly ctx: Context) {
-    this.ctx.get(CopilotTokenNotifier).on('onCopilotToken', async (token) => {
-      let extensibilityPlatformEnabled = false;
+    onCopilotToken(ctx, async (token) => {
       let projectContextEnabled = false;
+      let features = ctx.get(Features);
+      let telemetryDataWithExp = await features.updateExPValuesAndAssignments();
+      let javaLspContextProvider = features
+        .contextProviders(telemetryDataWithExp)
+        .includes('java-lsp-context-provider');
+      let copilotEditsEnabled = false;
       if (token.envelope.chat_enabled) {
-        const features = ctx.get(Features);
-        const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
-        extensibilityPlatformEnabled = features.ideChatEnableExtensibilityPlatform(telemetryDataWithExp);
+        let features = ctx.get(Features);
+        let telemetryDataWithExp = await features.updateExPValuesAndAssignments();
         projectContextEnabled = features.ideChatEnableProjectContext(telemetryDataWithExp);
+        copilotEditsEnabled = features.ideEnableCopilotEdits(telemetryDataWithExp);
       }
-      const xcodeFlags: FeatureFlagsNotification = {
-        rt: token.getTokenValue('rt') === '1',
-        sn: token.getTokenValue('sn') === '1',
-        chat: token.envelope.chat_enabled ?? false,
-        ic: token.envelope.chat_enabled ?? false,
-        ep: extensibilityPlatformEnabled,
-        pc: projectContextEnabled,
-      };
-
-      if (token.envelope.xcode) {
-        xcodeFlags.x = true;
-      }
+      const xcodeFlags: Pick<FeatureFlagsNotification, 'xc'> = {};
 
       if (token.envelope.xcode_chat && token.envelope.chat_enabled) {
         xcodeFlags.xc = true;
       }
 
-      await this.sendNotification(xcodeFlags);
+      await this.sendNotification({
+        rt: token.getTokenValue('rt') === '1',
+        sn: token.getTokenValue('sn') === '1',
+        chat: token.envelope.chat_enabled ?? false,
+        ic: token.envelope.chat_enabled ?? false,
+        pc: projectContextEnabled,
+        jcp: javaLspContextProvider || isDebugEnabled(ctx),
+        ce: copilotEditsEnabled,
+        ...xcodeFlags,
+      });
     });
   }
 

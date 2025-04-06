@@ -4,6 +4,7 @@ import type { RepoInfo, RepoUrlInfo } from '../types.ts';
 
 import { Context } from '../context.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
+import { findKnownOrg } from '../auth/orgs.ts';
 import { FileSystem } from '../fileSystem.ts';
 import { LRUCacheMap } from '../common/cache.ts';
 import { dirname, getFsPath, joinPath } from '../util/uri.ts';
@@ -14,17 +15,12 @@ function isRepoInfo(info: RepoInfo | 0 | undefined): info is RepoInfo {
 }
 
 async function getUserKind(ctx: Context): Promise<string> {
-  const orgs = (await ctx.get(CopilotTokenManager).getCopilotToken(ctx, false))?.organization_list ?? [];
-
-  return (
-    ['a5db0bcaae94032fe715fb34a5e4bce2', '7184f66dfcee98cb5f08a1cb936d5225', '4535c7beffc844b46bb1ed4aa04d759a'].find(
-      (org) => orgs.includes(org)
-    ) || ''
-  );
+  const orgs = (await ctx.get(CopilotTokenManager).getToken()).organization_list ?? [];
+  return findKnownOrg(orgs) ?? '';
 }
 
-async function getFtFlag(ctx: Context): Promise<string> {
-  return (await ctx.get(CopilotTokenManager).getCopilotToken(ctx, false))?.getTokenValue('ft') ?? '';
+async function getTokenKeyValue(ctx: Context, key: string): Promise<string> {
+  return (await ctx.get(CopilotTokenManager).getToken()).getTokenValue(key) ?? '';
 }
 
 function getDogFood(repoInfo?: RepoInfo | 0): string {
@@ -86,9 +82,9 @@ function parseRepoUrl(url: string): RepoUrlInfo | undefined {
   try {
     const parsedUrl = gitUrlParse(url);
     // @types/git-url-parse:9.0.3 outdated
-    if ((parsedUrl as any).host && parsedUrl.owner && parsedUrl.name && parsedUrl.pathname)
+    if ((parsedUrl as any).resource && parsedUrl.owner && parsedUrl.name && parsedUrl.pathname)
       return {
-        hostname: (parsedUrl as any).host,
+        hostname: (parsedUrl as any).resource,
         owner: parsedUrl.owner,
         repo: parsedUrl.name,
         pathname: parsedUrl.pathname,
@@ -185,13 +181,11 @@ class CompletedComputation<T> {
 }
 
 export {
-  getFtFlag,
-  isRepoInfo,
-  CompletedComputation,
   extractRepoInfoInBackground,
-  tryGetGitHubNWO,
   getDogFood,
+  getTokenKeyValue,
   getUserKind,
-  RepoInfo,
+  isRepoInfo,
   parseRepoUrl,
+  tryGetGitHubNWO,
 };

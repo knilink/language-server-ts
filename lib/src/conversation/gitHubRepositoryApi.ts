@@ -25,7 +25,7 @@ class GitHubRepositoryApi {
     throw new Error(`Failed to fetch repository info for ${owner}/${repo}`);
   }
   async _doGetRepositoryInfo(owner: string, repo: string) {
-    const authToken = await this.ctx.get(CopilotTokenManager).getGitHubToken(this.ctx);
+    const authToken = await this.ctx.get(CopilotTokenManager).getGitHubToken();
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',

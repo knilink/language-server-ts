@@ -1,12 +1,18 @@
-import { Context } from '../../../../context.ts';
-import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
-import { conversationLogger } from '../../../logger.ts';
-import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { TelemetryMeasurements } from '../../../../types.ts';
+import type { Context } from '../../../../context.ts';
+import type { ScoringAlgorithmType } from './ScoringAlgorithms.ts';
+import type { WorkspaceFolder } from 'vscode-languageserver-types';
+
 import { fetchEmbeddings } from './EmbeddingsFetcher.ts';
 import { ScoringProvider } from './ScoringProvider.ts';
-import { type ScoringAlgorithmType } from './ScoringAlgorithms.ts';
+import { conversationLogger } from '../../../logger.ts';
+import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
+import type {} from '../../../modelMetadata.ts';
+import type {} from './ScoringAlgorithms.ts';
 
 type Snippet = { id: string; chunk: string; range: { start: number; end: number } };
+
 interface RerankingOptions {
   modelFamily: string;
   scoringType: ScoringAlgorithmType;
@@ -35,6 +41,7 @@ async function rerankSnippets(
   snippets: Snippet[],
   limit: number,
   cancellationToken: CancellationToken,
+  measurements: TelemetryMeasurements,
   rerankingOptions: Partial<RerankingOptions> = defaultRerankingOptions
 ): Promise<string[]> {
   const options = { ...defaultRerankingOptions, ...rerankingOptions };
@@ -49,7 +56,11 @@ async function rerankSnippets(
     throw new Error(`EmbeddingsReranker: Model configuration not found for ${options.modelFamily}`);
   }
 
+  const embeddingsStart = performance.now();
   const embeddings = await fetchEmbeddings(ctx, modelConfiguration, inputs, cancellationToken);
+  const embeddingsEnd = performance.now();
+  measurements.embeddingsTimeMs = Math.floor(embeddingsEnd - embeddingsStart);
+
   if (!embeddings || embeddings.length === 0) return [];
 
   const userQueryIdx = embeddings.findIndex((embedding) => embedding.id === 'userQuery');
@@ -59,10 +70,11 @@ async function rerankSnippets(
   const userQueryEmbedding = embeddings.splice(userQueryIdx, 1)[0];
   if (cancellationToken.isCancellationRequested) return [];
 
-  const subset = scoreEmbeddings(ctx, workspaceFolder, embeddings, userQueryEmbedding, options.scoringType).slice(
-    0,
-    limit
-  );
+  const scoringStart = performance.now();
+  const scores = scoreEmbeddings(ctx, workspaceFolder, embeddings, userQueryEmbedding, options.scoringType);
+  const scoringEnd = performance.now();
+  measurements.rerankingTimeMs = Math.floor(scoringEnd - scoringStart);
+  const subset = scores.slice(0, limit);
 
   conversationLogger.debug(ctx, `EmbeddingsReranker: Returning ${subset.length} snippets`);
   return subset.map((score) => inputs.find((snippet) => snippet.id === score.id)!.id); // MARK ! should be fine as long as fetch cover all inputs

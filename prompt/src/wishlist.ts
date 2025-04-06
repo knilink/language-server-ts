@@ -21,6 +21,8 @@ function kindForSnippetProviderType(provider: string) {
       return 'TooltipSignature';
     case 'trait':
       return 'Traits';
+    case 'code':
+      return 'CodeSnippet';
     default:
       throw new Error(`Unknown snippet provider type ${provider}`);
   }
@@ -63,6 +65,15 @@ class PromptChoices {
   usedCounts: PromptChoicesRecord = new Map();
   unusedCounts: PromptChoicesRecord = new Map();
 
+  toJSON() {
+    return {
+      used: Object.fromEntries(this.used),
+      unused: Object.fromEntries(this.unused),
+      usedCounts: Object.fromEntries(this.usedCounts),
+      unusedCounts: Object.fromEntries(this.unusedCounts),
+    };
+  }
+
   add(other: {
     used: PromptChoicesRecord;
     unused: PromptChoicesRecord;
@@ -99,21 +110,9 @@ class PromptChoices {
 }
 
 class PromptOrderList {
-  protected _rankedList: string[];
+  _rankedList: string[] = ['LanguageMarker', 'PathMarker', 'Traits', 'SimilarFile', 'BeforeCursor', 'TooltipSignature'];
 
-  constructor(preset = 'default') {
-    switch (preset) {
-      default:
-        this._rankedList = [
-          'LanguageMarker',
-          'PathMarker',
-          'Traits',
-          'SimilarFile',
-          'BeforeCursor',
-          'TooltipSignature',
-        ];
-    }
-  }
+  constructor(preset = 'default') {}
 
   get rankedList() {
     return this._rankedList;
@@ -125,7 +124,8 @@ class PromptOrderList {
       const aIndex = this._rankedList.indexOf(a.kind);
       const bIndex = this._rankedList.indexOf(b.kind);
       if (aIndex === -1 || bIndex === -1)
-        throw `Invalid element kind: ${a.kind} or ${b.kind}, not found in prompt element ordering list`;
+        throw new Error(`Invalid element kind: ${a.kind} or ${b.kind}, not found in prompt element ordering list`);
+
       return aIndex === bIndex ? a.id - b.id : aIndex - bIndex;
     });
   }
@@ -139,6 +139,7 @@ class PromptPriorityList extends PromptOrderList {
           'PathMarker',
           'TooltipSignature',
           'BeforeCursor',
+          'CodeSnippet',
           'SimilarFile',
           'LanguageMarker',
           'Traits',
@@ -148,6 +149,7 @@ class PromptPriorityList extends PromptOrderList {
         this._rankedList = [
           'TooltipSignature',
           'BeforeCursor',
+          'CodeSnippet',
           'SimilarFile',
           'PathMarker',
           'LanguageMarker',
@@ -161,7 +163,7 @@ class PromptPriorityList extends PromptOrderList {
       const aIndex = this._rankedList.indexOf(a.kind);
       const bIndex = this._rankedList.indexOf(b.kind);
       if (aIndex === -1 || bIndex === -1)
-        throw `Invalid element kind: ${a.kind} or ${b.kind}, not found in snippet provider priority list`;
+        throw new Error(`Invalid element kind: ${a.kind} or ${b.kind}, not found in snippet provider priority list`);
       return aIndex === bIndex ? b.id - a.id : aIndex - bIndex;
     });
   }
@@ -386,4 +388,13 @@ class PromptWishlist {
   }
 }
 
-export { kindForSnippetProviderType, PromptOrderList, PromptPriorityList, PromptWishlist };
+export {
+  MAX_EDIT_DISTANCE_LENGTH,
+  PromptBackground,
+  PromptChoices,
+  PromptOrderList,
+  PromptPriorityList,
+  PromptWishlist,
+  TOKENS_RESERVED_FOR_SUFFIX_ENCODING,
+  kindForSnippetProviderType,
+};

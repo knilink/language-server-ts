@@ -1,8 +1,13 @@
 import { OpenDocument, CurrentDocument, Snippet, type SimilarFilesOptions } from '../types.ts';
 import { FixedWindowSizeJaccardMatcher } from './jaccardMatching.ts';
+import { BlockTokenSubsetMatcher } from './subsetMatching.ts';
 
 function getMatcher(doc: CurrentDocument, selection: SimilarFilesOptions): FixedWindowSizeJaccardMatcher {
-  return FixedWindowSizeJaccardMatcher.FACTORY(selection.snippetLength).to(doc);
+  return (
+    selection.useSubsetMatching
+      ? BlockTokenSubsetMatcher.FACTORY(selection.snippetLength)
+      : FixedWindowSizeJaccardMatcher.FACTORY(selection.snippetLength)
+  ).to(doc);
 }
 
 async function getSimilarSnippets(
@@ -21,9 +26,10 @@ async function getSimilarSnippets(
       .reduce<Promise<Snippet[]>>(
         async (acc, similarFile) =>
           (await acc).concat(
-            matcher
-              .findMatches(similarFile, options.maxSnippetsPerFile)
-              .map((snippet) => ({ relativePath: similarFile.relativePath, ...snippet }))
+            (await matcher.findMatches(similarFile, options.maxSnippetsPerFile)).map((snippet) => ({
+              relativePath: similarFile.relativePath,
+              ...snippet,
+            }))
           ),
         Promise.resolve([])
       )
@@ -46,14 +52,17 @@ const defaultSimilarFilesOptions: SimilarFilesOptions = {
   maxCharPerFile: DEFAULT_MAX_CHARACTERS_PER_FILE,
   maxNumberOfFiles: DEFAULT_MAX_NUMBER_OF_FILES,
   maxSnippetsPerFile: DEFAULT_MAX_SNIPPETS_PER_FILE,
+  useSubsetMatching: false,
 };
 const defaultCppSimilarFilesOptions: SimilarFilesOptions = {
   snippetLength: 60,
   threshold: 0,
   maxTopSnippets: 16,
-  maxCharPerFile: 1e5,
+  maxCharPerFile: 100_000,
   maxNumberOfFiles: 200,
   maxSnippetsPerFile: 4,
+  // added
+  useSubsetMatching: false,
 };
 
 export { defaultCppSimilarFilesOptions, defaultSimilarFilesOptions, getSimilarSnippets, SimilarFilesOptions };

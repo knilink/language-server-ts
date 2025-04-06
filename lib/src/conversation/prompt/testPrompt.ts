@@ -1,12 +1,14 @@
-import { TextDocumentManager } from '../../textDocumentManager.ts';
-import { isTestFile, TestFileFinder } from './testFiles.ts';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import type { TurnContext } from '../turnContext.ts';
+import type { CopilotTextDocument } from '../../textDocument.ts';
+
+import { TestFileFinder, isTestFile } from './testFiles.ts';
 import { TestContextSkillId } from '../skills/TestContextSkill.ts';
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
 import { FileSystem } from '../../fileSystem.ts';
+import { TextDocumentManager } from '../../textDocumentManager.ts';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
-import { TurnContext } from '../turnContext.ts';
-import { TextDocument } from '../../textDocument.ts';
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import type {} from '../../../../prompt/src/elidableText/index.ts';
 
 const implPromptPrefix = 'Code excerpt from the implementation source file';
 const testPromptPrefix = 'Code excerpt from the test file';
@@ -15,7 +17,7 @@ const testExamplePromptPrefix = 'Code excerpt from an example test file';
 class PromptForTestGeneration {
   constructor(readonly turnContext: TurnContext) {}
 
-  async fromImplementationFile(implFile: TextDocument): Promise<ElidableText | undefined> {
+  async fromImplementationFile(implFile: CopilotTextDocument): Promise<ElidableText | undefined> {
     const workspaceFolder = await this.turnContext.ctx.get(TextDocumentManager).getWorkspaceFolder(implFile);
     // const fileExists = this.fileExistFn();
     const finder = new TestFileFinder(this.turnContext.ctx, this.fileExists, workspaceFolder?.uri);
@@ -35,7 +37,7 @@ class PromptForTestGeneration {
     }
   }
 
-  public async fromTestFile(testFile: TextDocument): Promise<ElidableText | undefined> {
+  public async fromTestFile(testFile: CopilotTextDocument): Promise<ElidableText | undefined> {
     if (!(await isTestFile(testFile.uri))) return;
 
     const workspaceFolder = await this.turnContext.ctx.get(TextDocumentManager).getWorkspaceFolder(testFile);

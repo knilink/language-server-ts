@@ -1,33 +1,30 @@
 import { Context } from '../context.ts';
-import { TelemetryData, telemetry, telemetryError } from '../telemetry.ts';
+import { TelemetryData, telemetry } from '../telemetry.ts';
 
-async function telemetryAuthNotifyShown(ctx: Context, authSource: string): Promise<void> {
+function telemetryAuthNotifyShown(ctx: Context, authSource: string): void {
   const data = TelemetryData.createAndMarkAsIssued({ authSource });
-  await telemetry(ctx, 'auth.auth_notify_shown', data);
+  return telemetry(ctx, AuthTelemetryNames.AuthNotifyShown, data);
 }
 
-async function telemetryAuthNotifyDismissed(ctx: Context): Promise<void> {
-  await telemetry(ctx, 'auth.auth_notify_dismissed');
+function telemetryAuthNotifyDismissed(ctx: Context): void {
+  return telemetry(ctx, AuthTelemetryNames.AuthNotifyDismissed);
 }
 
-async function telemetryNewGitHubLogin(ctx: Context, authSource: string, authType: string): Promise<void> {
+function telemetryNewGitHubLogin(ctx: Context, authSource: string, authType: string): void {
   const data = TelemetryData.createAndMarkAsIssued({ authSource, authType });
-  await telemetry(ctx, 'auth.new_github_login', data);
+  return telemetry(ctx, AuthTelemetryNames.NewGitHubLogin, data);
 }
 
-async function telemetryGitHubLoginSuccess(ctx: Context, authType: string): Promise<void> {
+function telemetryGitHubLoginSuccess(ctx: Context, authType: string): void {
   const data = TelemetryData.createAndMarkAsIssued({ authType });
-  await telemetry(ctx, 'auth.github_login_success', data);
+  return telemetry(ctx, AuthTelemetryNames.GitHubLoginSuccess, data);
 }
 
-async function telemetryGitHubLoginFailed(ctx: Context): Promise<void> {
-  await telemetryError(ctx, 'auth.github_login_failed');
-}
+const AuthTelemetryNames = {
+  AuthNotifyShown: 'auth.auth_notify_shown',
+  AuthNotifyDismissed: 'auth.auth_notify_dismissed',
+  NewGitHubLogin: 'auth.new_github_login',
+  GitHubLoginSuccess: 'auth.github_login_success',
+} as const;
 
-export {
-  telemetryAuthNotifyShown,
-  telemetryAuthNotifyDismissed,
-  telemetryNewGitHubLogin,
-  telemetryGitHubLoginSuccess,
-  telemetryGitHubLoginFailed,
-};
+export { telemetryAuthNotifyShown, telemetryAuthNotifyDismissed, telemetryNewGitHubLogin, telemetryGitHubLoginSuccess };

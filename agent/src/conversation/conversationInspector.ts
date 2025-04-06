@@ -19,16 +19,16 @@ class AgentConversationInspector extends ConversationInspector {
     }
   }
 
-  inspectPrompt(promptInspection: unknown): void {
-    this.connection?.sendNotification(new NotificationType('conversation/inspectPrompt'), promptInspection);
+  async inspectPrompt(promptInspection: unknown): Promise<void> {
+    return this.connection?.sendNotification(new NotificationType('conversation/inspectPrompt'), promptInspection);
   }
 
-  inspectFetchResult(fetchResult: unknown): void {
-    this.connection?.sendNotification(new NotificationType('conversation/inspectFetchResult'), fetchResult);
+  async inspectFetchResult(fetchResult: unknown): Promise<void> {
+    return this.connection?.sendNotification(new NotificationType('conversation/inspectFetchResult'), fetchResult);
   }
 
-  documentDiff(documentDiff: unknown): void {
-    this.connection?.sendNotification(new NotificationType('conversation/documentDiff'), documentDiff);
+  async documentDiff(documentDiff: unknown): Promise<void> {
+    return this.connection?.sendNotification(new NotificationType('conversation/documentDiff'), documentDiff);
   }
 }
 

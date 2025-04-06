@@ -1,7 +1,6 @@
-import { type Context } from '../context.ts';
-import { Chat, Model, TelemetryMeasurements, TelemetryProperties, TelemetryStore, ToolCall, UiKind } from '../types.ts';
-
-import { type CancellationToken } from '../../../agent/src/cancellation.ts';
+import type { Context } from '../context.ts';
+import type { Chat, Model, TelemetryMeasurements, TelemetryProperties, ToolCall, UiKind } from '../types.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 
 import { v4 as uuidv4 } from 'uuid';
 import { getChatURL } from './openai/config.ts';
@@ -22,13 +21,13 @@ namespace ChatMLFetcher {
         type: 'success';
         value: string;
         // ./skills/projectContextSnippetProviders/localSnippets/UserQueryParser.ts
-        toolCalls: ToolCall[];
+        toolCalls?: ToolCall[];
         requestId: string;
         numTokens: number;
       }
     | {
         type: 'tool_calls';
-        toolCalls: ToolCall[];
+        toolCalls?: ToolCall[];
         requestId: string;
       }
     | {
@@ -44,7 +43,7 @@ namespace ChatMLFetcher {
     | {
         type: 'successMultiple';
         value: string[]; // messages[].content
-        toolCalls: ToolCall[][];
+        toolCalls?: ToolCall[][];
         requestId: string;
       }
     | {
@@ -70,17 +69,9 @@ namespace ChatMLFetcher {
   };
 
   export type FailedResponse =
-    | {
-        type: 'offTopic';
-        reason: string;
-        requestId: string;
-      }
-    | {
-        type: 'failed';
-        reason: string;
-        requestId: string;
-        code?: number;
-      };
+    | { type: 'offTopic'; reason: string; requestId: string }
+    | { type: 'model_not_supported'; reason: string; requestId: string }
+    | { type: 'failed'; reason: string; requestId: string; code?: number };
 
   export type AuthRequiredResponse = {
     type: 'agentAuthRequired';
@@ -96,7 +87,6 @@ namespace ChatMLFetcher {
     | ChatMLFetcher.AuthRequiredResponse;
 
   export type Params = {
-    modelConfiguration: Model.Configuration;
     messages: Chat.ElidableChatMessage[];
     uiKind: UiKind;
   } & Partial<{
@@ -115,6 +105,10 @@ namespace ChatMLFetcher {
     telemetryProperties: TelemetryProperties;
     // optional ../../../agent/src/methods/testing/chatML.ts
     telemetryMeasurements: TelemetryMeasurements;
+    // agent?.sessionId uuid ./extensibility/remoteAgentTurnProcessor.ts
+    copilot_thread_id?: string;
+    // ../../../agent/src/methods/testing/chatML.ts
+    modelConfiguration: Model.Configuration;
   }>;
 }
 
@@ -129,24 +123,28 @@ class ChatMLFetcher {
     finishedCb?: SSEProcessor.FinishedCb
   ) {
     const ourRequestId = uuidv4();
-    const modelConfiguration = params.modelConfiguration;
     const postOptions: OpenAIFetcher.ConversationParams['postOptions'] = {
       stream: true,
       n: params.num_suggestions ?? 1,
       temperature: params.temperature ?? 0,
       stop: params.stop,
-      max_tokens: modelConfiguration.maxResponseTokens,
       top_p: params.topP ?? 1,
+      copilot_thread_id: params.copilot_thread_id,
     };
+    const modelConfiguration = params.modelConfiguration;
+
+    if (modelConfiguration) {
+      postOptions.max_tokens = modelConfiguration.maxResponseTokens;
+    }
+
     if (params.logitBias) {
       postOptions.logit_bias = params.logitBias;
     }
     const engineUrl = params.engineUrl ?? (await getChatURL(this.ctx));
     const endpoint = params.endpoint ?? 'completions';
-    const authToken = params.authToken ?? (await this.ctx.get(CopilotTokenManager).getCopilotToken(this.ctx)).token;
+    const authToken = params.authToken ?? (await this.ctx.get(CopilotTokenManager).getToken()).token;
     const chatParams: OpenAIFetcher.ConversationParams = {
-      messages: params.messages.filter((m) => m.content),
-      model: modelConfiguration.modelId,
+      messages: params.messages,
       repoInfo: undefined,
       ourRequestId,
       engineUrl,
@@ -157,6 +155,11 @@ class ChatMLFetcher {
       authToken,
       ...params.intentParams,
     };
+
+    if (modelConfiguration) {
+      chatParams.model = modelConfiguration.modelId;
+    }
+
     if (params.tools && params.tools.length > 0) {
       chatParams.tools = params.tools;
       chatParams.tool_choice = params.tool_choice ?? 'auto';
@@ -240,7 +243,7 @@ class ChatMLFetcher {
         return {
           type: 'successMultiple',
           value: filtered_results.map((r) => r.message.content),
-          toolCalls: filtered_results.map((r) => r.tool_calls).filter((f) => f),
+          toolCalls: filtered_results.map((r) => r.tool_calls).filter((f) => !!f),
           requestId,
         };
       }
@@ -275,12 +278,16 @@ class ChatMLFetcher {
     if (response && response.reason.includes('filtered as off_topic by intent classifier')) {
       return { type: 'offTopic', reason: response.reason, requestId };
     } else {
-      return {
-        type: 'failed',
-        reason: response.reason,
-        requestId,
-        code: response.type === 'failed' ? response.code : undefined,
-      };
+      if (response?.reason.includes('model is not supported')) {
+        return { type: 'model_not_supported', reason: response.reason, requestId };
+      } else {
+        return {
+          type: 'failed',
+          reason: response.reason,
+          requestId,
+          code: response.type === 'failed' ? response.code : undefined,
+        };
+      }
     }
   }
 

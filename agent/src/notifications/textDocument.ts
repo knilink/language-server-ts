@@ -42,9 +42,9 @@ class DidPartiallyAcceptCompletionNotificationHandler extends AbstractNotificati
     if (completion) {
       cache.delete(id);
       if (length >= completion.insertText.length) {
-        await handleGhostTextPostInsert(this.ctx, completion);
+        handleGhostTextPostInsert(this.ctx, completion);
       } else {
-        await handlePartialGhostTextPostInsert(this.ctx, completion, length);
+        handlePartialGhostTextPostInsert(this.ctx, completion, length);
       }
     }
   }

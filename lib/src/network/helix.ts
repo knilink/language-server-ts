@@ -1,4 +1,4 @@
-import { Readable } from 'node:stream';
+import type { Readable } from 'node:stream';
 // @ts-ignore
 import { context, type RequestOptions as HelixOptions, AbortController } from '@adobe/helix-fetch'; // has to be helix AbortController controller
 
@@ -89,8 +89,9 @@ class HelixFetcher extends Fetcher {
     }
     const helixOptions = { ...options, body: options.body ? options.body : options.json, signal: signal };
     await this.certificateConfigurator.applyToRequestOptions(helixOptions);
-    let certs = await this.certificateConfigurator.getCertificates();
-    this.fetchApi.setCA(certs);
+    const certs = await this.certificateConfigurator.getCertificates();
+    // EDITED, certs is read only
+    this.fetchApi.setCA(certs && [...certs]);
     if (url.endsWith('/chat/completions') || url.endsWith('/models')) {
       console.log(url);
       console.log((helixOptions.json as any)?.messages);
@@ -104,7 +105,7 @@ class HelixFetcher extends Fetcher {
       resp.statusText,
       resp.headers,
       () => resp.text(),
-      async () => resp.body // as Readable // MARK should be stream.Readable somehow declared as NodeJS.ReadableStream, f*
+      () => resp.body! as Readable // MARK should be `stream.Readable` somehow declared as NodeJS.ReadableStream, f*
     );
   }
 

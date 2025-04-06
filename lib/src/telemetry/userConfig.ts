@@ -1,5 +1,5 @@
 import { Context } from '../context.ts';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { onCopilotToken } from '../auth/copilotTokenNotifier.ts';
 
 class TelemetryUserConfig {
   organizationsList?: string;
@@ -16,8 +16,7 @@ class TelemetryUserConfig {
   }
 
   setupUpdateOnToken(ctx: Context): void {
-    const copilotTokenNotifier = ctx.get(CopilotTokenNotifier);
-    copilotTokenNotifier.on('onCopilotToken', (copilotToken) => {
+    onCopilotToken(ctx, (copilotToken) => {
       const restrictedTelemetry = copilotToken.getTokenValue('rt') === '1';
       const ftFlag = copilotToken.getTokenValue('ft') || '';
       const trackingId = copilotToken.getTokenValue('tid');

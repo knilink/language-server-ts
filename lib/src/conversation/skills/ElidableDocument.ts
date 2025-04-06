@@ -1,9 +1,10 @@
-import { dedent } from 'ts-dedent';
-import { Range, Position } from 'vscode-languageserver-types';
+import type { Range, Position } from 'vscode-languageserver-types';
+import type { CopilotTextDocument } from '../../textDocument.ts';
 
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { dedent } from 'ts-dedent';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
-import { TextDocument } from '../../textDocument.ts';
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import type {} from '../../../../prompt/src/elidableText/index.ts';
 
 function isEmptyRange(range: Range) {
   return range.start.line == range.end.line && range.start.character == range.end.character;
@@ -11,7 +12,7 @@ function isEmptyRange(range: Range) {
 
 class ElidableDocument {
   constructor(
-    readonly doc: TextDocument,
+    readonly doc: CopilotTextDocument,
     readonly selection?: Range,
     readonly visibleRange?: Range
   ) {}

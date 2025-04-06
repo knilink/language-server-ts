@@ -1,18 +1,18 @@
-import memoize from '@github/memoize';
-import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { type Context } from '../../context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../context.ts';
 import type { Entry, Trait } from '../../../../types/src/index.ts';
 
+import memoize from '@github/memoize';
 import { LRUCacheMap } from '../../common/cache.ts';
 import { telemetry, TelemetryData } from '../../telemetry.ts';
 import { FileSystem } from '../../fileSystem.ts';
 import { CopilotContentExclusionManager } from '../../contentExclusion/contentExclusionManager.ts';
 import { shortCircuit } from '../../util/shortCircuit.ts';
-import { Logger, LogLevel } from '../../logger.ts';
+import { Logger } from '../../logger.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 import { LanguageId } from '../../types.ts';
 
-const relatedFilesLogger = new Logger(LogLevel.INFO, 'relatedFiles');
+const relatedFilesLogger = new Logger('relatedFiles');
 
 type CacheEntry = {
   retryCount: number;
@@ -68,7 +68,7 @@ async function getRelatedFilesAndTraits(
       : await getRelatedFilesWithCacheAndTimeout(ctx, docInfo, telemetryData, cancellationToken, relatedFilesProvider);
   } catch (error) {
     if (error instanceof RelatedFilesProviderFailure) {
-      await telemetry(ctx, 'getRelatedFilesList', telemetryData);
+      telemetry(ctx, 'getRelatedFilesList', telemetryData);
     }
   }
   relatedFiles ??= EmptyRelatedFiles;
@@ -82,7 +82,7 @@ async function getRelatedFilesAndTraits(
   return relatedFiles;
 }
 
-async function ReportTraitsTelemetry(
+function ReportTraitsTelemetry(
   ctx: Context,
   traits: Trait[],
   docInfo: { detectedLanguageId: LanguageId; clientLanguageId: string },
@@ -92,12 +92,12 @@ async function ReportTraitsTelemetry(
     const properties: Record<string, string> = {};
     properties.detectedLanguageId = docInfo.detectedLanguageId;
     properties.languageId = docInfo.clientLanguageId;
-    for (let trait of traits) {
-      let mappedTraitName = traitNamesForTelemetry.get(trait.name);
-      mappedTraitName && (properties[mappedTraitName] = trait.value);
+    for (const trait of traits) {
+      const mappedTraitName = traitNamesForTelemetry.get(trait.name);
+      if (mappedTraitName) properties[mappedTraitName] = trait.value;
     }
-    let telemetryDataExt = telemetryData.extendedBy(properties, {});
-    await telemetry(ctx, 'related.traits', telemetryDataExt);
+    const telemetryDataExt = telemetryData.extendedBy(properties, {});
+    telemetry(ctx, 'related.traits', telemetryDataExt);
   }
 }
 

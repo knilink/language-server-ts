@@ -2,6 +2,7 @@ import { Chat, Tool, ToolCall, Unknown } from '../../../types.ts';
 import { TurnContext } from '../../turnContext.ts';
 import { PromptOptions, SkillPromptOptions } from './types.ts';
 import { AbstractUserPromptStrategy } from './userPromptStrategy.ts';
+import { hasKey } from '../../../util/unknown.ts';
 import { Type } from '@sinclair/typebox';
 // import '../lib/src/conversation/openai/openai.ts';
 
@@ -89,12 +90,13 @@ queryWithKeywords([
         }
         const keywordsSet = new Set<string>();
         for (let arg of args) {
-          if (arg.keyword) {
+          if (hasKey(arg, 'keyword') && arg.keyword && typeof arg.keyword === 'string') {
             keywordsSet.add(arg.keyword.toLowerCase());
-            if (arg.variations && Array.isArray(arg.variations)) {
-              for (let variation of arg.variations) {
-                keywordsSet.add(variation.toLowerCase());
-              }
+          }
+
+          if (hasKey(arg, 'variations') && Array.isArray(arg.variations)) {
+            for (let variation of arg.variations) {
+              typeof variation == 'string' && keywordsSet.add(variation.toLowerCase());
             }
           }
         }

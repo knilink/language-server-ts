@@ -55,12 +55,12 @@ class ConversationPromptEngine {
     );
     const [elidableChatMessages, skillResolutions] = await promptStrategy.promptContent(
       turnContext,
-      await this.safetyPrompt(options.modelConfiguration.uiName),
+      await this.safetyPrompt(options.userSelectedModelName ?? options.modelConfiguration.uiName),
       options
     );
     const [chatMessages, tokens] = await this.elideChatMessages(elidableChatMessages, options.modelConfiguration);
 
-    this.ctx.get(ConversationInspector).inspectPrompt({
+    await this.ctx.get(ConversationInspector).inspectPrompt({
       type: options.promptType,
       prompt: debugChatMessages(chatMessages),
       tokens: tokens,
@@ -81,7 +81,7 @@ class ConversationPromptEngine {
   async elideChatMessages(
     elidableChatMessages: Chat.ElidableChatMessage[],
     modelConfiguration: Model.Configuration
-  ): Promise<[Chat.ElidableChatMessage[], number]> {
+  ): Promise<[Chat.ChatMessage[], number]> {
     const elidableMessages = elidableChatMessages.filter((m) => typeof m.content !== 'string');
     if (elidableMessages.length !== 1) throw new Error('Only one elidable message is supported right now.');
 

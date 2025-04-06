@@ -1,3 +1,5 @@
+import type { CopilotConfirmation } from '../openai/types.ts';
+
 import { SSEProcessor, StreamCopilotAnnotations } from '../openai/stream.ts';
 import { Unknown } from '../types.ts';
 import { filterUnsupportedReferences } from './extensibility/references.ts';
@@ -13,7 +15,8 @@ class ConversationFinishCallback {
       text: string,
       annotations: Unknown.Annotation[],
       references: Reference[],
-      errors: unknown[]
+      errors: unknown[],
+      confirmation?: CopilotConfirmation
     ) => void
   ) {}
 
@@ -26,12 +29,19 @@ class ConversationFinishCallback {
       toApply,
       deltaAnnotations,
       filterUnsupportedReferences(delta.copilotReferences),
-      delta.copilotErrors ?? []
+      delta.copilotErrors ?? [],
+      delta.copilotConfirmation
     );
   }
 
-  append(text: string, annotations: Unknown.Annotation[], references: Reference[], errors: unknown[]): void {
-    this.deltaApplier(text, annotations, references, errors);
+  append(
+    text: string,
+    annotations: Unknown.Annotation[],
+    references: Reference[],
+    errors: unknown[],
+    confirmation?: CopilotConfirmation
+  ): void {
+    this.deltaApplier(text, annotations, references, errors, confirmation);
     this.appliedLength += text.length;
     this.appliedText += text;
     this.appliedAnnotations.push(...annotations.map((a) => a.id));
@@ -53,8 +63,12 @@ class ConversationFinishCallback {
     if (!annotations) return [];
     const vulnerabilities = annotations
       .for('CodeVulnerability')
-      .map((a): Unknown.Annotation => ({ ...a, type: 'code_vulnerability' }));
-    return [...vulnerabilities];
+      .map((a): Unknown.Annotation => ({ ...a, type: 'code_vulnerability' as 'code_vulnerability' }));
+    const IPCodeCitations = annotations
+      .for('IPCodeCitations')
+      .map((a) => ({ ...a, type: 'ip_code_citations' as 'ip_code_citations' }));
+
+    return [...vulnerabilities, ...IPCodeCitations];
   }
 }
 

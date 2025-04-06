@@ -5,15 +5,6 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as process from 'node:process';
 
-interface IPersistenceManager {
-  read(setting: string, key: string): Promise<unknown>;
-  update(setting: string, key: string, value: unknown): Promise<void>;
-  delete(setting: string, key: string): Promise<void>;
-  deleteSetting(setting: string): Promise<void>;
-  listSettings(): Promise<string[]>;
-  listKeys(setting: string): Promise<string[]>;
-}
-
 function getXdgConfigPath() {
   return process.env.XDG_CONFIG_HOME && path.isAbsolute(process.env.XDG_CONFIG_HOME)
     ? process.env.XDG_CONFIG_HOME + '/github-copilot'
@@ -23,31 +14,34 @@ function getXdgConfigPath() {
 }
 
 function makeXdgPersistenceManager(): PersistenceManager {
-  const configPath = getXdgConfigPath();
-  return new PersistenceManager(configPath);
+  return new FilePersistenceManager(getXdgConfigPath());
 }
 
-class PersistenceManager implements IPersistenceManager {
-  constructor(readonly directory: string) {}
+abstract class PersistenceManager {
+  abstract directory: string;
+  abstract read(setting: string, key: string): Promise<unknown>;
+  abstract update(setting: string, key: string, value: unknown): Promise<void>;
+  abstract delete(setting: string, key: string): Promise<void>;
+  abstract deleteSetting(setting: string): Promise<void>;
+  abstract listSettings(): Promise<string[]>;
+  abstract listKeys(setting: string): Promise<string[]>;
+}
+
+class FilePersistenceManager extends PersistenceManager {
+  constructor(readonly directory: string) {
+    super();
+  }
 
   async read(setting: string, key: string): Promise<unknown> {
-    const configFile = `${this.directory}/${setting}.json`;
     try {
-      const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
-      return JSON.parse(contents)[key];
+      return (await this.readJsonObject(setting))[key];
     } catch (error) {}
   }
 
   async update(setting: string, key: string, value: unknown): Promise<void> {
     await fs.promises.mkdir(this.directory, { recursive: true });
     const configFile = `${this.directory}/${setting}.json`;
-    let contentsJSON: Record<string, unknown> = {};
-
-    try {
-      const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
-      contentsJSON = JSON.parse(contents);
-    } catch (error) {}
-
+    const contentsJSON = await this.readJsonObject(setting);
     contentsJSON[key] = value;
     await fs.promises.writeFile(configFile, `${JSON.stringify(contentsJSON)}\n`, { encoding: 'utf8' });
   }
@@ -55,8 +49,7 @@ class PersistenceManager implements IPersistenceManager {
   async delete(setting: string, key: string): Promise<void> {
     const configFile = `${this.directory}/${setting}.json`;
     try {
-      const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
-      let contentsJSON = JSON.parse(contents);
+      const contentsJSON = await this.readJsonObject(setting);
       delete contentsJSON[key];
       const contentsOut = `${JSON.stringify(contentsJSON)}\n`;
 
@@ -84,14 +77,18 @@ class PersistenceManager implements IPersistenceManager {
   }
 
   async listKeys(setting: string): Promise<string[]> {
+    return Object.keys(await this.readJsonObject(setting));
+  }
+
+  async readJsonObject(setting: string) {
     const configFile = `${this.directory}/${setting}.json`;
     try {
       const contents = await fs.promises.readFile(configFile, { encoding: 'utf8' });
-      return Object.keys(JSON.parse(contents));
+      return JSON.parse(contents);
     } catch {
-      return [];
+      return {};
     }
   }
 }
 
-export { makeXdgPersistenceManager, PersistenceManager, IPersistenceManager };
+export { makeXdgPersistenceManager, PersistenceManager };

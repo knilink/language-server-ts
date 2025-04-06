@@ -1,16 +1,15 @@
-import { TSchema, type Static } from '@sinclair/typebox';
-import { TypeCompiler, TypeCheck } from '@sinclair/typebox/compiler';
+import type { TSchema, Static } from '@sinclair/typebox';
+import type { TypeCheck } from '@sinclair/typebox/compiler';
+import type { Skill, SkillId } from '../../../lib/src/types.ts';
+import type { Context } from '../../../lib/src/context.ts';
+import type { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
 
-import { ProtocolRequestType, ResponseError } from 'vscode-languageserver/node.js';
-
-import { type CancellationToken } from '../cancellation.ts';
-import { Skill, type SkillId } from '../../../lib/src/types.ts';
-
-import { Context } from '../../../lib/src/context.ts';
+import { ProtocolRequestType } from '../../../node_modules/vscode-languageserver/lib/node/main.js';
+import { ResponseError } from '../../../node_modules/vscode-languageserver/node.js';
+import { SchemaValidationError } from '../schemaValidation.ts';
 import { Service } from '../service.ts';
 import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
-import { SchemaValidationError } from '../schemaValidation.ts';
-import { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 class AgentSkillResolver<P extends TSchema = TSchema> implements Skill.ISkillResolver<Static<P>> {
   readonly requestType = new ProtocolRequestType<

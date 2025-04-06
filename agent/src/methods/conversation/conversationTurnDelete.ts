@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
 import { Context } from '../../../../lib/src/context.ts';
 import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
 import {
@@ -22,7 +21,7 @@ const Params = Type.Object({
 
 async function handleConversationTurnDeleteChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
   ctx.get(Conversations).deleteTurn(params.conversationId, params.turnId);

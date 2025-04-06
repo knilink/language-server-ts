@@ -22,9 +22,18 @@ function parseUri(uri: string, strict = false): URI {
   try {
     let match = uri.match(/^(?:([^:/?#]+?:)?\/\/)(\/\/.*)$/);
     return match ? URI.parse(match[1] + match[2], strict) : URI.parse(uri, strict);
-  } catch (e) {
+  } catch (cause) {
     let wrapped = new Error(`Could not parse <${uri}>`);
-    throw ((wrapped.cause = e), wrapped);
+    wrapped.cause = cause;
+    throw wrapped;
+  }
+}
+
+function normalizeUri(uri: string) {
+  try {
+    return parseUri(uri, false).toString();
+  } catch {
+    return uri;
   }
 }
 
@@ -127,4 +136,14 @@ function dirname(arg: URI | FileSystemPath): URI | FileSystemPath {
 
 const _rEncodedAsHex = /(%[0-9A-Za-z][0-9A-Za-z])+/g;
 
-export { basename, dirname, getFsPath, isSupportedUriScheme, joinPath, parseUri, percentDecode, resolveFilePath };
+export {
+  basename,
+  dirname,
+  getFsPath,
+  isSupportedUriScheme,
+  joinPath,
+  normalizeUri,
+  parseUri,
+  percentDecode,
+  resolveFilePath,
+};

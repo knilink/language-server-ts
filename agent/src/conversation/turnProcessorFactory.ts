@@ -1,9 +1,9 @@
-import { Unknown, WorkDoneToken } from '../../../lib/src/types.ts';
-import { type TextDocument } from '../../../lib/src/textDocument.ts';
-import { type CancellationToken } from '../cancellation.ts';
-import { type TurnContext } from '../../../lib/src/conversation/turnContext.ts';
+import type { Unknown, WorkDoneToken } from '../../../lib/src/types.ts';
+import type { CopilotTextDocument } from '../../../lib/src/textDocument.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
 
-import { SyntheticTurns, SyntheticTurnProcessor } from './syntheticTurnProcessor.ts';
+import { SyntheticTurnProcessor, SyntheticTurns } from './syntheticTurnProcessor.ts';
 import { getAgents } from '../../../lib/src/conversation/agents/agents.ts';
 import {
   InlineTurnProcessorStrategy,
@@ -17,7 +17,8 @@ interface ITurnProcessor {
     workDoneToken: WorkDoneToken,
     cancelationToken: CancellationToken,
     followUp?: Unknown.FollowUp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument,
+    model?: string
   ): Promise<void>;
 }
 
@@ -34,7 +35,7 @@ class TurnProcessorFactory {
     const agents = await getAgents(turnContext.ctx);
     let agent = agents.find((a) => a.slug === turnContext.turn.agent?.agentSlug);
 
-    if (agent && 'turnProcessor' in agent) {
+    if (agent?.turnProcessor) {
       return agent.turnProcessor(turnContext);
     }
 
@@ -52,3 +53,5 @@ class TurnProcessorFactory {
 }
 
 export { TurnProcessorFactory };
+
+export type { ITurnProcessor };

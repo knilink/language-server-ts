@@ -1,117 +1,165 @@
-import { URI } from 'vscode-uri';
-import { Context } from '../../../../context.ts';
-import { getChunkingAlgorithm, ChunkingAlgorithmType } from './ChunkingAlgorithms.ts';
-import { LRUCacheMap } from '../../../../common/cache.ts';
-import { ChunkingError, ChunkingHandler } from './ChunkingHandler.ts';
-import { Chunk, ChunkId, DocumentChunk } from './IndexingTypes.ts';
-import { telemetryException } from '../../../../telemetry.ts';
-import { TextDocument } from '../../../../textDocument.ts';
+import type { WorkspaceFolder } from 'vscode-languageserver-types';
+import type { Context } from '../../../../context.ts';
+import type { ChunkingAlgorithmType } from './ChunkingAlgorithms.ts';
+import type { ChunkId, DocumentChunk } from './IndexingTypes.ts';
+import type { CopilotTextDocument } from '../../../../textDocument.ts';
 
-const MAX_WORKSPACES = 25;
+import { getChunkingAlgorithm } from './ChunkingAlgorithms.ts';
+import { ChunkingHandler } from './ChunkingHandler.ts';
+import { TelemetryData, telemetry } from '../../../../telemetry.ts';
+
 class ChunkingProvider {
-  readonly workspaceChunkingProviders = new LRUCacheMap<string, ChunkingHandler>(MAX_WORKSPACES);
-  workspaceCount = 0;
+  private readonly ctx: Context;
+  private readonly workspaceChunkingProviders: Map<string, ChunkingHandler>;
 
-  createImplementation(type: ChunkingAlgorithmType): ChunkingHandler {
+  constructor(ctx: Context) {
+    this.ctx = ctx;
+    this.workspaceChunkingProviders = new Map();
+  }
+
+  get workspaceCount(): number {
+    return this.workspaceChunkingProviders.size;
+  }
+
+  createImplementation(workspaceFolder: string, type: ChunkingAlgorithmType): ChunkingHandler {
     const algorithmCtor = getChunkingAlgorithm(type);
     const implementation = new algorithmCtor();
-    return new ChunkingHandler(implementation);
+    return new ChunkingHandler(this.ctx, workspaceFolder, implementation);
   }
 
   getImplementation(workspaceFolder: string, type: ChunkingAlgorithmType = 'default'): ChunkingHandler {
     const parentFolder = this.getParentFolder(workspaceFolder);
-    if (parentFolder) return this.workspaceChunkingProviders.get(parentFolder)!;
+    if (parentFolder) {
+      return this.workspaceChunkingProviders.get(parentFolder)!;
+    }
+
     let provider = this.workspaceChunkingProviders.get(workspaceFolder);
 
     if (!provider) {
-      provider = this.createImplementation(type);
+      provider = this.createImplementation(workspaceFolder, type);
       this.workspaceChunkingProviders.set(workspaceFolder, provider);
-      this.workspaceCount++;
     }
 
     return provider;
   }
 
   getParentFolder(workspaceFolder: string): string | undefined {
-    for (const folder of this.workspaceChunkingProviders.keys()) {
+    return [...this.workspaceChunkingProviders.keys()].find((folder) => {
       const parentFolder = folder.replace(/[#?].*/, '').replace(/\/?$/, '/');
-      if (workspaceFolder !== folder && workspaceFolder.startsWith(parentFolder)) {
-        return folder;
-      }
-    }
+      return workspaceFolder !== folder && workspaceFolder.startsWith(parentFolder);
+    });
   }
 
-  isChunked(workspaceFolder: string): boolean {
-    if (this.getImplementation(workspaceFolder).status !== 'notStarted') return true;
-    const parentFolder = this.getParentFolder(workspaceFolder);
-    return !!parentFolder && this.getImplementation(parentFolder).status !== 'notStarted';
-  }
-
-  status(workspaceFolder: string) {
+  status(workspaceFolder: string): string {
     return this.getImplementation(workspaceFolder).status;
   }
 
-  chunkCount(workspaceFolder: string) {
-    return this.getImplementation(workspaceFolder).chunkCount;
+  checkLimits(workspaceFolder: string): { fileCountExceeded: boolean; chunkCountExceeded: boolean } {
+    const impl = this.getImplementation(workspaceFolder);
+    return {
+      fileCountExceeded: impl.fileCountExceeded,
+      chunkCountExceeded: impl.chunkCountExceeded,
+    };
   }
 
-  fileCount(workspaceFolder: string) {
-    return this.getImplementation(workspaceFolder).fileCount;
+  async fileCount(workspaceFolder: string): Promise<number> {
+    return this.getImplementation(workspaceFolder).getFilesCount();
   }
 
-  chunkId(workspaceFolder: string, chunk: Chunk): ChunkId | undefined {
-    return this.getImplementation(workspaceFolder).chunkId(chunk);
+  async chunkCount(workspaceFolder: string): Promise<number> {
+    return this.getImplementation(workspaceFolder).getChunksCount();
   }
 
-  chunkingTimeMs(workspaceFolder: string) {
+  chunkingTimeMs(workspaceFolder: string): number {
     return this.getImplementation(workspaceFolder).chunkingTimeMs;
   }
 
-  getChunks(workspaceFolder: string) {
-    return this.getImplementation(workspaceFolder).chunks;
+  getChunks(workspaceFolder: string): AsyncIterable<DocumentChunk> {
+    return this.getImplementation(workspaceFolder).getChunks();
   }
 
-  terminateChunking(workspaceFolder: string): void {
-    this.getImplementation(workspaceFolder).terminateChunking();
-    this.workspaceChunkingProviders.delete(workspaceFolder);
-    this.workspaceCount--;
-  }
-
-  deleteSubfolderChunks(parentFolder: string, workspaceFolder: string): ChunkId[] {
-    return this.getImplementation(parentFolder).deleteSubfolderChunks(workspaceFolder);
-  }
-
-  deleteFileChunks(workspaceFolder: string, filepaths: string[]): ChunkId[] {
+  async terminateChunking(ctx: Context, workspaceFolder: string): Promise<void> {
     const impl = this.getImplementation(workspaceFolder);
+    await impl.terminateChunking();
+    const telemetryData = TelemetryData.createAndMarkAsIssued().extendedBy(undefined, {
+      fileCount: impl.filesUpdatedCount,
+    });
+    telemetry(ctx, 'index.terminate', telemetryData);
+    this.workspaceChunkingProviders.delete(workspaceFolder);
+  }
+
+  async clearChunks(ctx: Context, workspaceFolder: string): Promise<void> {
+    await this.terminateChunking(ctx, workspaceFolder);
+    await this.getImplementation(workspaceFolder).clearChunks();
+  }
+
+  async deleteSubfolderChunks(parentFolder: string, workspaceFolder: string): Promise<DocumentChunk[]> {
+    return await this.getImplementation(parentFolder).deleteSubfolderChunks(workspaceFolder);
+  }
+
+  async deleteFileChunks(workspaceFolder: string, filepaths: string | string[]): Promise<DocumentChunk[]> {
+    const impl = this.getImplementation(workspaceFolder);
+    const chunks: DocumentChunk[] = [];
+
     if (!Array.isArray(filepaths)) {
-      return impl.deleteFileChunks(filepaths);
+      filepaths = [filepaths];
     }
-    const chunkIds: ChunkId[] = [];
+
     for (const filepath of filepaths) {
-      chunkIds.push(...impl.deleteFileChunks(filepath));
+      chunks.push(...(await impl.deleteFileChunks(filepath)));
     }
-    return chunkIds;
+    return chunks;
   }
 
   async chunk(
     ctx: Context,
     workspaceFolder: string,
-    type: ChunkingAlgorithmType = 'default'
-  ): Promise<LRUCacheMap<ChunkId, DocumentChunk>> {
-    if (this.workspaceChunkingProviders.size === MAX_WORKSPACES) {
-      let error = new ChunkingError(`Workspace cache size reached, total workspace count: ${this.workspaceCount}`);
-      telemetryException(ctx, error, 'ChunkingProvider.chunk');
+    documentsOrType?: CopilotTextDocument[] | ChunkingAlgorithmType,
+    type?: ChunkingAlgorithmType
+  ): Promise<AsyncGenerator<DocumentChunk>> {
+    let documents: CopilotTextDocument[] | undefined;
+
+    if (documentsOrType) {
+      if (Array.isArray(documentsOrType)) {
+        documents = documentsOrType;
+      } else {
+        type = documentsOrType;
+      }
     }
-    return this.getImplementation(workspaceFolder, type).chunk(ctx, workspaceFolder);
+
+    if (!type) {
+      type = 'default';
+    }
+
+    return documents
+      ? await this.chunkFiles(ctx, workspaceFolder, documents, type)
+      : await this.chunkFolder(ctx, workspaceFolder, type);
+  }
+
+  private async chunkFolder(
+    ctx: Context,
+    workspaceFolder: string,
+    type: ChunkingAlgorithmType = 'default'
+  ): Promise<AsyncGenerator<DocumentChunk>> {
+    const impl = this.getImplementation(workspaceFolder, type);
+    const chunks = await impl.chunk(ctx);
+    const telemetryData = TelemetryData.createAndMarkAsIssued().extendedBy(undefined, {
+      fileCount: impl.totalFileCount,
+      chunkCount: await impl.getChunksCount(),
+      timeTakenMs: impl.chunkingTimeMs,
+      workspaceCount: this.workspaceCount,
+    });
+    telemetry(ctx, 'index.chunk', telemetryData);
+    return chunks;
   }
 
   async chunkFiles(
     ctx: Context,
     workspaceFolder: string,
-    documents: TextDocument[],
+    documents: CopilotTextDocument[],
     type: ChunkingAlgorithmType = 'default'
-  ): Promise<DocumentChunk[]> {
-    return await this.getImplementation(workspaceFolder, type).chunkFiles(ctx, documents);
+  ): Promise<AsyncGenerator<DocumentChunk>> {
+    return await this.getImplementation(workspaceFolder, type).chunk(ctx, documents);
   }
 }
 

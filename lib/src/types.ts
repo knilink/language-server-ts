@@ -1,12 +1,12 @@
-import { Position, Range } from 'vscode-languageserver-types';
-import { URI } from 'vscode-uri';
-import { Context } from './context.ts';
-import { TelemetryData, TelemetryWithExp } from './telemetry.ts';
-import { TurnContext } from './conversation/turnContext.ts';
-import { ElidableText } from '../../prompt/src/elidableText/elidableText.ts';
-import { TSchema } from '@sinclair/typebox';
-import { ChatModelFamily } from './conversation/modelMetadata.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import type { Position, Range } from 'vscode-languageserver-types';
+import type { Context } from './context.ts';
+import type { TelemetryData, TelemetryWithExp } from './telemetry.ts';
+import type { TurnContext } from './conversation/turnContext.ts';
+import type { ElidableText } from '../../prompt/src/elidableText/elidableText.ts';
+import type { TSchema } from '@sinclair/typebox';
+import type { ChatModelFamilyValues } from './conversation/modelMetadata.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import type { Prompt, PromptBackground, PromptChoices } from '../../prompt/src/types.ts';
 
 // export { WorkspaceFolder } from 'vscode-languageserver-types';
 
@@ -70,7 +70,13 @@ export enum TelemetryStore {
   RESTRICTED = 1,
 }
 
-export type BlockMode = 'parsing' | 'parsingandserver' | 'server' | 'parsingandserver';
+export type BlockMode =
+  | 'parsing'
+  | 'parsingandserver'
+  | 'server'
+  | 'parsingandserver'
+  // ./config.ts
+  | 'moremultiline';
 
 export interface IReporter {
   sendTelemetryEvent(
@@ -172,6 +178,13 @@ export type Choice = {
   // AnnotationsMap
   copilot_annotations: AnnotationsMap;
   completionText: string;
+
+  // optional ./ghostText/progressiveReveal.ts
+  copilotAnnotations?: Record<string, Unknown.Annotation[]>;
+  // ./ghostText/progressiveReveal.ts
+  sectionIndex: number;
+  // ./ghostText/progressiveReveal.ts
+  sectionCount: number;
 };
 
 export type JsonData = {
@@ -193,7 +206,9 @@ export type UiKind =
   | 'conversationPanel'
   | 'conversation'
   // ../../agent/src/methods/testing/chatML.ts
-  | 'conversationIntegrationTest';
+  | 'conversationIntegrationTest'
+  // ./conversation/telemetry.ts
+  | 'editsPanel';
 
 export type FetchResult =
   | {
@@ -228,6 +243,14 @@ export namespace Chat {
     name?: string;
 
     copilot_references?: ConversationReference.OutgoingReference[];
+    // ./conversation/extensibility/remoteAgentTurnProcessor.ts
+    // schema ../../agent/src/methods/conversation/conversationTurn.ts
+    // ChatConfirmationResponseSchema
+    copilot_confirmations?: {
+      agentSlug: string;
+      state: 'accepted' | 'dismissed';
+      confirmation: any;
+    }[];
   };
 
   export type ElidableChatMessage =
@@ -251,11 +274,13 @@ export type PromptType = 'user' | 'inline' | 'meta' | 'suggestions' | 'synonyms'
 
 //  ./ghostText/last.ts
 // ./ghostText/ghostText.ts
+// def ./ghostText/telemetry.ts
 export enum CompletionResultType {
-  New = 0,
-  Cached = 1,
-  UserTyping = 2,
-  WithCompletion = 3,
+  Network = 0,
+  Cache = 1,
+  TypingAsSuggested = 2,
+  Cycling = 3,
+  Async = 4,
 }
 
 // ./ghostText/copilotCompletion.ts
@@ -275,33 +300,15 @@ export type Completion = {
   // required ../../agent/src/commands/panel.ts
   // optional ./ghostText/copilotCompletion.ts
   triggerCategory: string;
+  // ./ghostText/copilotCompletion.ts
+  // optional ../../agent/src/methods/copilotPanelCompletion.ts
+  // SolutionHandler.UnformattedSolution['copilotAnnotations']
+  copilotAnnotations?: { ip_code_citations?: Unknown.Annotation[] };
 };
 
 // ./conversation/modelMetadata.ts
 export namespace Model {
   export type Supports = Record<string, boolean>;
-  export type Capabilities = {
-    type: 'chat' | 'embeddings';
-    family: ChatModelFamily;
-    limits?: {
-      // ./conversation/modelConfigurations.ts
-      max_prompt_tokens: number;
-      // ./conversation/modelConfigurations.ts
-      max_inputs: number;
-    };
-    // ./conversation/modelConfigurations.ts
-    supports?: Supports;
-  };
-  export type Metadata = {
-    id: string;
-    name: string; // ui name
-    version: string;
-    // ./conversation/modelConfigurations.ts
-    // omit ./conversation/modelMetadata.ts
-    capabilities: Capabilities;
-    // ./conversation/modelConfigurations.ts
-    isExperimental: boolean;
-  };
 
   // ./conversation/modelConfigurations.ts
   export type TokenConfiguration = {
@@ -316,11 +323,13 @@ export namespace Model {
   export type Configuration = TokenConfiguration & {
     modelId: string;
     uiName?: string;
-    modelFamily: ChatModelFamily;
+    modelFamily: ChatModelFamilyValues;
     baseTokensPerMessage: number;
     baseTokensPerName: number;
     baseTokensPerCompletion: number;
-    tokenizer: 'cl100k_base' | 'o200k_base' | 'cl100k_base';
+    // ./conversation/modelMetadata.ts
+    // tokenizer: 'cl100k_base' | 'o200k_base' | 'cl100k_base';
+    tokenizer: string;
     isExperimental: boolean;
   };
 
@@ -380,11 +389,15 @@ export namespace SolutionHandler {
     meanLogProb: number;
     choiceIndex: number;
     telemetryData: TelemetryWithExp;
+    // optional ../../agent/src/methods/testing/setPanelCompletionDocuments.ts
+    // required ../../agent/src/methods/copilotPanelCompletion.ts
+    copilotAnnotations?: { ip_code_citations: Unknown.Annotation[] };
   };
+
   export interface ISolutionHandler {
     offset: number;
-    onSolution(unformattedSolution: UnformattedSolution): void;
-    onFinishedNormally(): void;
+    onSolution(unformattedSolution: UnformattedSolution): Promise<void>;
+    onFinishedNormally(): Promise<void>;
   }
 }
 
@@ -439,12 +452,26 @@ export namespace Unknown {
     start_offset: number;
     stop_offset: number;
     // ./conversation/conversationFinishCallback.ts
-    type: 'code_vulnerability';
+    type: 'code_vulnerability' | 'ip_code_citations';
+    // x partial ./conversation/codeCitationsDebugHandler.ts
     details: {
       type: 'server-side-unvalidated-url-redirection';
       description: string;
       ui_type: 'test';
       ui_description: 'test';
+      // required ./postInsertion.ts handleIPCodeCitation
+      citations: {
+        license: string;
+        url: string;
+      }[];
+    };
+    // ./conversation/codeCitationsDebugHandler.ts
+    // optional ./conversation/vulnerabilityDebugHandler.ts
+    citations?: {
+      snippet: string;
+      url: string;
+      ip_type: 'LICENSE';
+      license: 'NOASSERTION';
     };
   };
 
@@ -504,7 +531,7 @@ export namespace Unknown {
 
   export type ConversationPrompt = {
     // ../lib/src/conversation/prompt/conversationPromptEngine.ts
-    messages: Chat.ElidableChatMessage[];
+    messages: Chat.ChatMessage[];
     // ./conversation/extensibility/remoteAgentTurnProcessor.ts:226
     tokens: number;
     skillResolutions: SkillResolution[];
@@ -533,7 +560,64 @@ export namespace Snippet {
   export interface ISnippetProvider {
     // ./conversation/skills/projectContextSnippetProviders/localSnippets/LocalSnippetProvider.ts
     readonly providerType: 'local';
-    provideSnippets(turnContext: TurnContext): Promise<{ snippets: Snippet[]; measurements?: Snippet.Measurement }>;
+    provideSnippets(turnContext: TurnContext): Promise<{ snippets: Snippet[]; measurements: Snippet.Measurement }>;
     snippetProviderStatus(turnContext: TurnContext): Promise<SnippetProviderStatus>;
   }
 }
+
+export interface CodeBlock {
+  resource?: string;
+  language?: string;
+  code: string;
+  markdownBeforeBlock: string;
+}
+
+export interface SuccessPrompt {
+  type: 'prompt';
+  prompt: Prompt;
+  trailingWs: string;
+  promptChoices: PromptChoices;
+  computeTimeMs: number;
+  promptBackground: PromptBackground;
+  neighborSource: Map<string, string[]>;
+  // ./components/completionsPrompt.tsx
+  metadata?: unknown;
+}
+
+export type ExtractedPrompt =
+  | SuccessPrompt
+  | { type: 'contextTooShort' }
+  | { type: 'copilotContentExclusion' }
+  | { type: 'promptError' }
+  | { type: 'promptCancelled' };
+
+export type CompletionResult<T> =
+  | {
+      type: 'failed';
+      reason: string;
+      telemetryData: TelemetryProperties;
+    }
+  | {
+      type: 'canceled';
+      reason: string;
+      telemetryData: { cancelledNetworkRequest?: boolean; telemetryBlob: TelemetryData };
+    }
+  | {
+      type: 'empty';
+      reason: string;
+      telemetryData: TelemetryProperties;
+    }
+  | {
+      type: 'abortedBeforeIssued';
+      reason: string;
+      telemetryData: TelemetryProperties;
+    }
+  | {
+      type: 'success';
+      // value: apiChoices, array
+      value: T;
+      telemetryData: TelemetryProperties;
+      telemetryBlob: TelemetryData;
+      resultType: CompletionResultType;
+    }
+  | { type: 'promptOnly'; reason: string; prompt: ExtractedPrompt };

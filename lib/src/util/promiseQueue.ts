@@ -5,14 +5,9 @@ class PromiseQueue {
     this.promises = new Set();
   }
 
-  async register(promise: Promise<unknown>): Promise<void> {
+  register(promise: Promise<void>): void {
     this.promises.add(promise);
-    try {
-      await promise;
-    } finally {
-      this.promises.delete(promise);
-    }
-    return;
+    promise.finally(() => this.promises.delete(promise));
   }
 
   async flush(): Promise<void> {

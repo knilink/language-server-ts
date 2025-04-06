@@ -1,35 +1,29 @@
-// import { } from '../rpc';
-
-import { v4 as uuidv4 } from 'uuid';
-
-import { type CancellationToken } from '../cancellation.ts';
-import { Type, type Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 import type { Range } from 'vscode-languageserver-types';
-import { InlineCompletionRequest } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
+import { InlineCompletionTriggerKind } from '../../../types/src/index.ts';
+import type { CopilotInlineCompletionWithContextItemsType } from '../../../lib/src/prompt/contextProviders/contextItemSchemas.ts';
 
-import { Context } from '../../../lib/src/context.ts';
-import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { TelemetryData } from '../../../lib/src/telemetry.ts';
+import { CancellationTokenSource } from 'vscode-languageserver/node.js';
+import { logCompletionLocation, logger } from './getCompletions.ts';
 import { getTestCompletions } from './testing/setCompletionDocuments.ts';
-import {
-  positionAndContentForCompleting,
-  logCompletionLocation,
-  getGhostTextWithAbortHandling,
-  logger,
-} from './getCompletions.ts';
-import { handleGhostTextResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
-import { setLastShown } from '../../../lib/src/ghostText/last.ts';
-import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
-import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
-import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
+import { MergedToken } from '../cancellation.ts';
 import { didAcceptCommand } from '../commands/completion.ts';
-import {
-  CopilotInlineCompletionParams,
-  CopilotInlineCompletionParamsType,
-  CopilotInlineCompletionRequest,
-  InlineCompletionTriggerKind,
-} from '../../../types/src/index.ts';
+import { setContextItems } from '../contextProvider.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { ErrorCode } from '../rpc.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
+import { getGhostText } from '../../../lib/src/ghostText/ghostText.ts';
+import { positionAndContentForCompleting } from '../../../lib/src/ghostText/intellisense.ts';
+import { setLastShown } from '../../../lib/src/ghostText/last.ts';
+import { handleGhostTextResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
+import { CopilotInlineCompletionWithContextItemsSchema } from '../../../lib/src/prompt/contextProviders/contextItemSchemas.ts';
+import { TelemetryData } from '../../../lib/src/telemetry.ts';
+import { v4 as uuidv4 } from 'uuid';
+import { CopilotInlineCompletionRequest } from '../../../types/src/inlineCompletion.ts';
+import type {} from '../../../types/src/index.ts';
 
 type Item = {
   command: {
@@ -50,7 +44,7 @@ function makeCommand(id: string): Item['command'] {
 async function handleChecked(
   ctx: Context,
   clientToken: CancellationToken,
-  params: CopilotInlineCompletionParamsType
+  params: CopilotInlineCompletionWithContextItemsType
 ): Promise<[{ items: Item[] }, null] | [null, { code: number; message: string }]> {
   let telemetryData = TelemetryData.createAndMarkAsIssued();
 
@@ -63,7 +57,12 @@ async function handleChecked(
   cancellationTokenSource = new CancellationTokenSource();
   const serverToken = cancellationTokenSource.token;
   const token = new MergedToken([clientToken, serverToken]);
-  const testCompletions = getTestCompletions(ctx, params.position, isCycling);
+
+  if (params.contextItems) {
+    setContextItems(ctx, params.contextItems, params.data);
+  }
+
+  let testCompletions = getTestCompletions(ctx, params.position, params.textDocument.uri, isCycling);
   if (testCompletions) {
     return [{ items: testCompletions.map((completion) => ({ command: makeCommand(uuidv4()), ...completion })) }, null];
   }
@@ -74,38 +73,38 @@ async function handleChecked(
 
   if (completionInfo) {
     ({ position, textDocument, lineLengthIncrease } = positionAndContentForCompleting(
-      ctx,
       telemetryData,
       textDocument,
-      completionInfo.range.start,
-      completionInfo.range.end,
       completionInfo
     ));
   }
 
   logCompletionLocation(ctx, textDocument, position);
-  let resultWithTelemetry = await getGhostTextWithAbortHandling(
+
+  const resultWithTelemetry = await getGhostText(
     ctx,
     textDocument,
     position,
-    isCycling,
     telemetryData,
     token,
-    completionInfo,
-    false,
+    { isCycling, ifInserted: completionInfo },
     params.data
   );
-  let result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
-  if (clientToken.isCancellationRequested) return [null, { code: -32800, message: 'Request was canceled' }];
-  if (serverToken.isCancellationRequested)
-    return [null, { code: -32802, message: 'Request was superseded by a new request' }];
+
+  const result = handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
+  if (clientToken.isCancellationRequested) {
+    return [null, { code: ErrorCode.RequestCancelled, message: 'Request was canceled' }];
+  }
+  if (serverToken.isCancellationRequested) {
+    return [null, { code: ErrorCode.ServerCancelled, message: 'Request was superseded by a new request' }];
+  }
   if (!result)
     switch (resultWithTelemetry.type) {
       case 'abortedBeforeIssued':
       case 'canceled':
         return logger.debug(ctx, `Aborted: ${resultWithTelemetry.reason}`), [{ items: [] }, null];
       case 'failed':
-        return [null, { code: -32603, message: resultWithTelemetry.reason }];
+        return [null, { code: ErrorCode.InternalError, message: resultWithTelemetry.reason }];
       default:
         return [{ items: [] }, null];
     }
@@ -134,7 +133,7 @@ async function handleChecked(
 }
 
 const type = CopilotInlineCompletionRequest.type;
-const handle = addMethodHandlerValidation(CopilotInlineCompletionParams, (ctx, token, params) =>
+const handle = addMethodHandlerValidation(CopilotInlineCompletionWithContextItemsSchema, (ctx, token, params) =>
   handleChecked(ctx, token, params)
 );
 

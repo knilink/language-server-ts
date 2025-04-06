@@ -1,6 +1,5 @@
 import type { LanguageId } from '../../../../prompt/src/types.ts';
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
 
 import { Context } from '../../../../lib/src/context.ts';
 import { TextDocumentManager } from '../../../../lib/src/textDocumentManager.ts';
@@ -17,7 +16,7 @@ type Document = {
 
 async function handleGetDocumentChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[Document, null]> {
   const document = await ctx.get(TextDocumentManager).getTextDocument(params);

@@ -17,7 +17,7 @@ type Matches = (sourceLine: string) => boolean;
 type LabelRule = { matches: Matches; label: Label };
 
 const LANGUAGE_SPECIFIC_PARSERS: { [key: string]: (node: TopNode) => Node } = {};
-const _genericLabelRules = { opener: /^[\[({]/, closer: /^[\])}]/ };
+const _genericLabelRules = { opener: /^[[({]/, closer: /^[\])}]/ };
 const genericLabelRules = buildLabelRules(_genericLabelRules);
 
 function parseRaw(source: string): TopNode {

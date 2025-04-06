@@ -1,30 +1,35 @@
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { IPromptTemplate } from './promptTemplates.ts';
+import type { TurnContext } from './turnContext.ts';
+import type { Chat, SkillId, UiKind, Unknown } from '../types.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
+import type { ITurnProcessorStrategy } from './turnProcessorStrategy.ts';
+import type { TelemetryWithExp } from '../telemetry.ts';
+import type { ITurnProcessor } from '../../../agent/src/conversation/turnProcessorFactory.ts';
+
+import { getAgents } from './agents/agents.ts';
+import { ChatMLFetcher } from './chatMLFetcher.ts';
+import { markdownCommentRegexp } from './codeEdits.ts';
+import { ConversationFinishCallback } from './conversationFinishCallback.ts';
 import { ConversationProgress } from './conversationProgress.ts';
+import { ChatFetchResultPostProcessor } from './fetchPostProcessor.ts';
 import { conversationLogger } from './logger.ts';
+import { ModelConfigurationProvider } from './modelConfigurations.ts';
+import { getSupportedModelFamiliesForPrompt, parseModel } from './modelMetadata.ts';
+import { ConversationContextCollector } from './prompt/conversationContextCollector.ts';
+import { getPromptTemplates } from './promptTemplates.ts';
 import {
-  createTelemetryWithExpWithId,
   createSuggestionMessageTelemetryData,
+  createTelemetryWithExpWithId,
   extendUserMessageTelemetryData,
 } from './telemetry.ts';
-import { getPromptTemplates, IPromptTemplate } from './promptTemplates.ts';
-import { getAgents } from './agents/agents.ts';
-import { markdownCommentRegexp } from './codeEdits.ts';
-import { ModelConfigurationProvider } from './modelConfigurations.ts';
-import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
-import { ChatMLFetcher } from './chatMLFetcher.ts';
-import { ChatFetchResultPostProcessor } from './fetchPostProcessor.ts';
-import { ConversationContextCollector } from './prompt/conversationContextCollector.ts';
-import { ConversationFinishCallback } from './conversationFinishCallback.ts';
-import { TurnContext } from './turnContext.ts';
-import { Chat, SkillId, UiKind, Unknown } from '../types.ts';
-import { TextDocument } from '../textDocument.ts';
-import { type ITurnProcessorStrategy } from './turnProcessorStrategy.ts';
-import { TelemetryWithExp } from '../telemetry.ts';
+import type {} from './openai/openai.ts';
+import { RemoteAgentTurnProcessor } from './extensibility/remoteAgentTurnProcessor.ts';
 
 export const COLLECT_CONTEXT_STEP = 'collect-context';
 export const GENERATE_RESPONSE_STEP = 'generate-response';
 
-export class ModelTurnProcessor {
+export class ModelTurnProcessor implements ITurnProcessor {
   conversationProgress: ConversationProgress;
   chatFetcher: ChatMLFetcher;
   postProcessor: ChatFetchResultPostProcessor;
@@ -47,13 +52,14 @@ export class ModelTurnProcessor {
     workDoneToken: string,
     cancellationToken: CancellationToken,
     followUp?: Unknown.FollowUp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument,
+    model?: string
   ): Promise<void> {
     try {
-      await this.processWithModel(workDoneToken, cancellationToken, this.turnContext, followUp, doc);
+      await this.processWithModel(workDoneToken, cancellationToken, this.turnContext, followUp, doc, model);
     } catch (err: any) {
       conversationLogger.error(this.turnContext.ctx, `Error processing turn ${this.turn.id} `, err);
-      const errorMessage = err.message;
+      let errorMessage = err instanceof Error ? err.message : String(err);
       this.turn.status = 'error';
       this.turn.response = { message: errorMessage, type: 'meta' };
       await this.endProgress({ error: { message: errorMessage, responseIsIncomplete: true } });
@@ -65,7 +71,8 @@ export class ModelTurnProcessor {
     cancellationToken: CancellationToken,
     turnContext: TurnContext,
     followUp?: Unknown.FollowUp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument,
+    model?: string
   ): Promise<void> {
     await this.conversationProgress.begin(this.conversation, this.turn, workDoneToken);
     const telemetryWithExp = await createTelemetryWithExpWithId(
@@ -99,13 +106,19 @@ export class ModelTurnProcessor {
     await turnContext.steps.start(COLLECT_CONTEXT_STEP, 'Collecting context');
     await this.collectContext(turnContext, cancellationToken, telemetryWithExp, this.strategy.uiKind, template, agent);
 
+    const modelNameArg = model
+      ? (await this.turnContext.ctx.get(ModelConfigurationProvider).getBestChatModelConfig(parseModel(model))).uiName
+      : undefined;
+
     const conversationPrompt = await this.strategy.buildConversationPrompt(
       turnContext,
-      doc?.languageId || '',
-      template
+      doc?.languageId ?? '',
+      undefined,
+      modelNameArg
     );
+
     if (!conversationPrompt) {
-      turnContext.steps.error(COLLECT_CONTEXT_STEP, 'Failed to collect context');
+      await turnContext.steps.error(COLLECT_CONTEXT_STEP, 'Failed to collect context');
       await this.endTurnWithResponse(this.strategy.earlyReturnResponse, 'error');
     } else {
       await turnContext.steps.finish(COLLECT_CONTEXT_STEP);
@@ -157,9 +170,10 @@ export class ModelTurnProcessor {
       }
     } catch (err: any) {
       conversationLogger.error(this.turnContext.ctx, `Error checking preconditions for agent ${agent.slug}`, err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
       this.turn.status = 'error';
-      this.turn.response = { message: err.message, type: 'meta' };
-      return { error: { message: err.message, responseIsIncomplete: true } };
+      this.turn.response = { message: errorMessage, type: 'meta' };
+      return { error: { message: errorMessage, responseIsIncomplete: true } };
     }
   }
 
@@ -179,7 +193,7 @@ export class ModelTurnProcessor {
     const response = await template.response(this.turnContext, userQuestion, cancellation);
     this.turn.response = { type: 'meta', message: response.message };
     const error: any = response.error;
-    this.turn.status = error?.responseIsFiltered ? 'filtered' : 'success';
+    this.turn.status = error?.responseIsFiltered ? 'filtered' : error?.responseIsIncomplete ? 'error' : 'success';
 
     if (error?.responseIsFiltered || error?.responseIsIncomplete) {
       await this.conversationProgress.report(this.conversation, this.turn, {
@@ -192,6 +206,7 @@ export class ModelTurnProcessor {
       await this.endProgress({
         error: {
           message: response.message,
+          code: error?.code || 0,
           responseIsIncomplete: error?.responseIsIncomplete,
           responseIsFiltered: error?.responseIsFiltered,
         },
@@ -202,6 +217,7 @@ export class ModelTurnProcessor {
         annotations: response.annotations,
         notifications: response.notifications,
         references: response.references,
+        confirmationRequest: response.confirmationRequest,
       });
       await this.endProgress();
     }
@@ -228,11 +244,12 @@ export class ModelTurnProcessor {
   }
 
   async fetchConversationResponse(
-    messages: Chat.ElidableChatMessage[],
+    messages: Chat.ChatMessage[],
     token: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     augmentedTelemetryWithExp: TelemetryWithExp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument,
+    model?: string
   ): Promise<ChatFetchResultPostProcessor.PostProcessResult> {
     token.onCancellationRequested(async () => {
       await this.cancelProgress();
@@ -242,15 +259,13 @@ export class ModelTurnProcessor {
     let numCodeEdits = 0;
     const finishCallback = new ConversationFinishCallback((text, annotations, references, errors) => {
       const hasEditComment = text.trim().match(markdownCommentRegexp) !== null;
-      this.conversationProgress
-        .report(this.conversation, this.turn, {
-          reply: text,
-          annotations: annotations,
-          references,
-          hideText: hasEditComment,
-          notifications: errors.map((e) => ({ severity: 'warning', message: (e as any).message })),
-        })
-        .then();
+      this.conversationProgress.report(this.conversation, this.turn, {
+        reply: text,
+        annotations,
+        references,
+        hideText: hasEditComment,
+        notifications: errors.map((e) => ({ severity: 'warning', message: (e as any).message })),
+      });
 
       if (this.turn.response) {
         this.turn.response.message += text;
@@ -271,10 +286,21 @@ export class ModelTurnProcessor {
       }
     });
 
+    const modelConfiguration = await this.turnContext.ctx
+      .get(ModelConfigurationProvider)
+      .getBestChatModelConfig(model ? parseModel(model) : getSupportedModelFamiliesForPrompt('user'));
+
+    if (modelConfiguration.modelFamily === 'o1-ga' || modelConfiguration.modelFamily === 'o1-mini') {
+      messages = messages.map<Chat.ChatMessage>((message): Chat.ChatMessage => {
+        if (message.role !== 'user') {
+          return { role: 'user', content: message.content };
+        }
+        return message;
+      });
+    }
+
     const params = {
-      modelConfiguration: await this.turnContext.ctx
-        .get(ModelConfigurationProvider)
-        .getBestChatModelConfig(getSupportedModelFamiliesForPrompt('user')),
+      modelConfiguration,
       messages,
       uiKind: this.strategy.uiKind,
       intentParams: { intent: true, intent_threshold: 0.7, intent_content: this.turn.request.message },
@@ -301,7 +327,7 @@ export class ModelTurnProcessor {
     baseTelemetryWithExp: TelemetryWithExp,
     template?: IPromptTemplate,
     followUp?: Unknown.FollowUp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ): TelemetryWithExp {
     let augmentedTelemetry: TelemetryWithExp;
 

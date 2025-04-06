@@ -1,17 +1,7 @@
-import { Context } from '../context.ts';
-import { GitHubToken } from '../auth/types.ts';
-import { CopilotToken, CopilotTokenManagerFromGitHubTokenBase } from '../auth/copilotToken.ts';
+import { createTestCopilotToken } from './copilotToken.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
-
-class FakeCopilotTokenManagerFromGitHubToken extends CopilotTokenManagerFromGitHubTokenBase {
-  constructor(readonly githubToken: GitHubToken) {
-    super();
-  }
-
-  async getGitHubSession(ctx: Context): Promise<GitHubToken> {
-    return this.githubToken;
-  }
-}
+import type {} from '../auth/copilotTokenNotifier.ts';
+import type {} from '../auth/error.ts';
 
 class FixedCopilotTokenManager extends CopilotTokenManager {
   wasReset = false;
@@ -19,22 +9,18 @@ class FixedCopilotTokenManager extends CopilotTokenManager {
   constructor(readonly token: string) {
     super();
   }
-
-  async getGitHubSession(ctx: Context): Promise<{ token: string }> {
-    return { token: 'token' };
+  async getGitHubSession() {
+    return Promise.resolve({ token: 'token' });
   }
-
-  async getCopilotToken(ctx: Context, force: boolean): Promise<CopilotToken> {
-    return CopilotToken.testToken({ token: this.token });
+  async getToken() {
+    return createTestCopilotToken({ token: this.token });
   }
-
-  resetCopilotToken(ctx: Context, httpError: unknown): void {
+  resetToken() {
     this.wasReset = true;
   }
-
-  async checkCopilotToken(ctx: Context): Promise<{ status: 'OK' }> {
+  async checkCopilotToken() {
     return { status: 'OK' };
   }
 }
 
-export { FakeCopilotTokenManagerFromGitHubToken, FixedCopilotTokenManager };
+export { FixedCopilotTokenManager };

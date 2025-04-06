@@ -115,10 +115,18 @@ class ProblemsInActiveDocumentSkill extends SingleStepReportingSkill<
   constructor(_resolver: Skill.ISkillResolver<ProblemsInActiveDocument>) {
     super(
       ProblemsInActiveDocumentSkillId,
-      'List of problems and errors in the active document',
+      'List of problems and errors in the active document, useful when the user question is about finding and fixing errors, non-functioning code, compilation issues, etc.',
+
       'Analyzing problems and errors',
       () => _resolver,
-      (turnContext: TurnContext) => new ProblemsInActiveDocumentSkillProcessor(turnContext)
+      (turnContext) => new ProblemsInActiveDocumentSkillProcessor(turnContext),
+      'explicit',
+      [
+        'How can I fix the errors?',
+        'Why is my app not working?',
+        'Why am I getting compilation errors?',
+        'Raw error messages or stack traces',
+      ]
     );
   }
 }

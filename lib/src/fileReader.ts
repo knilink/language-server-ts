@@ -1,7 +1,7 @@
 import { Context } from './context.ts';
 import { TextDocumentManager } from './textDocumentManager.ts';
 import { CopilotContentExclusionManager } from './contentExclusion/contentExclusionManager.ts';
-import { TextDocument } from './textDocument.ts';
+import { CopilotTextDocument } from './textDocument.ts';
 import { FileSystem } from './fileSystem.ts';
 import { DocumentValidationResult } from './util/documentEvaluation.ts';
 import { basename } from './util/uri.ts';
@@ -23,8 +23,8 @@ function statusFromTextDocumentResult(textDocumentResult: DocumentValidationResu
 class FileReader {
   constructor(readonly ctx: Context) {}
 
-  async getRelativePath(doc: TextDocument): Promise<string> {
-    return (await this.ctx.get(TextDocumentManager).getRelativePath(doc)) ?? basename(doc.uri);
+  async getRelativePath(doc: CopilotTextDocument): Promise<string> {
+    return this.ctx.get(TextDocumentManager).getRelativePath(doc) ?? basename(doc.uri);
   }
 
   async readFile(uri: string): Promise<DocumentValidationResult> {
@@ -44,7 +44,7 @@ class FileReader {
       const text = await this.doReadFile(uri);
       return (await this.ctx.get(CopilotContentExclusionManager).evaluate(uri, text)).isBlocked
         ? { status: 'invalid', reason: 'blocked' }
-        : { status: 'valid', document: TextDocument.create(uri, 'UNKNOWN', 0, text) };
+        : { status: 'valid', document: CopilotTextDocument.create(uri, 'UNKNOWN', 0, text) };
     }
     return { status: 'notfound', message: 'File not found' };
   }
@@ -71,4 +71,4 @@ class FileReader {
   }
 }
 
-export { FileReader, statusFromTextDocumentResult, TextDocumentResultStatus };
+export { FileReader, statusFromTextDocumentResult, TextDocumentResultStatus, DocumentValidationResult };

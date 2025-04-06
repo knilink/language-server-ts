@@ -1,11 +1,11 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../../lib/src/context.ts';
 
-import { Context } from '../../../../lib/src/context.ts';
-import { Fetcher } from '../../../../lib/src/networking.ts';
-import { ExpConfigMaker, ExpConfigFromTAS } from '../../../../lib/src/experiments/fetchExperiments.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Fetcher } from '../../../../lib/src/networking.ts';
 import { ExpConfigFetcherWithDelegate } from '../../../../lib/src/testing/expServerFake.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({
   expFlags: Type.Record(Type.String(), Type.Union([Type.String(), Type.Number(), Type.Boolean()])),

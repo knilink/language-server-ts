@@ -9,7 +9,7 @@ function createConsole(ctx: Context): Console {
 
   function logIt(level: number, ...args: unknown[]): void {
     if (getBuildType(ctx) === 'dev') {
-      return ctx.get(LogTarget).logIt(ctx, level, '[console]', ...args);
+      return ctx.get(LogTarget).logIt(ctx, level, 'console', ...args);
     }
   }
 
@@ -23,7 +23,7 @@ function createConsole(ctx: Context): Console {
     }
   };
   c.dir = (obj: unknown, options?: util.InspectOptions) => logIt(LogLevel.DEBUG, util.inspect(obj, options));
-  c.log = c.debug;
+  c.log = c.debug.bind(c);
   c.trace = (...args: unknown[]) => {
     const e = new Error(util.format(...args));
     e.name = 'Trace';

@@ -22,7 +22,7 @@ function filterUnsupportedReferences(references?: Reference[]): WebSearchReferen
   return references?.filter((r) => r.type === 'github.web-search').map((r) => r) ?? [];
 }
 function convertToCopilotReferences(references?: Reference[]): WebSearchReference[] {
-  return references?.filter((r) => r.type === 'github.web-search').map((r) => r) ?? [];
+  return references?.filter((r) => r.type === 'github.web-search') ?? [];
 }
 
 export { WebSearchReferenceSchema, WebSearchReference, convertToCopilotReferences, filterUnsupportedReferences };

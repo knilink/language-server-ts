@@ -1,15 +1,17 @@
-// import dedent from 'dedent';
+import type { Static } from '@sinclair/typebox';
+import type { Skill } from '../../types.ts';
+import type { CopilotTextDocument } from '../../textDocument.ts';
+import type { TurnContext } from '../turnContext.ts';
 
-import { Type, type Static } from '@sinclair/typebox';
-
+import { dedent } from 'ts-dedent';
 import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
 import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
-import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
-import { RangeSchema } from '../../../../types/src/index.ts';
+import { Type } from '../../../../node_modules/@sinclair/typebox/build/esm/type/type/index.mjs';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
-import { Skill } from '../../types.ts';
-import { TextDocument } from '../../textDocument.ts';
-import { TurnContext } from '../turnContext.ts';
+import { elidableTextForSourceCode } from '../../../../prompt/src/elidableText/fromSourceCode.ts';
+import { RangeSchema } from '../../../../types/src/core.ts';
+import type {} from '../schema.ts';
+import type {} from '../../../../prompt/src/elidableText/index.ts';
 
 const TestFailuresSchema = Type.Object({
   failures: Type.Array(
@@ -102,7 +104,7 @@ class TestFailuresSkillProcessor implements Skill.ISkillProcessor<TestFailures> 
     return new ElidableText(failureTexts);
   }
 
-  appendCode(elidableFailuresOfDocument: ElidableText, filePath: string, document: TextDocument): ElidableText {
+  appendCode(elidableFailuresOfDocument: ElidableText, filePath: string, document: CopilotTextDocument): ElidableText {
     const codeDescription: [ElidableText, number] = [
       new ElidableText([`\nThe code of file \`${filePath}\` is:\n`]),
       0.6,

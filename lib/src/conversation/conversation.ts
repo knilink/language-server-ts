@@ -1,13 +1,12 @@
+import type { WorkspaceFolder } from 'vscode-languageserver-types';
+import type { CopilotConfirmation } from '../openai/types.ts';
 import type { Reference } from './schema.ts';
-import type { WebSearchReference } from './extensibility/references.ts';
 
 import { Unknown } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 
-namespace Turn {
-  export type Template = { templateId: string; userQuestion: string };
-}
-
+// schema
+// ../../../agent/src/methods/conversation/conversationTurn.ts
 class Turn {
   id: string = uuidv4();
   timestamp: number = Date.now();
@@ -35,7 +34,13 @@ class Turn {
   workspaceFolder?: string;
   // ./conversation.ts
   // required? ./extensibility/skillToReferenceAdapters.ts
-  agent?: { agentSlug: string };
+
+  agent?: {
+    agentSlug: string;
+    // ./extensibility/remoteAgentTurnProcessor.ts
+    // optional ./conversations.ts
+    sessionId?: string;
+  };
   // required ./turnProcessor.ts
   // set ./conversations.ts
   template?: Turn.Template;
@@ -44,7 +49,18 @@ class Turn {
   response?: {
     message: string;
     type: 'meta' | 'server' | 'model' | 'user' | 'offtopic-detection';
+    // ./extensibility/remoteAgentTurnProcessor.ts
+    // 'model' response only
     references?: Reference[];
+  };
+
+  // ./extensibility/remoteAgentTurnProcessor.ts
+  confirmationRequest?: CopilotConfirmation;
+  // ../../../agent/src/methods/conversation/conversationTurn.ts
+  confirmationResponse?: {
+    agentSlug: string;
+    state: 'accepted' | 'dismissed';
+    confirmation: any;
   };
 
   constructor(
@@ -61,6 +77,10 @@ class Turn {
       references?: Reference[];
     }
   ) {}
+}
+
+namespace Turn {
+  export type Template = { templateId: string; userQuestion: string };
 }
 
 class Conversation {

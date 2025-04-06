@@ -12,11 +12,11 @@ import {
 import { DebugServer } from './debug/debugServer.ts';
 import { default as open } from 'open';
 
-function wrapTransports(
+async function wrapTransports(
   env: NodeJS.ProcessEnv,
   streamReader: MessageReader,
   streamWriter: MessageWriter
-): [MessageReader, MessageWriter] {
+): Promise<[MessageReader, MessageWriter]> {
   let emitter: EventEmitter | null = null;
   const debugPort = parseInt((env.GH_COPILOT_DEBUG_UI_PORT ?? env.GITHUB_COPILOT_DEBUG_UI_PORT) as any);
   if (!isNaN(debugPort)) {
@@ -24,7 +24,7 @@ function wrapTransports(
     let server = new DebugServer(debugPort, emitter).listen();
 
     if (debugPort === 0) {
-      open(`http://localhost:${server.getPort()}`);
+      await open(`http://localhost:${server.getPort()}`);
     }
   }
 
@@ -33,7 +33,7 @@ function wrapTransports(
 
   try {
     const stamp = Date.now().toString();
-    if (process.argv.includes('--record') || envRecord === '1' || envRecord === 'true') {
+    if (envRecord === '1' || envRecord === 'true') {
       logFile = fs.openSync(`stdio${stamp}.log`, 'w');
     } else if (envRecord && envRecord !== '0' && envRecord !== 'false') {
       logFile = fs.openSync(envRecord.replaceAll('%s', stamp), 'w');

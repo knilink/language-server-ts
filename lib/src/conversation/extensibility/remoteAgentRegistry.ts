@@ -1,4 +1,4 @@
-import { Context } from '../../context.ts';
+import type { Context } from '../../context.ts';
 
 import { RemoteAgent } from './remoteAgent.ts';
 import { fetchCapiUrl } from '../capiFetchUtilities.ts';
@@ -22,14 +22,16 @@ class CapiRemoteAgentRegistry extends RemoteAgentRegistry {
     return [...(this._agents ?? [])];
   }
   shouldRefreshAgents(): boolean {
-    return !this._agents || !this._lastFetchTime ? true : this.isLastFetchOlderTenMinutes();
+    return !this._agents || !this._lastFetchTime ? true : this.isLastFetchOlderOneHour();
   }
-  isLastFetchOlderTenMinutes(): boolean {
-    return Date.now() - this._lastFetchTime > 600_000;
+  isLastFetchOlderOneHour() {
+    return Date.now() - this._lastFetchTime > 3600_000;
   }
+
   async fetchAgents(): Promise<RemoteAgent[]> {
     let response = await fetchCapiUrl(this.ctx, '/agents');
     if (response.ok) {
+      this._lastFetchTime = Date.now();
       return this.parseAgents(await response.text());
     } else {
       logger.error(this.ctx, 'Failed to fetch agents from CAPI', {
@@ -53,7 +55,7 @@ class CapiRemoteAgentRegistry extends RemoteAgentRegistry {
       }
     } catch (e) {
       if (!text.includes('access denied')) {
-        logger.warn(this.ctx, `Invalid remote agent response: ${text} (${e})`);
+        logger.warn(this.ctx, 'Invalid remote agent response:', text, e);
       }
 
       return [];

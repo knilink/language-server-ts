@@ -1,9 +1,12 @@
-import { WatchedFilesError, WorkspaceWatcher, WorkspaceWatcherEventListener } from './workspaceWatcher.ts';
-import { Context } from './context.ts';
-import { conversationLogger } from './conversation/logger.ts';
+import type { WorkspaceFolder } from 'vscode-languageserver-types';
+import type { WorkspaceWatcherEventListener } from './workspaceWatcher.ts';
+import type { WorkspaceWatcher } from './workspaceWatcher.ts';
+import type { Context } from './context.ts';
+import type { CopilotTextDocument } from './textDocument.ts';
+
 import { LRUCacheMap } from './common/cache.ts';
-import { TextDocument } from './textDocument.ts';
-import { WorkspaceFolder } from 'vscode-languageserver-types';
+import { conversationLogger } from './conversation/logger.ts';
+import type {} from './workspaceWatcher.ts';
 
 // ./conversation/skills/ProjectContextSkill.ts
 
@@ -19,17 +22,19 @@ abstract class WorkspaceWatcherProvider {
   getWatcher(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): WorkspaceWatcher | undefined {
     const watcher = this.watchers.get(workspaceFolder.uri);
     if (watcher) return watcher;
-    const parentWatcher = [...this.watchers.keys()].find((watchedFolder) =>
-      workspaceFolder.uri.startsWith(watchedFolder)
-    );
+    const parentWatcher = this.getParentFolder(workspaceFolder.uri);
     return parentWatcher ? this.watchers.get(parentWatcher) : undefined;
   }
 
+  getParentFolder(workspaceFolder: string): string | undefined {
+    return [...this.watchers.keys()].find((folder) => {
+      const parentFolder = folder.replace(/[#?].*/, '').replace(/\/?$/, '/');
+      return workspaceFolder !== folder && workspaceFolder.startsWith(parentFolder);
+    });
+  }
+
   hasWatcher(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): boolean {
-    return (
-      [...this.watchers.keys()].some((watchedFolder) => workspaceFolder.uri.startsWith(watchedFolder)) ||
-      this.getWatcher(workspaceFolder) !== undefined
-    );
+    return Boolean(this.getParentFolder(workspaceFolder.uri)) || this.getWatcher(workspaceFolder) !== undefined;
   }
 
   startWatching(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): void {
@@ -54,8 +59,8 @@ abstract class WorkspaceWatcherProvider {
     const subfolders = watchedFolders.filter(
       (watchedFolder) => watchedFolder !== workspaceFolder.uri && watchedFolder.startsWith(parentFolder)
     );
-
     for (let uri of subfolders) this.terminateWatching({ uri });
+    return subfolders;
   }
 
   terminateWatching(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): boolean | undefined {
@@ -70,7 +75,7 @@ abstract class WorkspaceWatcherProvider {
     this.getWatcher(workspaceFolder)?.onFileChange(listener);
   }
 
-  async getWatchedFiles(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): Promise<TextDocument[] | WatchedFilesError> {
+  async getWatchedFiles(workspaceFolder: Pick<WorkspaceFolder, 'uri'>): Promise<CopilotTextDocument[]> {
     return (await this.getWatcher(workspaceFolder)?.getWatchedFiles()) ?? [];
   }
 

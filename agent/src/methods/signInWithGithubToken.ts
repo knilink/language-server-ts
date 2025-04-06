@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
 import { AuthStatus } from '../../../lib/src/auth/types.ts';
 
 import { Context } from '../../../lib/src/context.ts';
@@ -14,7 +13,7 @@ const Params = Type.Object({
 
 async function handleSignInWithGithubTokenChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[AuthStatus, null]> {
   const githubToken = params.githubToken;

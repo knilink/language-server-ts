@@ -15,6 +15,10 @@ class NotAuthManager extends AuthManager {
     );
   }
 
+  getAuthRecord() {
+    return Promise.resolve(undefined);
+  }
+
   async checkAndUpdateStatus(
     _ctx: Context,
     options: { localChecksOnly?: boolean; forceRefresh?: boolean }

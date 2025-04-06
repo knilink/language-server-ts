@@ -3,13 +3,13 @@ import { InitializedNotifier } from '../editorFeatures/initializedNotifier.ts';
 import { AgentConfigProvider } from '../config.ts';
 import { CopilotCapabilitiesProvider } from '../editorFeatures/capabilities.ts';
 import { getConfig, ConfigKey, ConfigValueType } from '../../../lib/src/config.ts';
-import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { Logger } from '../../../lib/src/logger.ts';
 import { HelixFetcher } from '../../../lib/src/network/helix.ts';
 import { EditorFetcher } from '../editorFeatures/fetcher.ts';
 import { FallbackFetcher } from './fallbackFetcher.ts';
 import { Fetcher, Request } from '../../../lib/src/networking.ts';
 
-const logger = new Logger(LogLevel.INFO, 'fetcher');
+const logger = new Logger('fetcher');
 
 class AgentDelegatingFetcher extends Fetcher {
   currentFetcher: Fetcher;

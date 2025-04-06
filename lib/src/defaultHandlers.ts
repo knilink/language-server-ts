@@ -17,15 +17,15 @@ function handleException(ctx: Context, err: unknown, origin: string, _logger = l
     if (err instanceof Error) {
       const error: any = err;
       if (isOomError(error)) {
-        ctx.get(StatusReporter).setError('Out of memory');
+        ctx.get(StatusReporter).setWarning('Out of memory');
       } else if (error.code === 'EMFILE' || error.code === 'ENFILE') {
-        ctx.get(StatusReporter).setError('Too many open files');
+        ctx.get(StatusReporter).setWarning('Too many open files');
       } else if (error.code === 'CopilotPromptLoadFailure') {
-        ctx.get(StatusReporter).setError('Corrupted Copilot installation');
+        ctx.get(StatusReporter).setWarning('Corrupted Copilot installation');
       } else if (error.code?.startsWith('CopilotPromptWorkerExit')) {
-        ctx.get(StatusReporter).setError('Worker unexpectedly exited');
+        ctx.get(StatusReporter).setWarning('Worker unexpectedly exited');
       } else if (error.syscall === 'uv_cwd' && error.code === 'ENOENT') {
-        ctx.get(StatusReporter).setError('Current working directory does not exist');
+        ctx.get(StatusReporter).setWarning('Current working directory does not exist');
       }
     }
     _logger.exception(ctx, err, origin);
@@ -50,4 +50,4 @@ function registerDefaultHandlers(ctx: Context): void {
   });
 }
 
-export { registerDefaultHandlers };
+export { handleException, registerDefaultHandlers };

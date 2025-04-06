@@ -7,7 +7,7 @@ import { NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE, logger } from './constants.ts'
 import { TextDocumentManager } from '../textDocumentManager.ts';
 import { CopilotContentExclusion, type Rules } from './contentExclusions.ts';
 import { StatusReporter } from '../progress.ts';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { onCopilotToken } from '../auth/copilotTokenNotifier.ts';
 import { isSupportedUriScheme } from '../util/uri.ts';
 import { TelemetryData, telemetry } from '../telemetry.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
@@ -21,15 +21,19 @@ class CopilotContentExclusionManager {
   constructor(private ctx: Context) {
     this._contentExclusions = new CopilotContentExclusion(this.ctx);
     this.ctx.get(TextDocumentManager).onDidFocusTextDocument((e) => this.onDidChangeActiveTextEditor(e));
-    this.ctx.get(CopilotTokenNotifier).on('onCopilotToken', (token) => {
+    onCopilotToken(this.ctx, (token) => {
       this._featureEnabled = token?.envelope?.copilotignore_enabled ?? false;
       this._evaluateResultCache.clear();
       this._contentExclusions.refresh();
     });
   }
 
-  async onDidChangeActiveTextEditor(e: TextDocumentManager.DidFocusTextDocumentParams): Promise<void> {
-    if (!this._featureEnabled || !e) return;
+  async onDidChangeActiveTextEditor(e?: TextDocumentManager.DidFocusTextDocumentParams): Promise<void> {
+    if (!this._featureEnabled) return;
+    if (!e) {
+      this.updateStatusIcon(false);
+      return;
+    }
     const result = await this.ctx.get(TextDocumentManager).getTextDocumentWithValidation(e.document);
     const isBlocked = result.status === 'invalid';
     const reason = result.status === 'invalid' ? result.reason : undefined;
@@ -45,16 +49,18 @@ class CopilotContentExclusionManager {
     fileContent: string,
     shouldUpdateStatusBar?: 'UPDATE'
   ): Promise<DocumentEvaluateResult> {
-    if (!this._featureEnabled || !isSupportedUriScheme(uri)) {
+    const isSupported = isSupportedUriScheme(uri);
+    if (!isSupported) {
+      logger.debug(this.ctx, `Unsupported file URI <${uri}>`);
+    }
+    if (!this._featureEnabled || !isSupported) {
       return { isBlocked: false };
     }
 
     const events: { key: string; result: DocumentEvaluateResult; elapsedMs: number }[] = [];
     const track = async (key: string, ev: CopilotContentExclusion): Promise<DocumentEvaluateResult> => {
       const startTimeMs = Date.now();
-      logger.debug(this.ctx, key, `Attempting to evaluate policy for <${uri}>`);
       const result = await ev.evaluate(uri, fileContent);
-      logger.debug(this.ctx, key, `Evaluated policy for <${uri}>`, { result });
       const endTimeMs = Date.now();
       events.push({ key, result, elapsedMs: endTimeMs - startTimeMs });
       return result;
@@ -67,7 +73,7 @@ class CopilotContentExclusionManager {
     try {
       for (let event of events) this._trackEvaluationResult(event.key, uri, event.result, event.elapsedMs);
     } catch (e) {
-      console.log('Error tracking telemetry', e);
+      logger.error(this.ctx, 'Error tracking telemetry', e);
     }
     if (shouldUpdateStatusBar === 'UPDATE') {
       this.updateStatusIcon(result.isBlocked, result.message);
@@ -81,7 +87,7 @@ class CopilotContentExclusionManager {
       if (isBlocked) {
         statusReporter.setInactive(reason ?? 'Copilot is disabled');
       } else {
-        statusReporter.forceNormal();
+        statusReporter.clearInactive();
       }
     }
   }

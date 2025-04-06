@@ -19,8 +19,6 @@ function weighElidableList(elidableDocs: ElidableText.Chunk[], weightStrategy: W
       case 'inversePositional':
         weight = 1 / (elidableDocs.length - index);
         break;
-      default:
-        throw new Error('Unknown weight strategy: ' + weightStrategy);
     }
     if (Array.isArray(elidableDoc) && elidableDoc.length === 2) {
       weight *= elidableDoc[1];

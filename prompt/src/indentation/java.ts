@@ -39,7 +39,7 @@ const _javaLabelRules: { [key: string]: RegExp } = {
   comment_multi: /^\/\*[^*]/,
   comment_single: /^\/\//,
   annotation: /^@/,
-  opener: /^[\[({]/,
+  opener: /^[[({]/,
   closer: /^[\])}]/,
 };
 

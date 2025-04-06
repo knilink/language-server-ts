@@ -1,10 +1,11 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { Context } from '../../../../lib/src/context.ts';
-import { type CancellationToken } from '../../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { Context } from '../../../../lib/src/context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 
 import { NotificationSender } from '../../../../lib/src/notificationSender.ts';
 import { LogTarget, LogLevel } from '../../../../lib/src/logger.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({});
 
@@ -23,7 +24,7 @@ async function handleTriggerShowMessageChecked(
   }
 
   async function sendNotification(level: LogLevel, message: string, payload?: unknown): Promise<void> {
-    logger.logIt(ctx, level, '[triggerShowMessage]', `${message} (${payload})`);
+    return logger.logIt(ctx, level, 'triggerShowMessage', `${message} (${String(payload)})`);
   }
   return ['OK', null];
 }

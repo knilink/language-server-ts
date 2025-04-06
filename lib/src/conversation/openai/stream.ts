@@ -14,7 +14,7 @@ interface CompletionDetails {
   requestId: OpenAIRequestId;
 }
 
-const streamChoicesLogger = new Logger(LogLevel.INFO, 'streamMessages');
+const streamChoicesLogger = new Logger('streamMessages');
 
 function prepareChatCompletionForReturn(ctx: Context, c: CompletionDetails, telemetryData: TelemetryData) {
   let messageContent = c.solution.text.join('');

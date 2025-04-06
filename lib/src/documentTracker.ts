@@ -1,13 +1,12 @@
-import { type URI } from 'vscode-uri';
+import type { Context } from './context.ts';
+import type { CopilotTextDocument } from './textDocument.ts';
 
-import { type Context } from './context.ts';
-import { TextDocumentManager } from './textDocumentManager.ts';
 import { LRUCacheMap } from './common/cache.ts';
-import { TextDocument } from './textDocument.ts';
+import { TextDocumentManager } from './textDocumentManager.ts';
 
 const accessTimes = new LRUCacheMap<string, number>();
 
-function sortByAccessTimes(docs: TextDocument[]): TextDocument[] {
+function sortByAccessTimes(docs: CopilotTextDocument[]): CopilotTextDocument[] {
   return [...docs].sort((a, b) => {
     const aAccessTime = accessTimes.get(a.uri.toString()) ?? 0;
     const bAccessTime = accessTimes.get(b.uri.toString()) ?? 0;

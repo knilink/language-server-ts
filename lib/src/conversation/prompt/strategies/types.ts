@@ -29,7 +29,11 @@ export type MetaPromptOptions = {
   modelConfiguration: Model.Configuration;
 };
 
-export type PromptOptions = SkillPromptOptions | MetaPromptOptions;
+export type PromptOptions = (SkillPromptOptions | MetaPromptOptions) & {
+  // TODO not sure
+  // ./conversation/prompt/conversationPromptEngine.ts
+  userSelectedModelName?: string;
+};
 
 export interface IPromptStrategy {
   // elidableContent(

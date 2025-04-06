@@ -1,102 +1,170 @@
+import * as fs from 'node:fs';
+import { platform } from 'node:os';
+import * as path from 'node:path';
+import { env } from 'node:process';
 import SHA256 from 'crypto-js/sha256.js';
-import { LRUCacheMap } from '../../../../common/cache.ts';
-import type { DocumentChunk, ChunkId } from './IndexingTypes.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
-type FilePath = string;
+import { URI } from 'vscode-uri';
 
-// const hash = (content: string) => SHA256(content).toString();
-const hash = (content: string) => SHA256(content).toString(); // .slice(0, 6);
+import { Logger } from '../../../../logger.ts';
+import { getFsPath } from '../../../../util/uri.ts';
 
-type HashString = string;
+import type { Context } from '../../../../context.ts';
+import type { Chunk, DocumentChunk } from './IndexingTypes.ts';
+
+function getXdgCachePath(): string {
+  if (env.XDG_CACHE_HOME && path.isAbsolute(env.XDG_CACHE_HOME)) {
+    return env.XDG_CACHE_HOME + '/github-copilot';
+  }
+  if (platform() === 'win32') {
+    return env.USERPROFILE + '\\AppData\\Local\\Temp\\github-copilot';
+  }
+  return env.HOME + '/.cache/github-copilot';
+}
 
 const MAX_CHUNK_COUNT = 50_000;
 
+const logger = new Logger('workspaceChunks');
+
+interface Cache {
+  documentChunks: DocumentChunk[];
+  hash: string;
+  version: string;
+}
+
 class WorkspaceChunks {
-  readonly _chunks = new LRUCacheMap<ChunkId, DocumentChunk>(MAX_CHUNK_COUNT);
-  readonly fileChunksIds = new LRUCacheMap<FilePath, ChunkId[]>(5000);
-  readonly reverseChunks = new LRUCacheMap<HashString, ChunkId>(MAX_CHUNK_COUNT);
-  _totalChunkCount = 0;
-
-  get fileCount(): number {
-    return this.fileChunksIds.size;
+  static CACHE_VERSION = '1.0.0';
+  readonly pathHashLength = 8;
+  readonly cacheRootPath: string;
+  constructor(
+    readonly ctx: Context,
+    workspaceFolder: string
+  ) {
+    const workspaceName = path.basename(workspaceFolder);
+    const workspaceHash = SHA256(workspaceFolder).toString().substring(0, this.pathHashLength);
+    this.cacheRootPath = path.join(getXdgCachePath(), 'project-context', `${workspaceName}.${workspaceHash}`);
   }
 
-  get chunks(): LRUCacheMap<ChunkId, DocumentChunk> {
-    return this._chunks;
+  getChunksCacheFile(codeFilePath: string) {
+    const key = SHA256(codeFilePath).toString().substring(0, this.pathHashLength);
+    const fileName = path.basename(codeFilePath);
+    return path.join(this.cacheRootPath, `${fileName}.${key}.json`);
   }
 
-  get chunkCount(): number {
-    return this.chunks.size;
-  }
-
-  get totalChunkCount(): number {
-    return this._totalChunkCount;
-  }
-
-  getChunk(id: ChunkId): DocumentChunk | undefined {
-    return this.chunks.get(id);
-  }
-
-  chunksForFile({ uri }: { uri: DocumentUri }): DocumentChunk[] {
-    const ids = this.fileChunksIds.get(uri) || [];
-    return ids.length ? ids.map((id) => this.chunks.get(id)).filter((chunk) => chunk !== undefined) : [];
-  }
-
-  chunkId(chunk: string): ChunkId | undefined {
-    const key = hash(chunk);
-    return this.reverseChunks.get(key);
-  }
-
-  addChunks(chunks: DocumentChunk[]): void {
-    for (let chunk of chunks) {
-      this.chunks.set(chunk.id, chunk);
-      const reverseKey = hash(chunk.chunk);
-      this.reverseChunks.set(reverseKey, chunk.id);
+  async getChunksCacheFromCacheFile(cacheFile: string): Promise<Cache | undefined> {
+    const raw = await fs.promises.readFile(cacheFile, { encoding: 'utf8' }).catch(() => {});
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {}
     }
   }
 
-  addChunksForFile({ uri }: { uri: DocumentUri }, chunks: DocumentChunk[]): void {
-    let ids = chunks.map((chunk) => chunk.id);
-    this.fileChunksIds.set(uri, ids);
-    this.addChunks(chunks);
-    this._totalChunkCount += chunks.length;
+  async getChunksCache(codeFilePathUri: string): Promise<Cache | undefined> {
+    const cacheFile = this.getChunksCacheFile(codeFilePathUri);
+    return await this.getChunksCacheFromCacheFile(cacheFile);
   }
 
-  deleteChunks(ids: ChunkId[]): void {
-    for (let id of ids) {
-      let chunk = this.chunks.get(id);
-      if (chunk !== undefined) {
-        this.chunks.delete(id);
-        let reverseKey = hash(chunk.chunk);
-        this.reverseChunks.delete(reverseKey);
-      }
+  async setChunksCache(codeFilePathUri: string, cache: Cache | undefined) {
+    const cacheFile = this.getChunksCacheFile(codeFilePathUri);
+    try {
+      await fs.promises.mkdir(path.dirname(cacheFile), { recursive: true });
+      await fs.promises.writeFile(cacheFile, JSON.stringify(cache), { encoding: 'utf8' });
+    } catch (e) {
+      logger.debug(this.ctx, 'Failed to set chunks cache:', e);
     }
   }
 
-  deleteSubfolderChunks({ uri }: { uri: DocumentUri }): ChunkId[] {
-    let subfolderFiles = [...this.fileChunksIds.keys()].filter((key) => key.startsWith(uri));
-    let chunksIds: ChunkId[] = [];
-    for (let file of subfolderFiles) {
-      let fileChunkIds = this.fileChunksIds.get(file) || [];
-      chunksIds.push(...fileChunkIds);
-      this.fileChunksIds.delete(file);
-    }
-    this.deleteChunks(chunksIds);
-    return chunksIds;
+  async removeChunksCache(codeFilePathUri: string): Promise<void> {
+    let cacheFile = this.getChunksCacheFile(codeFilePathUri);
+    await fs.promises.rm(cacheFile).catch(() => {});
   }
 
-  deleteFileChunks({ uri }: { uri: DocumentUri }): ChunkId[] {
-    let chunkIds = this.fileChunksIds.get(uri) || [];
-    if (chunkIds.length > 0) {
-      this.deleteChunks(chunkIds);
-      this.fileChunksIds.delete(uri);
-    }
-    return chunkIds;
+  async enumerateChunksCacheFileNames(): Promise<string[]> {
+    return await fs.promises.readdir(this.cacheRootPath).catch(() => []);
   }
-  clear() {
-    this.chunks.clear();
-    this.reverseChunks.clear();
-    this.fileChunksIds.clear();
+
+  async getFilesCount(): Promise<number> {
+    return (await this.enumerateChunksCacheFileNames()).length;
+  }
+
+  async getChunksCount(): Promise<number> {
+    let count = 0;
+    for await (const _ of this.getChunks()) count++;
+    return count++; // TODO: count++ ???
+  }
+
+  async *getChunksForFile({ uri }: { uri: string }) {
+    let cache = await this.getChunksCache(uri);
+
+    if (cache !== undefined) {
+      yield* cache.documentChunks;
+    }
+  }
+
+  async *getChunksFromCacheFile(cacheFile: string): AsyncGenerator<DocumentChunk> {
+    const cache = await this.getChunksCacheFromCacheFile(cacheFile);
+    yield* cache ? cache.documentChunks : [];
+  }
+
+  async *getChunks(arg?: { uri: string }): AsyncGenerator<DocumentChunk> {
+    if (arg !== undefined) {
+      yield* this.getChunksForFile(arg);
+    } else {
+      let cacheFiles = await this.enumerateChunksCacheFileNames();
+      for (let cacheFile of cacheFiles) yield* this.getChunksFromCacheFile(path.join(this.cacheRootPath, cacheFile));
+    }
+  }
+
+  async getFileHash(codeFilePathUri: string) {
+    let content = await fs.promises.readFile(URI.parse(codeFilePathUri).fsPath, { encoding: 'utf8' });
+    return SHA256(content).toString();
+  }
+
+  async addChunks({ uri }: { uri: string }, chunks: DocumentChunk[]) {
+    let fileHash = await this.getFileHash(uri);
+    let existingChunks = await this.getChunksCache(uri);
+    if (
+      existingChunks !== undefined &&
+      existingChunks.hash === fileHash &&
+      existingChunks.version === WorkspaceChunks.CACHE_VERSION
+    ) {
+      return;
+    }
+    let cache = { version: WorkspaceChunks.CACHE_VERSION, filePath: uri, hash: fileHash, documentChunks: chunks };
+    await this.setChunksCache(uri, cache);
+  }
+
+  async deleteChunksForSource(codeFilePath: string) {
+    let codeFilePathUri = URI.file(codeFilePath).toString();
+    let cache = await this.getChunksCache(codeFilePathUri);
+    if (cache === undefined) {
+      return [];
+    }
+    await this.removeChunksCache(codeFilePathUri);
+    return cache.documentChunks;
+  }
+
+  async deleteChunks({ uri }: { uri: string }): Promise<DocumentChunk[]> {
+    const codeFilePath = getFsPath(uri);
+    if (!codeFilePath) {
+      return [];
+    }
+    let files;
+    try {
+      files = await fs.promises.readdir(codeFilePath);
+    } catch {
+      return await this.deleteChunksForSource(codeFilePath);
+    }
+    const chunks: DocumentChunk[] = [];
+    for (const file of files) {
+      const subUri = URI.file(path.join(codeFilePath, file)).toString();
+      chunks.push(...(await this.deleteChunks({ uri: subUri })));
+    }
+    return chunks;
+  }
+
+  async clear() {
+    await fs.promises.rm(this.cacheRootPath, { recursive: true }).catch(() => {});
   }
 }
 

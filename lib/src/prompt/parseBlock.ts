@@ -1,14 +1,18 @@
-import { Context } from '../context.ts';
+import type { Context } from '../context.ts';
+import type { Position } from 'vscode-languageserver-types';
+import type { LanguageId } from '../../../prompt/src/types.ts';
+
 import { promptLibProxy } from './promptLibProxy.ts';
-import { LocationFactory, TextDocument } from '../textDocument.ts';
-import { Position } from 'vscode-languageserver-types';
-import { LanguageId } from '../../../prompt/src/types.ts';
+import { Logger } from '../logger.ts';
+import { LocationFactory, type CopilotTextDocument } from '../textDocument.ts';
 
 type IndentationContext = {
   prev?: number;
   current: number;
   next?: number;
 };
+
+const parseBlockLogger = new Logger('parseBlock');
 
 const continuations = ['\\{', '\\}', '\\[', '\\]', '\\(', '\\)'].concat(
   ['then', 'else', 'elseif', 'elif', 'catch', 'finally', 'fi', 'done', 'end', 'loop', 'until', 'where', 'when'].map(
@@ -20,11 +24,56 @@ const continuationRegex = new RegExp(`^(${continuations.join('|')})`);
 
 let OfferNextLineCompletion: boolean = false;
 
-function isEmptyBlockStart(doc: TextDocument, position: Position) {
+function isEmptyBlockStart(doc: CopilotTextDocument, position: Position) {
   return promptLibProxy.isEmptyBlockStart(doc.languageId, doc.getText(), doc.offsetAt(position));
 }
 
-function parsingBlockFinished(ctx: Context, doc: TextDocument, position: Position) {
+function parsingBlockFinishedExtended(
+  ctx: Context,
+  doc: CopilotTextDocument,
+  position: Position,
+  minLinesInBlock: number,
+  maxLinesInBlock: number,
+  maxLines: number
+) {
+  const prefix = doc.getText(LocationFactory.range(LocationFactory.position(0, 0), position));
+  const offset = doc.offsetAt(position);
+  const languageId = doc.languageId;
+  let appendToPrefix = '';
+  return async (completion: string) => {
+    let blockEndOffset = await promptLibProxy.isBlockBodyFinished(
+      languageId,
+      prefix + appendToPrefix,
+      completion.substring(appendToPrefix.length),
+      offset + appendToPrefix.length
+    );
+
+    if (blockEndOffset) {
+      blockEndOffset += appendToPrefix.length;
+    }
+
+    let completionLineCount = completion.split('\n').length;
+    if (blockEndOffset) {
+      let suggestedCompletion = completion.substring(0, blockEndOffset);
+
+      let suggestedLineCount = suggestedCompletion.split('\n').length;
+
+      parseBlockLogger.debug(
+        ctx,
+        `Current subset of completion finishes a block with suggestedLineCount: ${suggestedLineCount}, completionLineCount: ${completionLineCount}, suggestedCompletion: ${JSON.stringify(suggestedCompletion)}, whole completion: ${JSON.stringify(completion)}`
+      );
+      if (suggestedLineCount >= minLinesInBlock) {
+        return blockEndOffset;
+      }
+      appendToPrefix = completion;
+    }
+    if (completionLineCount >= Math.max(maxLines, maxLinesInBlock)) {
+      return completion.split('\n').slice(0, maxLines).join('\n').length;
+    }
+  };
+}
+
+function parsingBlockFinished(ctx: Context, doc: CopilotTextDocument, position: Position) {
   const prefix = doc.getText(LocationFactory.range(LocationFactory.position(0, 0), position));
   const offset = doc.offsetAt(position);
   const languageId = doc.languageId;
@@ -34,7 +83,7 @@ function parsingBlockFinished(ctx: Context, doc: TextDocument, position: Positio
 
 async function getNodeStart(
   ctx: Context,
-  doc: TextDocument,
+  doc: CopilotTextDocument,
   position: Position,
   completion: string
 ): Promise<Position | undefined> {
@@ -53,7 +102,7 @@ function indentationOfLine(line: string): number | undefined {
   return undefined;
 }
 
-function contextIndentation(doc: TextDocument, position: Position): IndentationContext {
+function contextIndentation(doc: CopilotTextDocument, position: Position): IndentationContext {
   const source = doc.getText();
   const offset = doc.offsetAt(position);
   return contextIndentationFromText(source, offset, doc.languageId);
@@ -158,14 +207,11 @@ function indentationBlockFinished(
 }
 
 export {
-  isEmptyBlockStart,
-  parsingBlockFinished,
-  getNodeStart,
   contextIndentation,
   contextIndentationFromText,
-  completionCutOrContinue,
+  getNodeStart,
   indentationBlockFinished,
-  continuations,
-  continuationRegex,
-  OfferNextLineCompletion,
+  isEmptyBlockStart,
+  parsingBlockFinished,
+  parsingBlockFinishedExtended,
 };

@@ -1,6 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-
-import { type CancellationToken } from '../../cancellation.ts';
 import { type Context } from '../../../../lib/src/context.ts';
 
 import { telemetryAuthNotifyDismissed } from '../../../../lib/src/telemetry/auth.ts';
@@ -10,10 +8,10 @@ const Params = Type.Object({});
 
 async function handleTelemetryAuthNotifyDismissedChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
-  await telemetryAuthNotifyDismissed(ctx);
+  telemetryAuthNotifyDismissed(ctx);
   return ['OK', null];
 }
 

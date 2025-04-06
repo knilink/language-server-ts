@@ -4,7 +4,7 @@ import { PreconditionsCheck, type PreconditionsResultEvent } from '../../../lib/
 import { Service } from '../service.ts';
 
 export class PreconditionsNotifier {
-  readonly notificationType = new NotificationType<PreconditionsResultEvent>('conversation/preconditionsNotification');
+  readonly notificationEndpoint = 'conversation/preconditionsNotification';
 
   constructor(readonly ctx: Context) {
     this.ctx.get(PreconditionsCheck).onChange((event: PreconditionsResultEvent) => {
@@ -12,7 +12,7 @@ export class PreconditionsNotifier {
     });
   }
 
-  private sendNotification(result: PreconditionsResultEvent): void {
-    this.ctx.get(Service).connection.sendNotification(this.notificationType, result);
+  async sendNotification(result: PreconditionsResultEvent): Promise<void> {
+    return this.ctx.get(Service).connection.sendNotification(new NotificationType(this.notificationEndpoint), result);
   }
 }

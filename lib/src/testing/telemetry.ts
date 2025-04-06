@@ -1,9 +1,10 @@
 import { IReporter, TelemetryProperties, TelemetryMeasurements } from '../types.ts';
-// import { } from '../telemetry/setupTelemetryReporters';
-// import { } from '../networkConfiguration';
-// import { } from './telemetrySpy';
-// import { } from '../telemetry';
 import { PromiseQueue } from '../util/promiseQueue.ts';
+// import {} from '../auth/copilotTokenNotifier.ts';
+// import {} from '../networkConfiguration.ts';
+// import {} from '../telemetry/setupTelemetryReporters.ts';
+// import {} from '../telemetry.ts';
+// import {} from '../testing/telemetrySpy.ts';
 
 class TestPromiseQueue extends PromiseQueue {
   async awaitPromises(): Promise<void> {

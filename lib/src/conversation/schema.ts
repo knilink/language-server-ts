@@ -34,4 +34,6 @@ type Reference = Static<typeof ReferenceSchema>;
 
 const ConversationSourceSchema = Type.Union([Type.Literal('panel'), Type.Literal('inline')]);
 
-export { ConversationSourceSchema, DocumentSchema, ReferenceSchema, FileReference, Reference };
+export { ConversationSourceSchema, DocumentSchema, FileReferenceSchema, ReferenceSchema };
+
+export type { FileReference, Reference };

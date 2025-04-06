@@ -1,61 +1,19 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Context } from '../../../lib/src/context.ts';
+import type { Static } from '@sinclair/typebox';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
-import { logger } from '../service.ts';
+import { TestingOptions } from './testingOptions.ts';
 import { AgentConfigProvider } from '../config.ts';
 import { CopilotCapabilitiesProvider } from '../editorFeatures/capabilities.ts';
+import { SchemaValidationError } from '../schemaValidation.ts';
+import { logger } from '../service.ts';
+import { CopilotTokenManager } from '../../../lib/src/auth/copilotTokenManager.ts';
 import { ConfigKey, getConfigKeyRecursively } from '../../../lib/src/config.ts';
+import { HttpSettings, getHttpSettingsFromEnvironment, proxySettingFromUrl } from '../../../lib/src/network/proxy.ts';
+import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
 import { Fetcher } from '../../../lib/src/networking.ts';
 import { setupTelemetryReporters } from '../../../lib/src/telemetry/setupTelemetryReporters.ts';
-import { getHttpSettingsFromEnvironment, proxySettingFromUrl, HttpSettings } from '../../../lib/src/network/proxy.ts';
-import { TestingOptions } from './testingOptions.ts';
-import { SchemaValidationError } from '../schemaValidation.ts';
-import { AgentInstallationManager } from '../installationManager.ts';
-
-const NetworkProxy = Type.Object({
-  host: Type.String(),
-  port: Type.Number(),
-  username: Type.Optional(Type.String()),
-  password: Type.Optional(Type.String()),
-  rejectUnauthorized: Type.Optional(Type.Boolean()),
-});
-const GitHubEnterpriseSettings = Type.Object({ uri: Type.Optional(Type.String()) });
-const LegacyEditorConfigurationSettings = Type.Object({
-  showEditorCompletions: Type.Optional(Type.Boolean()),
-  enableAutoCompletions: Type.Optional(Type.Boolean()),
-  delayCompletions: Type.Optional(Type.Boolean()),
-  filterCompletions: Type.Optional(Type.Boolean()),
-});
-
-const CanonicalEditorConfigurationSettings = Type.Object({
-  github: Type.Optional(Type.Object({ copilot: Type.Optional(Type.Object({})) })),
-  'github-enterprise': Type.Optional(GitHubEnterpriseSettings),
-  http: Type.Optional(HttpSettings),
-  telemetry: Type.Optional(Type.Object({ telemetryLevel: Type.Optional(Type.String()) })),
-});
-
-const externalSections = Object.keys(CanonicalEditorConfigurationSettings.properties).filter(
-  (value) => value !== 'github'
-);
-
-const EditorConfigurationSettings = Type.Intersect([
-  CanonicalEditorConfigurationSettings,
-  LegacyEditorConfigurationSettings,
-]);
-
-const AuthProvider = Type.Object({ url: Type.Optional(Type.String()) });
-const Params = Type.Object({
-  settings: Type.Optional(Type.Union([Type.Object({}), Type.Array(Type.Unknown(), { maxItems: 0 })])),
-  networkProxy: Type.Optional(NetworkProxy),
-  authProvider: Type.Optional(AuthProvider),
-  options: Type.Optional(TestingOptions),
-});
-type ParamsType = Static<typeof Params>;
-
-const typeCheck = TypeCompiler.Compile(Params);
-const typeCheckEditorConfiguration = TypeCompiler.Compile(EditorConfigurationSettings);
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { Type } from '@sinclair/typebox';
 
 async function notifyChangeConfiguration(ctx: Context, params: ParamsType): Promise<void> {
   if (!typeCheck.Check(params)) {
@@ -166,13 +124,59 @@ function applyNetworkProxyConfiguration(ctx: Context, proxySettings?: Static<typ
   fetcher.rejectUnauthorized = proxySettings.rejectUnauthorized ?? true;
 }
 
-async function initializePostConfigurationDependencies(ctx: Context, settings: ParamsType['settings']): Promise<void> {
+async function initializePostConfigurationDependencies(ctx: Context, settings?: ParamsType['settings']): Promise<void> {
   if (!ctx.get(CopilotCapabilitiesProvider).getCapabilities().redirectedTelemetry) {
     const shouldBeEnabled = ((settings as any)?.telemetry?.telemetryLevel ?? 'all') === 'all'; // MARK
     await setupTelemetryReporters(ctx, 'agent', shouldBeEnabled);
   }
-  await new AgentInstallationManager().startup(ctx);
+  await ctx
+    .get(CopilotTokenManager)
+    .getToken()
+    .catch(() => {});
 }
+
+const NetworkProxy = Type.Object({
+  host: Type.String(),
+  port: Type.Number(),
+  username: Type.Optional(Type.String()),
+  password: Type.Optional(Type.String()),
+  rejectUnauthorized: Type.Optional(Type.Boolean()),
+});
+const GitHubEnterpriseSettings = Type.Object({ uri: Type.Optional(Type.String()) });
+const LegacyEditorConfigurationSettings = Type.Object({
+  showEditorCompletions: Type.Optional(Type.Boolean()),
+  enableAutoCompletions: Type.Optional(Type.Boolean()),
+  delayCompletions: Type.Optional(Type.Boolean()),
+  filterCompletions: Type.Optional(Type.Boolean()),
+});
+
+const CanonicalEditorConfigurationSettings = Type.Object({
+  github: Type.Optional(Type.Object({ copilot: Type.Optional(Type.Object({})) })),
+  'github-enterprise': Type.Optional(GitHubEnterpriseSettings),
+  http: Type.Optional(HttpSettings),
+  telemetry: Type.Optional(Type.Object({ telemetryLevel: Type.Optional(Type.String()) })),
+});
+
+const externalSections = Object.keys(CanonicalEditorConfigurationSettings.properties).filter(
+  (value) => value !== 'github'
+);
+
+const EditorConfigurationSettings = Type.Intersect([
+  CanonicalEditorConfigurationSettings,
+  LegacyEditorConfigurationSettings,
+]);
+
+const AuthProvider = Type.Object({ url: Type.Optional(Type.String()) });
+const Params = Type.Object({
+  settings: Type.Optional(Type.Union([Type.Object({}), Type.Array(Type.Unknown(), { maxItems: 0 })])),
+  networkProxy: Type.Optional(NetworkProxy),
+  authProvider: Type.Optional(AuthProvider),
+  options: Type.Optional(TestingOptions),
+});
+type ParamsType = Static<typeof Params>;
+
+const typeCheck = TypeCompiler.Compile(Params);
+const typeCheckEditorConfiguration = TypeCompiler.Compile(EditorConfigurationSettings);
 
 export {
   notifyChangeConfiguration,

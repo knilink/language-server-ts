@@ -1,13 +1,16 @@
-import { Position, Range } from 'vscode-languageserver-types';
-import { URI } from 'vscode-uri';
-import { Completion, CompletionResultType } from '../types.ts';
-import { Context } from '../context.ts';
-import { postRejectionTasks, postInsertionTasks } from '../postInsertion.ts';
+import type { Position } from 'vscode-languageserver-types';
+import type { Completion } from '../types.ts';
+import { CompletionResultType } from '../types.ts';
+import type { Context } from '../context.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
+import type { TelemetryWithExp } from '../telemetry.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+
 import { telemetryShown } from './telemetry.ts';
-import { Logger, LogLevel } from '../logger.ts';
-import { TextDocument } from '../textDocument.ts';
-import { TelemetryWithExp } from '../telemetry.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { Logger } from '../logger.ts';
+import { postInsertionTasks, postRejectionTasks } from '../postInsertion.ts';
+import { computePartialLength } from '../suggestions/partialSuggestions.ts';
+import type {} from './ghostText.ts';
 
 type Rejection = {
   completionText: string;
@@ -15,7 +18,7 @@ type Rejection = {
   offset: number;
 };
 
-const ghostTextLogger = new Logger(LogLevel.INFO, 'ghostText');
+const ghostTextLogger = new Logger('ghostText');
 
 function computeRejectedCompletions(last: LastGhostText): Rejection[] {
   let rejectedCompletions: Rejection[] = [];
@@ -51,7 +54,7 @@ function rejectLastShown(ctx: Context, offset?: number): void {
 
 function setLastShown(
   ctx: Context,
-  document: TextDocument,
+  document: CopilotTextDocument,
   position: Position,
   resultType: CompletionResultType
 ): number | undefined {
@@ -64,7 +67,7 @@ function setLastShown(
       last.position.character === position.character &&
       last.uri.toString() === document.uri.toString()
     ) &&
-    resultType !== CompletionResultType.UserTyping
+    resultType !== CompletionResultType.TypingAsSuggested
   ) {
     rejectLastShown(ctx, document.offsetAt(last.position));
   }
@@ -85,23 +88,23 @@ function handleGhostTextShown(ctx: Context, cmp: Completion): void {
     last.shownCompletions.push(cmp);
   }
   if (cmp.displayText) {
-    const fromCache = cmp.resultType !== CompletionResultType.New;
+    const fromCache = cmp.resultType !== CompletionResultType.Network;
     ghostTextLogger.debug(
       ctx,
       `[${cmp.telemetry.properties.headerRequestId as string}] shown choiceIndex: ${cmp.telemetry.properties.choiceIndex}, fromCache ${fromCache}`
     );
     cmp.telemetry.measurements.compCharLen = cmp.displayText.length;
-    telemetryShown(ctx, 'ghostText', cmp.telemetry, fromCache);
+    telemetryShown(ctx, 'ghostText', cmp);
   }
 }
 
-async function handleGhostTextPostInsert(ctx: Context, cmp: Completion): Promise<void> {
+function handleGhostTextPostInsert(ctx: Context, cmp: Completion): void {
   const last = ctx.get(LastGhostText);
   last.resetState();
   ghostTextLogger.debug(ctx, 'Ghost text post insert');
 
   last.resetPartialAcceptanceState();
-  await postInsertionTasks(
+  return postInsertionTasks(
     ctx,
     'ghostText',
     cmp.displayText,
@@ -111,26 +114,26 @@ async function handleGhostTextPostInsert(ctx: Context, cmp: Completion): Promise
     last.partiallyAcceptedLength
       ? { compType: 'partial', acceptedLength: cmp.displayText.length }
       : { compType: 'full' },
-    cmp.range.start
+    cmp.range.start,
+    cmp.copilotAnnotations
   );
 }
 
-function computePartialLength(cmp: Completion, acceptedLength: number): number {
-  return cmp.displayText !== cmp.insertText && cmp.insertText.trim() === cmp.displayText
-    ? acceptedLength
-    : acceptedLength - cmp.range.end.character + cmp.range.start.character;
-}
-
-async function handlePartialGhostTextPostInsert(ctx: Context, cmp: Completion, acceptedLength: number): Promise<void> {
+function handlePartialGhostTextPostInsert(
+  ctx: Context,
+  cmp: Completion,
+  acceptedLength: number,
+  triggerKind: number = 0 // TODO enum
+): void {
   const last = ctx.get(LastGhostText);
   if (acceptedLength === cmp.insertText.length) {
     last.resetState();
   }
   ghostTextLogger.debug(ctx, 'Ghost text partial post insert');
-  const partialAcceptanceLength = computePartialLength(cmp, acceptedLength);
+  const partialAcceptanceLength = computePartialLength(cmp, acceptedLength, triggerKind);
   if (partialAcceptanceLength) {
     last.partiallyAcceptedLength = acceptedLength;
-    await postInsertionTasks(
+    return postInsertionTasks(
       ctx,
       'ghostText',
       cmp.displayText,
@@ -138,7 +141,8 @@ async function handlePartialGhostTextPostInsert(ctx: Context, cmp: Completion, a
       cmp.uri,
       cmp.telemetry,
       { compType: 'partial', acceptedLength: partialAcceptanceLength },
-      cmp.range.start
+      cmp.range.start,
+      cmp.copilotAnnotations
     );
   }
 }

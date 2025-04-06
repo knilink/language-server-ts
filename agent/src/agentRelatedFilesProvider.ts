@@ -1,14 +1,20 @@
-import { RelatedFilesProvider, EmptyRelatedFilesResponse } from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
-// import { } from '../../lib/src/prompt/similarFiles/neighborFiles';
+import type { Context } from '../../lib/src/context.ts';
+import type { TelemetryData, TelemetryWithExp } from '../../lib/src/telemetry.ts';
+import type { RawResponse, Trait, Entry } from '../../types/src/index.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { DocumentUri } from 'vscode-languageserver-types';
 
-import { type Context } from '../../lib/src/context.ts';
-import { Service } from './service.ts';
-import { relatedFilesLogger } from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
 import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
-import { telemetry, TelemetryData, TelemetryWithExp } from '../../lib/src/telemetry.ts';
-import { CopilotRelatedRequest, RawResponse, Trait, Entry } from '../../types/src/index.ts';
-import { type CancellationToken } from './cancellation.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { Service } from './service.ts';
+import {
+  EmptyRelatedFilesResponse,
+  RelatedFilesProvider,
+  relatedFilesLogger,
+} from '../../lib/src/prompt/similarFiles/relatedFiles.ts';
+import { telemetry } from '../../lib/src/telemetry.ts';
+import { CopilotRelatedRequest } from '../../types/src/related.ts';
+import type {} from '../../lib/src/prompt/similarFiles/neighborFiles.ts';
+import type {} from '../../types/src/index.ts';
 
 class AgentRelatedFilesProvider extends RelatedFilesProvider {
   static telemetrySent = false;
@@ -82,7 +88,11 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     try {
       const rawResponse = await this.service.connection.sendRequest(
         CopilotRelatedRequest.type,
-        { textDocument: { uri: docInfo.uri }, data: docInfo.data },
+        {
+          textDocument: { uri: docInfo.uri },
+          data: docInfo.data,
+          telemetry: { properties: telemetryData.properties, measurements: telemetryData.measurements },
+        },
         cancellationToken
       );
       return this.convert(rawResponse);
@@ -100,7 +110,7 @@ class AgentRelatedFilesProvider extends RelatedFilesProvider {
     try {
       if (!hasRelatedCapability || AgentRelatedFilesProvider.telemetrySent) return;
       AgentRelatedFilesProvider.telemetrySent = true;
-      await telemetry(ctx, 'copilotRelated.hasRelatedCapability', telemetryData);
+      telemetry(ctx, 'copilotRelated.hasRelatedCapability', telemetryData);
     } catch (e) {
       relatedFilesLogger.exception(ctx, e, 'copilotRelated');
     }

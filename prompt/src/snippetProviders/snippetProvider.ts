@@ -3,8 +3,7 @@ import type { SnippetContext, Snippet, SnippetsResult, SnippetsError } from '../
 
 import { Methods, WorkerProxy } from '../workerProxy.ts';
 
-// import { TIMEOUT_MS } from "../orchestrator.ts";
-const TIMEOUT_MS = 300; // MARK breaking circular deps, `TIMEOUT_MS` here is for generating message only
+import { ProviderError, TIMEOUT_MS } from '../orchestrator.ts';
 
 class ProviderTimeoutError extends Error {
   constructor(message: string) {
@@ -23,13 +22,10 @@ abstract class SnippetProvider {
 
   async getSnippets(context: SnippetContext, signal: AbortSignal): Promise<SnippetsResult> {
     if (signal.aborted) {
-      throw { error: new ProviderTimeoutError('provider aborted'), providerType: this.type };
+      throw new ProviderError(this.type, new ProviderTimeoutError('provider aborted'));
     }
     const handleAbort = () => {
-      throw {
-        error: new ProviderTimeoutError(`max runtime exceeded: ${TIMEOUT_MS} ms`),
-        providerType: this.type,
-      };
+      throw new ProviderError(this.type, new ProviderTimeoutError(`max runtime exceeded: ${TIMEOUT_MS} ms`));
     };
 
     signal.addEventListener('abort', handleAbort, { once: true });
@@ -41,7 +37,7 @@ abstract class SnippetProvider {
       const endTime = performance.now();
       return { snippets: snippets, providerType: this.type, runtime: endTime - startTime };
     } catch (error) {
-      throw { error, providerType: this.type };
+      throw new ProviderError(this.type, error);
     } finally {
       // EDITED
       signal.removeEventListener('abort', handleAbort);

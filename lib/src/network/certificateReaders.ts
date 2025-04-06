@@ -4,7 +4,7 @@ import * as tls from 'node:tls';
 import { Context } from '../context.ts';
 import { Logger, LogLevel } from '../logger.ts';
 
-const certLogger = new Logger(LogLevel.INFO, 'certificates');
+const certLogger = new Logger('certificates');
 
 abstract class RootCertificateReader {
   abstract getAllRootCAs(): Promise<readonly string[]>;
@@ -22,7 +22,7 @@ class ErrorHandlingCertificateReader extends RootCertificateReader {
     try {
       return await this.delegate.getAllRootCAs();
     } catch (ex: unknown) {
-      certLogger.warn(this.ctx, `Failed to read root certificates: ${ex}`);
+      certLogger.warn(this.ctx, 'Failed to read root certificates:', ex);
       return [];
     }
   }
@@ -165,9 +165,11 @@ async function readCertsFromFile(certFilePath: string): Promise<string[]> {
     const uniqueCerts = new Set<string>(nonEmptyCerts);
     return Array.from(uniqueCerts);
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+      return [];
+    }
+    throw err;
   }
-  return [];
 }
 
 export { RootCertificateReader, getRootCertificateReader };

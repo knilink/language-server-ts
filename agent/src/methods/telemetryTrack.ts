@@ -1,11 +1,11 @@
 import { Type, type Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 import { Payload } from '../../../lib/src/telemetry/failbot.ts';
 import { Context } from '../../../lib/src/context.ts';
 import { BuildInfo, EditorAndPluginInfo } from '../../../lib/src/config.ts';
 import { buildContext } from '../../../lib/src/telemetry/failbot.ts';
 import { telemetryException } from '../../../lib/src/telemetry.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { CancellationToken } from '../cancellation.ts';
 
 const Params = Type.Object({
   transaction: Type.Optional(Type.String()),
@@ -33,14 +33,10 @@ const Params = Type.Object({
   ),
 });
 
-const plugins: Record<
-  string,
-  {
-    app: 'copilot-intellij' | 'copilot-vim' | 'copilot-vs';
-    catalog_service: 'CopilotIntelliJ' | 'CopilotVim' | 'CopilotVS';
-  }
-> = {
+const plugins: Record<string, Pick<Payload, 'app' | 'catalog_service'>> = {
   'copilot-intellij': { app: 'copilot-intellij', catalog_service: 'CopilotIntelliJ' },
+  'copilot-xcode': { app: 'copilot-xcode', catalog_service: 'CopilotXcode' },
+  'copilot-eclipse': { app: 'copilot-eclipse', catalog_service: 'CopilotEclipse' },
   'copilot.vim': { app: 'copilot-vim', catalog_service: 'CopilotVim' },
   'copilot-vs': { app: 'copilot-vs', catalog_service: 'CopilotVS' },
 };
@@ -90,7 +86,7 @@ async function handleTelemetryExceptionChecked(
   const error = new AgentEditorError(params.stacktrace ?? 'N/A', pluginInfo.name);
   (error as any).stack = undefined;
 
-  await telemetryException(ctx, error, undefined, properties, failbotPayload);
+  telemetryException(ctx, error, undefined, properties, failbotPayload);
   return ['OK', null];
 }
 

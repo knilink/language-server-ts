@@ -16,11 +16,11 @@ type DocumentChunk = { id: ChunkId; chunk: Chunk; tokenCount: number; range: { s
 type ScoredDocumentChunk = DocumentChunk & { score: number };
 
 interface IRanking<T = DocumentChunk> {
-  initialize(chunks: T[]): Promise<void>;
+  initialize(chunks: AsyncIterable<T>): Promise<void>;
   get status(): RankingAlgorithmStatus;
-  addChunks(chunks: T[]): void;
-  deleteEmbeddings(chunkIds: ChunkId[]): void;
-  terminateRanking(): void;
+  addChunks(chunks: AsyncIterable<T>): Promise<void>;
+  deleteEmbeddings(chunks: T[]): Promise<void>;
+  terminateRanking(): Promise<void>;
   query(userQueries: string[]): Promise<T[]>;
 }
 

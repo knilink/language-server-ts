@@ -78,10 +78,6 @@ function makePrompt(
   return lines.map((line) => line.text).join(`\n`);
 }
 
-namespace ElidableText {
-  export type Chunk = string | ElidableText | CurrentDocument | [string | ElidableText | CurrentDocument, number];
-}
-
 class ElidableText {
   public lines: LineWithValueAndCost[];
 
@@ -122,6 +118,10 @@ class ElidableText {
     const linesCopy: LineWithValueAndCost[] = this.lines.map((line) => line.copy());
     return makePrompt(linesCopy, maxTokens, ellipsis, indentEllipses, strategy, tokenizer);
   }
+}
+
+namespace ElidableText {
+  export type Chunk = string | ElidableText | CurrentDocument | [string | ElidableText | CurrentDocument, number];
 }
 
 export { ElidableText };

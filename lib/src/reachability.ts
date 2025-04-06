@@ -19,6 +19,7 @@ function urlsToCheck(ctx: Context): URLToCheck[] {
   const apiUrl = ctx.get(NetworkConfiguration).getAPIUrl();
   const proxyUrl = ctx.get(NetworkConfiguration).getCompletionsUrl(ctx, '_ping');
   const capiUrl = ctx.get(NetworkConfiguration).getCAPIUrl(ctx, '_ping');
+  const telemetryUrl = ctx.get(NetworkConfiguration).getTelemetryUrl('_ping');
   function label(url: string) {
     return new URL(url).host;
   }
@@ -28,7 +29,7 @@ function urlsToCheck(ctx: Context): URLToCheck[] {
     { label: label(apiUrl), url: apiUrl },
     { label: label(proxyUrl), url: proxyUrl },
     { label: label(capiUrl), url: capiUrl },
-    { label: 'default.exp-tas.com', url: 'https://default.exp-tas.com/vscode/ab' },
+    { label: label(telemetryUrl), url: telemetryUrl },
   ];
 }
 
@@ -52,7 +53,7 @@ async function determineReachability(
       status,
     };
   } catch (err) {
-    return { message: (err as any).message, status: 'unreachable' };
+    return { message: String(err), status: 'unreachable' };
   }
 }
 

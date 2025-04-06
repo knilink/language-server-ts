@@ -1,26 +1,27 @@
-import { Type, type Static } from '@sinclair/typebox';
-import type { CancellationToken } from '../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
 import type { Context } from '../../../lib/src/context.ts';
+import type { AuthStatus } from '../../../lib/src/auth/types.ts';
 
-import { AuthManager } from '../../../lib/src/auth/manager.ts';
+import { ErrorCode } from '../rpc.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { AuthStatus } from '../../../lib/src/auth/types.ts';
+import { AuthManager } from '../../../lib/src/auth/manager.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({ options: Type.Optional(Type.Object({})) });
 
 async function handleSignInConfirmChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[AuthStatus, null] | [null, { code: number; message: string }]> {
-  const pendingSignIn = ctx.get(AuthManager).getPendingSignIn();
-  if (pendingSignIn === undefined) return [null, { code: -32600, message: 'No pending sign in' }];
+  const pendingSignIn = ctx.get(AuthManager).pendingSignIn?.status;
+  if (pendingSignIn === undefined) return [null, { code: ErrorCode.InvalidRequest, message: 'No pending sign in' }];
   try {
     return [await pendingSignIn, null];
   } catch (err: any) {
-    return [null, { code: 1001, message: err.toString() }];
+    return [null, { code: ErrorCode.DeviceFlowFailed, message: String(err) }];
   } finally {
-    ctx.get(AuthManager).setPendingSignIn(undefined);
+    ctx.get(AuthManager).pendingSignIn = undefined;
   }
 }
 

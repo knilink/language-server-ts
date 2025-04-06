@@ -1,20 +1,18 @@
-import { URI } from 'vscode-uri';
-import { dump as yamlDump } from 'js-yaml';
+import type { PromptType, SkillId, TurnId, Unknown } from '../types.ts';
+import type { Conversation, Turn } from './conversation.ts';
+import type { TurnContext } from './turnContext.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../context.ts';
+import type { SkillMap } from './skills/skillMap.ts';
+
 import { dedent } from 'ts-dedent';
-
-import { PromptType, SkillId, TurnId, Unknown } from '../types.ts';
-import { Conversation, Turn } from './conversation.ts';
-import { TurnContext } from './turnContext.ts';
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
-
-import { Context } from '../context.ts';
-import { logger } from '../logger.ts';
-import { EditorAndPluginInfo } from '../config.ts';
-import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
 import { Conversations } from './conversations.ts';
-import { TextDocumentManager } from '../textDocumentManager.ts';
+import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
 import { LRUCacheMap } from '../common/cache.ts';
-import { SkillMap } from './skills/skillMap.ts';
+import { EditorAndPluginInfo } from '../config.ts';
+import { logger } from '../logger.ts';
+import { TextDocumentManager } from '../textDocumentManager.ts';
+import { dump as yamlDump } from 'js-yaml';
 
 function filterConversationTurns(conversation: Conversation): Conversation {
   let conversationCopy = conversation.copy();

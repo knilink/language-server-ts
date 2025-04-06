@@ -1,6 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
 import * as os from 'node:os';
-import { type CancellationToken } from '../cancellation.ts';
 
 import { Context } from '../../../lib/src/context.ts';
 import { normalizeNewlines, asReadableCert } from '../../../lib/src/testing/certificates.ts';
@@ -11,7 +10,7 @@ const Params = Type.Object({ expectedCertificate: Type.String() });
 
 async function handleVerifyCertificateChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[{ status: boolean; message: string }, null]> {
   const rootCertificateReader = getRootCertificateReader(ctx);

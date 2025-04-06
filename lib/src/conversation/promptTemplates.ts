@@ -1,5 +1,6 @@
-import { SkillId, Unknown } from '../types.ts';
-import { type CancellationToken } from '../../../agent/src/cancellation.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { SkillId, Unknown } from '../types.ts';
+import type { CopilotConfirmation } from '../openai/types.ts';
 
 // import { } from './skills/ProblemInActiveDocumentSkill';
 import { Context } from '../context.ts';
@@ -62,7 +63,8 @@ export class PromptTemplateResponse {
     readonly annotations: Unknown.Annotation[] = [],
     // ./promptDebugTemplates.ts
     readonly notifications: { message: string; severity: ConversationProgress.Severity }[] = [],
-    readonly references: Reference[] = []
+    readonly references: Reference[] = [],
+    readonly confirmationRequest?: CopilotConfirmation
   ) {}
 }
 

@@ -1,4 +1,4 @@
-import { type TextDocument } from '../textDocument.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
 
 type CodeEditMode = 'replace' | 'delete';
 
@@ -36,7 +36,7 @@ function getIndentation(str: string): string {
   return str.match(/^\s*/)?.[0] ?? '';
 }
 
-function extractEditsFromTaggedCodeblocks(responseText: string, doc: TextDocument): CodeEdit[] {
+function extractEditsFromTaggedCodeblocks(responseText: string, doc: CopilotTextDocument): CodeEdit[] {
   let matchesIter = responseText.matchAll(taggedCodeblockRegexp);
 
   const matches = Array.from(matchesIter);
@@ -70,7 +70,7 @@ function extractEditsFromTaggedCodeblocks(responseText: string, doc: TextDocumen
   return edits;
 }
 
-function applyEditsToDocument(edits: PartialCodeEdit[], currentDocument: TextDocument): string | undefined {
+function applyEditsToDocument(edits: PartialCodeEdit[], currentDocument: CopilotTextDocument): string | undefined {
   if (edits.length === 0) {
     return;
   }

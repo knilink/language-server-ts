@@ -1,31 +1,17 @@
-import { Context } from '../context.ts';
-import { TextDocument } from '../textDocument.ts';
+import type { Context } from '../context.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
 
 import { CopilotContentExclusionManager } from '../contentExclusion/contentExclusionManager.ts';
 
-function isDocumentTooLarge(document: TextDocument): boolean {
-  try {
-    document.getText();
-    return false;
-  } catch (e) {
-    if (e instanceof RangeError) return true;
-    throw e;
-  }
-}
-
-type ValidDocumentResult = { status: 'valid'; document: TextDocument };
+type ValidDocumentResult = { status: 'valid'; document: CopilotTextDocument };
 
 type DocumentValidationResult =
   | ValidDocumentResult
   | { status: 'invalid'; reason: string }
   | { status: 'notfound'; message: string };
 
-async function isDocumentValid(ctx: Context, document: TextDocument): Promise<DocumentValidationResult> {
-  const copilotContentExclusionManager = ctx.get(CopilotContentExclusionManager);
-
-  if (isDocumentTooLarge(document)) return { status: 'invalid', reason: 'Document is too large' };
-
-  let rcmResult = await copilotContentExclusionManager.evaluate(document.uri, document.getText());
+async function isDocumentValid(ctx: Context, document: CopilotTextDocument): Promise<DocumentValidationResult> {
+  const rcmResult = await ctx.get(CopilotContentExclusionManager).evaluate(document.uri, document.getText());
 
   if (rcmResult.isBlocked) {
     return {
@@ -37,4 +23,4 @@ async function isDocumentValid(ctx: Context, document: TextDocument): Promise<Do
   return { status: 'valid', document: document };
 }
 
-export { isDocumentTooLarge, isDocumentValid, DocumentValidationResult, ValidDocumentResult };
+export { isDocumentValid, DocumentValidationResult, ValidDocumentResult };

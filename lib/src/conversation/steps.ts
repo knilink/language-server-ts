@@ -5,21 +5,8 @@ import { conversationLogger } from './logger.ts';
 import { ConversationProgress } from './conversationProgress.ts';
 import { Turn, Conversation } from './conversation.ts';
 
-namespace Steps {
-  export type Status = 'completed' | 'cancelled' | 'running' | 'failed';
-}
-
-type Step = {
-  id: SkillId;
-  title: string;
-  // ./prompt/conversationSkill.ts:await turnContext.steps.start(this.stepId, this.stepTitle);
-  description?: string;
-  status: Steps.Status;
-  error?: { message: string };
-};
-
-export class Steps {
-  readonly steps: Step[];
+class Steps {
+  readonly steps: Steps.Step[];
 
   constructor(
     readonly ctx: Context,
@@ -63,14 +50,14 @@ export class Steps {
     }
   }
 
-  public error(id: string, message?: string): void {
-    this.updateStep(id, (step) => {
+  public async error(id: string, message?: string): Promise<void> {
+    return this.updateStep(id, (step) => {
       step.status = 'failed';
       step.error = { message: message || 'Unknown error' };
     });
   }
 
-  private async updateStep(id: SkillId, stepUpdater: (step: Step) => void): Promise<void> {
+  private async updateStep(id: SkillId, stepUpdater: (step: Steps.Step) => void): Promise<void> {
     const step = this.steps.find((s) => s.id === id);
     if (step) {
       stepUpdater(step);
@@ -83,3 +70,17 @@ export class Steps {
     }
   }
 }
+
+namespace Steps {
+  export type Status = 'completed' | 'cancelled' | 'running' | 'failed';
+  export interface Step {
+    id: SkillId;
+    title: string;
+    // ./prompt/conversationSkill.ts : await turnContext.steps.start(this.stepId, this.stepTitle);
+    description?: string;
+    status: Status;
+    error?: { message: string };
+  }
+}
+
+export { Steps };

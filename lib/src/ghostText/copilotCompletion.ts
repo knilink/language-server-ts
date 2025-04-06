@@ -1,12 +1,14 @@
 import type { Position } from 'vscode-languageserver-types';
-import { v4 as uuidv4 } from 'uuid';
+import type { Context } from '../context.ts';
+import type { Result } from './ghostText.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
+import { CompletionResultType } from '../types.ts';
+import type { Completion } from '../types.ts';
 
-import { type Context } from '../context.ts';
-import { type Result } from './ghostText.ts';
-import { LocationFactory, type TextDocument } from '../textDocument.ts';
 import { normalizeIndentCharacter } from './normalizeIndent.ts';
-// import { } from './normalizeIndent';
-import { Completion, CompletionResultType } from '../types.ts';
+import { LocationFactory } from '../textDocument.ts';
+import { v4 as uuidv4 } from 'uuid';
+import type {} from '../ghostText/ghostText.ts';
 
 // ../../../agent/src/methods/getCompletions.ts
 type RawCompletion = Omit<Completion, 'triggerCategory'>;
@@ -15,7 +17,7 @@ function completionsFromGhostTextResults(
   ctx: Context,
   completionResults: Result[],
   resultType: number,
-  document: TextDocument,
+  document: CopilotTextDocument,
   position: Position,
   // ../../../agent/src/methods/getCompletions.ts
   textEditorOptions?: { tabSize?: number; insertSpaces?: boolean },
@@ -59,10 +61,11 @@ function completionsFromGhostTextResults(
       position,
       offset: document.offsetAt(position),
       resultType,
+      copilotAnnotations: result.copilotAnnotations,
     };
   });
 
-  if (resultType === CompletionResultType.UserTyping && lastShownCompletionIndex !== undefined) {
+  if (resultType === CompletionResultType.TypingAsSuggested && lastShownCompletionIndex !== undefined) {
     const lastShownCompletion = completions.find((predicate) => predicate.index === lastShownCompletionIndex);
     if (lastShownCompletion) {
       const restCompletions = completions.filter((predicate) => predicate.index !== lastShownCompletionIndex);

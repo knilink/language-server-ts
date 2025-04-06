@@ -1,17 +1,19 @@
+import type { Context } from './context.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import { CopilotTextDocument } from './textDocument.ts';
+
 import { EventEmitter } from 'node:events';
-import { Context } from './context.ts';
-import { TextDocument } from './textDocument.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { telemetryCatch } from './telemetry.ts';
 
 type WorkspaceWatcherFileEvent =
   | {
       type: 'create';
-      documents: TextDocument[];
+      documents: CopilotTextDocument[];
       workspaceFolder: { uri: DocumentUri };
     }
   | {
       type: 'update';
-      documents: TextDocument[];
+      documents: CopilotTextDocument[];
       workspaceFolder: { uri: DocumentUri };
     }
   | {
@@ -22,19 +24,12 @@ type WorkspaceWatcherFileEvent =
 
 type WorkspaceWatcherEventListener = (event: WorkspaceWatcherFileEvent) => void;
 
-class WatchedFilesError extends Error {
-  readonly name = 'WatchedFilesError';
-  constructor(readonly cause: unknown) {
-    super(String(cause));
-  }
-}
-
 const workspaceWatcherFileEvent = 'onWorkspaceWatcherChanged';
 
 abstract class WorkspaceWatcher {
   abstract startWatching(): void;
   abstract stopWatching(): void;
-  abstract getWatchedFiles(): Promise<TextDocument[] | WatchedFilesError>;
+  abstract getWatchedFiles(): Promise<CopilotTextDocument[]>;
 
   private emitter = new EventEmitter<{ [workspaceWatcherFileEvent]: [WorkspaceWatcherFileEvent] }>();
   status:
@@ -53,10 +48,10 @@ abstract class WorkspaceWatcher {
   }
 
   public onFileChange(listener: WorkspaceWatcherEventListener): void {
-    this.emitter.on(workspaceWatcherFileEvent, listener);
+    this.emitter.on(workspaceWatcherFileEvent, telemetryCatch(this.ctx, listener, 'WorkspaceWatcher.onFileChange'));
   }
 
-  public onFilesCreated(documents: TextDocument[]): void {
+  public onFilesCreated(documents: CopilotTextDocument[]): void {
     this.emitter.emit(workspaceWatcherFileEvent, {
       type: 'create',
       documents,
@@ -64,7 +59,7 @@ abstract class WorkspaceWatcher {
     });
   }
 
-  public onFilesUpdated(documents: TextDocument[]): void {
+  public onFilesUpdated(documents: CopilotTextDocument[]): void {
     this.emitter.emit(workspaceWatcherFileEvent, {
       type: 'update',
       documents,
@@ -81,4 +76,6 @@ abstract class WorkspaceWatcher {
   }
 }
 
-export { WorkspaceWatcher, WorkspaceWatcherEventListener, WorkspaceWatcherFileEvent, WatchedFilesError };
+export { WorkspaceWatcher };
+
+export type { WorkspaceWatcherEventListener };

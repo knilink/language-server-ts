@@ -1,15 +1,28 @@
 import { MessageActionItem } from 'vscode-languageserver';
 
+interface NotificationMessage {
+  title: string;
+}
+
 abstract class NotificationSender {
-  async showWarningMessageOnlyOnce<T extends MessageActionItem>(
-    message: string,
-    ...actions: T[]
-  ): Promise<T | undefined> {
+  async showWarningMessageOnlyOnce(
+    // undefined ./auth/copilotToken.ts
+    _id: string | undefined,
+    message: string | NotificationMessage | undefined,
+    ...actions: MessageActionItem[]
+  ): Promise<MessageActionItem | undefined> {
     return this.showWarningMessage(message, ...actions);
   }
 
   // Abstract method to be implemented by subclasses
-  abstract showWarningMessage<T extends MessageActionItem>(message: string, ...actions: T[]): Promise<T | undefined>;
+  abstract showWarningMessage(
+    message:
+      | string
+      // ./auth/copilotToken.ts
+      | NotificationMessage
+      | undefined,
+    ...actions: MessageActionItem[]
+  ): Promise<MessageActionItem | undefined>;
 }
 
 export { NotificationSender };

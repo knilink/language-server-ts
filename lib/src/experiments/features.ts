@@ -1,29 +1,30 @@
-import { RepoInfo, BlockMode, LanguageId } from '../types.ts';
-import { Context } from '../context.ts';
+import type { RepoInfo, BlockMode, LanguageId } from '../types.ts';
+import type { Context } from '../context.ts';
+import { DocumentUri } from 'vscode-languageserver-types';
 
-import { EditorSession } from '../config.ts';
-import {
-  DEFAULT_MAX_PROMPT_LENGTH,
-  DEFAULT_MAX_COMPLETION_LENGTH,
-  DEFAULT_SUFFIX_PERCENT,
-  DEFAULT_SUFFIX_MATCH_THRESHOLD,
-} from '../../../prompt/src/lib.ts';
-import { Clock } from '../clock.ts';
 import { ExpConfig } from './expConfig.ts';
-import { TelemetryWithExp, TelemetryData } from '../telemetry.ts';
-// import { } from '../ghostText/contextualFilterConstants';
+import { ExpConfigMaker } from './fetchExperiments.ts';
+import { type FilterHeaderNames, type FilterHeaders, FilterSettings } from './filters.ts';
+import { GranularityDirectory } from './granularityDirectory.ts';
+import { Clock } from '../clock.ts';
+import { LRUCacheMap } from '../common/cache.ts';
+import { EditorSession } from '../config.ts';
+import { getEngineRequestInfo } from '../openai/config.ts';
 import {
   extractRepoInfoInBackground,
-  tryGetGitHubNWO,
   getDogFood,
+  getTokenKeyValue,
   getUserKind,
-  getFtFlag,
+  tryGetGitHubNWO,
 } from '../prompt/repository.ts';
-import { LRUCacheMap } from '../common/cache.ts';
-import { GranularityDirectory } from './granularityDirectory.ts';
-import { FilterHeaderNames, FilterHeaders, FilterSettings } from './filters.ts';
-import { ExpConfigMaker } from './fetchExperiments.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { TelemetryData, TelemetryWithExp } from '../telemetry.ts';
+import {
+  DEFAULT_MAX_COMPLETION_LENGTH,
+  DEFAULT_MAX_PROMPT_LENGTH,
+  DEFAULT_SUFFIX_MATCH_THRESHOLD,
+  DEFAULT_SUFFIX_PERCENT,
+} from '../../../prompt/src/prompt.ts';
+import '../prompt/src/lib.ts';
 
 function isCompletionsFiltersInfo(info: object) {
   return 'uri' in info;
@@ -146,16 +147,24 @@ class Features {
         : undefined;
     const repoNwo = tryGetGitHubNWO(repoInfo);
     const dogFood = getDogFood(repoInfo);
-    const userKind = await getUserKind(this.ctx);
-    const customModel = await getFtFlag(this.ctx);
     const fileType = filtersInfo?.languageId ?? '';
+    const model = (await getEngineRequestInfo(this.ctx)).modelId;
+    const userKind = await getUserKind(this.ctx);
+    const customModel = await getTokenKeyValue(this.ctx, 'ft');
+    const orgs = await getTokenKeyValue(this.ctx, 'ol');
+    const customModelNames = await getTokenKeyValue(this.ctx, 'cml');
+    const copilotTrackingId = await getTokenKeyValue(this.ctx, 'tid');
 
-    const requestFilters: FilterHeaders = {
+    const requestFilters = {
       'X-Copilot-Repository': repoNwo,
       'X-Copilot-FileType': fileType,
       'X-Copilot-UserKind': userKind,
       'X-Copilot-Dogfood': dogFood,
+      'X-Copilot-Engine': model,
       'X-Copilot-CustomModel': customModel,
+      'X-Copilot-Orgs': orgs,
+      'X-Copilot-CustomModelNames': customModelNames,
+      'X-Copilot-CopilotTrackingId': copilotTrackingId,
     };
 
     const granularityDirectory = this.getGranularityDirectory();
@@ -207,7 +216,7 @@ class Features {
     try {
       return this.assignments.fetchExpConfig(settings);
     } catch (e) {
-      return ExpConfig.createFallbackConfig(this.ctx, `Error fetching ExP config: ${e}`);
+      return ExpConfig.createFallbackConfig(this.ctx, `Error fetching ExP config: ${String(e)}`);
     }
   }
 
@@ -231,40 +240,12 @@ class Features {
     return { filters: filters, exp: exp };
   }
 
-  debounceMs(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotdebouncems ?? 0;
-  }
-
-  debouncePredict(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotdebouncepredict ?? false;
-  }
-
-  contextualFilterEnable(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotcontextualfilterenable ?? true;
-  }
-
-  contextualFilterEnableTree(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotcontextualfilterenabletree ?? true;
-  }
-
-  contextualFilterAcceptThreshold(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotcontextualfilteracceptthreshold ?? 35;
-  }
-
-  contextualFilterExplorationTraffic(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotcontextualfilterexplorationtraffic ?? 1;
-  }
-
   disableLogProb(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotdisablelogprob ?? true;
   }
 
   overrideBlockMode(telemetryWithExp: TelemetryWithExp): BlockMode | undefined {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotoverrideblockmode;
-  }
-
-  fastCancellation(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotoverridefastcancellation ?? true;
   }
 
   // ../ghostText/ghostText.ts number Math.max(0, 3 - override)
@@ -281,12 +262,8 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotcustomengine ?? '';
   }
 
-  beforeRequestWaitMs(telemetryWithExp: TelemetryWithExp): number {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotlms ?? 0;
-  }
-
-  multiLogitBias(telemetryWithExp: TelemetryWithExp): boolean {
-    return telemetryWithExp.filtersAndExp.exp.variables.copilotlbeot ?? false;
+  customEngineTargetEngine(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcustomenginetargetengine;
   }
 
   suffixPercent(telemetryWithExp: TelemetryWithExp): number {
@@ -302,8 +279,59 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotcppheaders ?? false;
   }
 
+  relatedFilesVSCodeCSharp(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfilesvscodecsharp ?? false;
+  }
+
+  relatedFilesVSCodeTypeScript(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfilesvscodetypescript ?? false;
+  }
+
+  cppIncludeTraits(telemetryWithExp: TelemetryWithExp) {
+    let includeTraits = telemetryWithExp.filtersAndExp.exp.variables.copilotcppIncludeTraits;
+    if (includeTraits) {
+      return includeTraits.split(',');
+    }
+  }
+
+  cppMsvcCompilerArgumentFilter(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppMsvcCompilerArgumentFilter;
+  }
+
+  cppClangCompilerArgumentFilter(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppClangCompilerArgumentFilter;
+  }
+
+  cppGccCompilerArgumentFilter(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppGccCompilerArgumentFilter;
+  }
+
+  cppCompilerArgumentDirectAskMap(telemetryWithExp: TelemetryWithExp) {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppCompilerArgumentDirectAskMap;
+  }
+
   relatedFilesVSCode(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.copilotrelatedfilesvscode ?? false;
+  }
+
+  excludeOpenTabFilesCSharp(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotexcludeopentabfilescsharp ?? false;
+  }
+  excludeOpenTabFilesCpp(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotexcludeopentabfilescpp ?? false;
+  }
+  excludeOpenTabFilesTypeScript(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotexcludeopentabfilestypescript ?? false;
+  }
+  fallbackToOpenTabFilesWithNoRelatedFiles(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotfallbacktoopentabfiles ?? false;
+  }
+  contextProviders(telemetryWithExp: TelemetryWithExp): string[] {
+    const providers = telemetryWithExp.filtersAndExp.exp.variables.copilotcontextproviders ?? '';
+    return providers ? providers.split(',').map((provider) => provider.trim()) : [];
+  }
+  includeNeighboringFiles(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotincludeneighboringfiles ?? false;
   }
 
   maxPromptCompletionTokens(telemetryWithExp: TelemetryWithExp): number {
@@ -331,6 +359,10 @@ class Features {
     }
   }
 
+  promptComponentsEnabled(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotpromptcomponents ?? false;
+  }
+
   ideChatMaxRequestTokens(telemetryWithExp: TelemetryWithExp): number {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatmaxrequesttokens ?? -1;
   }
@@ -339,17 +371,50 @@ class Features {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatexpmodelids ?? '';
   }
 
-  ideChatEnableProjectMetadata(telemetryWithExp: TelemetryWithExp) {
+  ideChatEnableProjectMetadata(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectmetadata ?? false;
   }
-  ideChatEnableProjectContext(telemetryWithExp: TelemetryWithExp) {
+  ideChatEnableProjectContext(telemetryWithExp: TelemetryWithExp): boolean {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatenableprojectcontext ?? false;
   }
-  ideChatProjectContextFileCountThreshold(telemetryWithExp: TelemetryWithExp) {
+  ideEnableCopilotEdits(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.ideenablecopilotedits ?? false;
+  }
+  ideChatProjectContextFileCountThreshold(telemetryWithExp: TelemetryWithExp): number {
     return telemetryWithExp.filtersAndExp.exp.variables.idechatprojectcontextfilecountthreshold ?? 0;
   }
-  ideChatEnableExtensibilityPlatform(telemetryWithExp: TelemetryWithExp) {
-    return telemetryWithExp.filtersAndExp.exp.variables.idechatenableextensibilityplatform ?? false;
+  disableDebounce(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotdisabledebounce ?? false;
+  }
+  debounceThreshold(telemetryWithExp: TelemetryWithExp): number {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotdebouncethreshold ?? 75;
+  }
+  triggerCompletionAfterAccept(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilottriggercompletionafteraccept;
+  }
+  enableAsyncCompletions(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotasynccompletions ?? false;
+  }
+  enableSpeculativeRequests(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotspeculativerequests ?? false;
+  }
+  cppCodeSnippetsFeatures(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppcodesnippetsFeatureNames;
+  }
+  cppCodeSnippetsTimeBudgetFactor(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppcodesnippetsTimeBudgetFactor;
+  }
+  cppCodeSnippetsMaxDistanceToCaret(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotcppcodesnippetsMaxDistanceToCaret;
+  }
+  enableProgressiveReveal(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotprogressivereveal ?? false;
+  }
+  disableContextualFilter(telemetryWithExp: TelemetryWithExp): boolean {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotdisablecontextualfilter ?? false;
+  }
+  vscodeDebounceThreshold(telemetryWithExp: TelemetryWithExp): unknown {
+    return telemetryWithExp.filtersAndExp.exp.variables.copilotvscodedebouncethreshold;
   }
 }
 

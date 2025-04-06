@@ -11,14 +11,13 @@ abstract class InstallationManager {
   async startup(ctx: Context): Promise<void> {
     const isNewInstall = await this.isNewInstall(ctx);
     if (isNewInstall) {
-      const wasPreviouslyInstalled = await this.wasPreviouslyInstalled(ctx);
-      await this.handleInstall(ctx, wasPreviouslyInstalled);
       await this.markInstalled(ctx);
+      this.handleInstall(ctx, await this.wasPreviouslyInstalled(ctx));
     } else {
       const isNewUpgrade = await this.isNewUpgrade(ctx);
       if (isNewUpgrade) {
-        await this.handleUpgrade(ctx);
         await this.markUpgraded(ctx);
+        this.handleUpgrade(ctx);
       }
     }
   }
@@ -31,11 +30,11 @@ abstract class InstallationManager {
     telemetry(ctx, previouslyInstalled ? 'installed.reinstall' : 'installed.new');
   }
 
-  private async handleUpgrade(ctx: Context): Promise<void> {
+  handleUpgrade(ctx: Context): void {
     telemetry(ctx, 'installed.upgrade');
   }
 
-  private async handleUninstall(ctx: Context): Promise<void> {
+  handleUninstall(ctx: Context): void {
     telemetry(ctx, 'uninstalled');
   }
 }

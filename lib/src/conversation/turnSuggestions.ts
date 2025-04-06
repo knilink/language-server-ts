@@ -1,14 +1,14 @@
-import { type CancellationToken } from '../../../agent/src/cancellation.ts';
-import { UiKind } from '../types.ts';
-import { Context } from '../context.ts';
-import { TurnContext } from './turnContext.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { UiKind } from '../types.ts';
+import type { Context } from '../context.ts';
+import type { TurnContext } from './turnContext.ts';
+import type { ChatMLFetcher } from './chatMLFetcher.ts';
+import type { TelemetryWithExp } from '../telemetry.ts';
 
-import { ConversationPromptEngine } from './prompt/conversationPromptEngine.ts';
-import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
 import { conversationLogger } from './logger.ts';
 import { ModelConfigurationProvider } from './modelConfigurations.ts';
-import { ChatMLFetcher } from './chatMLFetcher.ts';
-import { TelemetryWithExp } from '../telemetry.ts';
+import { getSupportedModelFamiliesForPrompt } from './modelMetadata.ts';
+import { ConversationPromptEngine } from './prompt/conversationPromptEngine.ts';
 
 namespace TurnSuggestions {
   export type SuggestionsFetchResult = {

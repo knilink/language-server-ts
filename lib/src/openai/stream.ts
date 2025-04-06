@@ -1,9 +1,9 @@
-import { Readable } from 'node:stream';
-
-import { Context } from '../context.ts';
-import { Response } from '../networking.ts';
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
-import {
+import type { Readable } from 'node:stream';
+import type { APIChoice } from './openai.ts';
+import type { Context } from '../context.ts';
+import type { Response } from '../networking.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type {
   AnnotationsMap,
   OpenAIRequestId,
   Choice,
@@ -16,13 +16,15 @@ import {
   Unknown,
   FunctionCall,
 } from '../types.ts';
+import type { CopilotConfirmation } from './types.ts';
+import type { Reference } from '../conversation/schema.ts';
+import type { TelemetryWithExp } from '../telemetry.ts';
 
-import { Logger, LogLevel } from '../logger.ts';
-import { telemetry, TelemetryData, TelemetryWithExp } from '../telemetry.ts';
-import { Features } from '../experiments/features.ts';
-import { convertToAPIChoice } from './openai.ts';
+import { getEngineRequestInfo } from './config.ts';
 import { getRequestId } from './fetch.ts';
-import { Reference } from '../conversation/schema.ts';
+import { convertToAPIChoice } from './openai.ts';
+import { Logger } from '../logger.ts';
+import { telemetry } from '../telemetry.ts';
 
 interface IStreamingToolCall {
   name?: string;
@@ -37,6 +39,8 @@ interface IStreamingData {
   top_logprobs: TopLogprob[][];
   text_offset: TextOffset[][];
   tokens: Token[][];
+  // ../copilotPanel/panel.ts
+  copilot_annotations: { current: AnnotationsMap };
 }
 
 type APIJsonData = {
@@ -50,6 +54,8 @@ type APIJsonData = {
     tokens: Token[];
   };
   function_call?: { name: string; arguments: unknown[] };
+  // ../copilotPanel/panel.ts
+  copilot_annotations: unknown;
 };
 
 type Completion = {
@@ -64,15 +70,15 @@ type Completion = {
   usage?: number;
 };
 
-const streamChoicesLogger = new Logger(LogLevel.INFO, 'streamChoices');
+const streamChoicesLogger = new Logger('streamChoices');
 
 function splitChunk(chunk: string): [string[], string] {
-  let dataLines: string[] = chunk.split(`\n`);
+  let dataLines: string[] = chunk.split('\n');
   const newExtra = dataLines.pop()!; // no way to be undefined as long as chunk is a string
   return [dataLines.filter((line) => line), newExtra];
 }
 
-function prepareSolutionForReturn(ctx: Context, c: Completion, telemetryData: TelemetryWithExp) {
+function prepareSolutionForReturn(ctx: Context, c: Completion, telemetryData: TelemetryWithExp): APIChoice {
   let completionText: string = c.solution.text.join('');
   let blockFinished: boolean = false;
 
@@ -96,7 +102,14 @@ function convertToAPIJsonData(streamingData: IStreamingData): APIJsonData {
   const joinedText = streamingData.text.join('');
   const toolCalls = extractToolCalls(streamingData);
   const functionCall = extractFunctionCall(streamingData);
-  const out = { text: joinedText, tokens: streamingData.text, tool_calls: toolCalls, function_call: functionCall };
+  const annotations = streamingData.copilot_annotations.current;
+  const out = {
+    text: joinedText,
+    tokens: streamingData.text,
+    tool_calls: toolCalls,
+    function_call: functionCall,
+    copilot_annotations: annotations,
+  };
 
   if (streamingData.logprobs.length === 0) return out;
 
@@ -116,12 +129,8 @@ function convertToAPIJsonData(streamingData: IStreamingData): APIJsonData {
   };
 }
 
-type CopilotConfirmation = {
-  title: string;
-  message: string;
-  confirmation: boolean;
-};
-function isCopilotConfirmation(obj: Record<string, unknown>): obj is CopilotConfirmation {
+function isCopilotConfirmation(obj: any): obj is CopilotConfirmation {
+  // MARK obj possible nil
   return typeof obj.title == 'string' && typeof obj.message == 'string' && !!obj.confirmation;
 }
 
@@ -129,7 +138,7 @@ function extractToolCalls(streamingData: IStreamingData): ToolCall[] {
   const toolCalls: ToolCall[] = [];
   for (let toolCall of streamingData.tool_calls)
     if (toolCall.name) {
-      const args = toolCall.arguments.length > 0 ? JSON.parse(toolCall.arguments.join('')) : [];
+      const args = toolCall.arguments.length > 0 ? JSON.parse(toolCall.arguments.join('')) : {};
       toolCalls.push({
         type: 'function',
         function: { name: toolCall.name, arguments: args },
@@ -144,7 +153,7 @@ function extractFunctionCall(streamingData: any): { name: string; arguments: str
     const args =
       streamingData.function_call.arguments.length > 0
         ? JSON.parse(streamingData.function_call.arguments.join(''))
-        : [];
+        : {};
     return { name: streamingData.function_call.name, arguments: args };
   }
 }
@@ -221,7 +230,7 @@ class StreamingToolCall implements IStreamingToolCall {
 }
 
 class StreamCopilotAnnotations {
-  private current: AnnotationsMap = {};
+  current: AnnotationsMap = {};
 
   update(annotations: AnnotationsMap) {
     Object.entries(annotations).forEach(([namespace, annotations]) => {
@@ -246,17 +255,6 @@ class StreamCopilotAnnotations {
   }
 }
 
-namespace SSEProcessor {
-  export type FinishedCbDelta = {
-    text: string;
-    copilotConfirmation?: CopilotConfirmation;
-    copilotReferences?: Reference[];
-    annotations?: StreamCopilotAnnotations;
-    copilotErrors?: unknown[];
-  };
-  export type FinishedCb = (text: string, delta: FinishedCbDelta) => Promise<number | undefined>;
-}
-
 class SSEProcessor {
   requestId: OpenAIRequestId;
   stats: ChunkStats;
@@ -264,29 +262,27 @@ class SSEProcessor {
 
   constructor(
     readonly ctx: Context,
-    public expectedNumChoices: number,
-    public response: Response,
-    public body: Readable,
-    public telemetryData: TelemetryData,
-    public dropCompletionReasons: string[],
-    public fastCancellation?: boolean,
-    public cancellationToken?: CancellationToken
+    readonly expectedNumChoices: number,
+    readonly response: Response,
+    readonly body: Readable,
+    readonly telemetryData: TelemetryWithExp,
+    readonly dropCompletionReasons: string[],
+    readonly cancellationToken?: CancellationToken
   ) {
     this.requestId = getRequestId(this.response);
     this.stats = new ChunkStats(this.expectedNumChoices);
   }
 
-  static async create(
+  static create(
     ctx: Context,
     expectedNumChoices: number,
     response: Response,
     telemetryData: TelemetryWithExp,
     dropCompletionReasons?: string[],
     cancellationToken?: CancellationToken
-  ): Promise<SSEProcessor> {
-    const body = await response.body();
+  ): SSEProcessor {
+    const body = response.body();
     body.setEncoding('utf8');
-    const fastCancellation = ctx.get(Features).fastCancellation(telemetryData);
     return new SSEProcessor(
       ctx,
       expectedNumChoices,
@@ -294,7 +290,6 @@ class SSEProcessor {
       body,
       telemetryData,
       dropCompletionReasons ?? ['content_filter'],
-      fastCancellation,
       cancellationToken
     );
   }
@@ -303,12 +298,11 @@ class SSEProcessor {
     try {
       yield* this.processSSEInner(finishedCb);
     } finally {
-      if (this.fastCancellation) this.cancel();
       streamChoicesLogger.info(
         this.ctx,
         `request done: headerRequestId: [${this.requestId.headerRequestId}] model deployment ID: [${this.requestId.deploymentId}]`
       );
-      streamChoicesLogger.debug(this.ctx, `request stats: ${this.stats}`);
+      streamChoicesLogger.debug(this.ctx, 'request stats:', this.stats);
     }
   }
 
@@ -388,7 +382,7 @@ class SSEProcessor {
           usage = json.usage;
         }
 
-        if (this.allSolutionsDone() && this.fastCancellation) {
+        if (this.allSolutionsDone()) {
           break networkRead;
         }
 
@@ -440,6 +434,7 @@ class SSEProcessor {
             this.telemetryData.extendedBy({
               completionChoiceFinishReason: loggedReason,
               engineName: model ?? '',
+              engineChoiceSource: (await getEngineRequestInfo(this.ctx, this.telemetryData)).engineChoiceSource,
             })
           );
 
@@ -547,6 +542,17 @@ class SSEProcessor {
     const solutions = Object.values(this.solutions);
     return solutions.length === this.expectedNumChoices && solutions.every((s) => !s);
   }
+}
+
+namespace SSEProcessor {
+  export type FinishedCbDelta = {
+    text: string;
+    copilotConfirmation?: CopilotConfirmation;
+    copilotReferences?: Reference[];
+    annotations?: StreamCopilotAnnotations;
+    copilotErrors?: unknown[];
+  };
+  export type FinishedCb = (text: string, delta: FinishedCbDelta) => Promise<number | undefined>;
 }
 
 class ChunkStats {

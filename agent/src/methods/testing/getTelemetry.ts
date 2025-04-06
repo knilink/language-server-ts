@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
 
 import { Context } from '../../../../lib/src/context.ts';
 import { TelemetryReporters } from '../../../../lib/src/telemetry.ts';
@@ -7,13 +6,13 @@ import { PromiseQueue } from '../../../../lib/src/util/promiseQueue.ts';
 import { TestPromiseQueue } from '../../../../lib/src/testing/telemetry.ts';
 import { addMethodHandlerValidation, type ValidationError } from '../../schemaValidation.ts';
 import { TelemetrySpy, Event, ErrorEvent } from '../../../../lib/src/testing/telemetrySpy.ts';
-// import { } from '../../rpc';
+import { ErrorCode } from '../../rpc.ts';
 
 const Params = Type.Object({});
 
 async function handleTestingGetTelemetryChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<
   | [
@@ -35,7 +34,10 @@ async function handleTestingGetTelemetryChecked(
   ) {
     return [
       null,
-      { code: -32603, message: 'Telemetry is not being captured. You must first call testing/setTelemetryCapture.' },
+      {
+        code: ErrorCode.InternalError,
+        message: 'Telemetry is not being captured. You must first call testing/setTelemetryCapture.',
+      },
     ];
   }
 

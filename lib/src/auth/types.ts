@@ -1,8 +1,17 @@
+export interface UserNotification {
+  notification_id?: string; // not_signed_up
+  // optional, otherwise overwritten error ./copilotToken.ts
+  message?: string;
+  title: string;
+  url: string;
+}
+
 export type TokenEnvelope = {
   // ./copilotToken.ts
-  user_notification: boolean;
+  user_notification: UserNotification;
   token: string; // ./copilotToken.ts
-  error_details: Record<string, unknown>;
+  // ./copilotToken.ts
+  error_details: UserNotification;
   expires_at: number;
   refresh_in: number;
   // ../prompt/repository.ts ['a5db0bcaae94032fe715fb34a5e4bce2', '7184f66dfcee98cb5f08a1cb936d5225', '4535c7beffc844b46bb1ed4aa04d759a']
@@ -28,6 +37,10 @@ export type TokenEnvelope = {
   chat_enabled: boolean;
   // ../conversation/skills/projectContextSnippetProviders/BlackbirdSnippetProvider.ts
   codesearch: boolean;
+  // ./manager.ts
+  can_signup_for_limited?: boolean;
+  // ../openai/fetch.ts
+  limited_user_quotas?: { completions?: number };
 };
 
 export type CopilotAuthStatus =
@@ -42,6 +55,8 @@ export type CopilotAuthStatus =
       code?: number;
       msg?: string;
       meta?: { [key: string]: unknown };
+      // ./copilotToken.ts
+      envelope: TokenEnvelope;
     };
 
 export type GitHubToken = {
@@ -80,3 +95,9 @@ export type AuthStatus =
       user: AuthRecord['user'];
       reason: string;
     };
+
+// ../../../agent/src/methods/signInInitiate.ts
+export interface PendingSignIn {
+  status: Promise<AuthStatus>;
+  verificationUri: string;
+}

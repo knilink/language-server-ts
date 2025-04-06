@@ -1,14 +1,14 @@
-import { Unknown, WorkDoneToken, Model, Chat } from '../../types.ts';
-import { CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { TextDocument } from '../../textDocument.ts';
-import { Turn, Conversation, Reference } from '../conversation.ts';
-import { TurnContext } from '../turnContext.ts';
-import { TelemetryWithExp } from '../../telemetry.ts';
-
-import { ChatRole } from '../openai/openai.ts';
-import {} from '../../../../prompt/src/tokenization/index.ts';
-import {} from '../../openai/fetch.ts';
-import { ChatModelFamily } from '../modelMetadata.ts';
+import type { Context } from '../../context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Unknown, WorkDoneToken, Chat, SkillId } from '../../types.ts';
+import type { CopilotTextDocument } from '../../textDocument.ts';
+import type { Turn, Conversation } from '../conversation.ts';
+import type { TurnContext } from '../turnContext.ts';
+import type { TelemetryWithExp } from '../../telemetry.ts';
+import type { RemoteAgent } from './remoteAgent.ts';
+import type { ITurnProcessor } from '../../../../agent/src/conversation/turnProcessorFactory.ts';
+import type {} from '../../../../prompt/src/tokenization/index.ts';
+import type {} from '../../openai/fetch.ts';
 
 import { convertToCopilotReferences } from './references.ts';
 import { skillsToReference } from './skillToReferenceAdapters.ts';
@@ -18,11 +18,13 @@ import { ConversationInspector } from '../conversationInspector.ts';
 import { ConversationProgress } from '../conversationProgress.ts';
 import { ChatFetchResultPostProcessor } from '../fetchPostProcessor.ts';
 import { conversationLogger } from '../logger.ts';
-import { countMessagesTokens } from '../openai/chatTokens.ts';
 import { filterTurns } from '../prompt/fromHistory.ts';
 import { createTelemetryWithExpWithId, extendUserMessageTelemetryData } from '../telemetry.ts';
 import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
 import { NetworkConfiguration } from '../../networkConfiguration.ts';
+import { v4 as uuidv4 } from 'uuid';
+import type {} from '../openai/openai.ts';
+import type {} from '../../openai/fetch.ts';
 
 const GENERATE_RESPONSE_STEP = 'generate-response';
 
@@ -40,10 +42,21 @@ class RemoteAgentAuthorizationError extends Error {
 namespace RemoteAgentTurnProcessor {
   export interface IAgent {
     // number `super(0,...)` ./conversation/extensibility/remoteAgent.ts
-    readonly id: number;
+    // no id ../agents/agents.ts
+    // readonly id: number;
     readonly slug: string;
     readonly name: string;
+    // ../agents/agents.ts
+    readonly description: string;
+    // no endpoint ../agents/agents.ts
     readonly endpoint?: string;
+    // ../../../../agent/src/methods/conversation/conversationAgents.ts
+    readonly avatarUrl?: string;
+
+    additionalSkills: (ctx: Context) => Promise<SkillId[]>;
+    // ProjectAgent does not have turnProcessor ../agents/agents.ts
+    // optional if(agent?.turnProcessor) ../../../../agent/src/conversation/turnProcessorFactory.ts
+    turnProcessor?: (turnContext: TurnContext) => ITurnProcessor;
   }
 }
 
@@ -53,7 +66,7 @@ class RemoteAgentTurnProcessor {
   readonly conversation: Conversation;
   readonly turn: Turn;
   constructor(
-    readonly agent: RemoteAgentTurnProcessor.IAgent,
+    readonly agent: RemoteAgent,
     readonly turnContext: TurnContext,
     readonly chatFetcher = new ChatMLFetcher(turnContext.ctx)
   ) {
@@ -62,17 +75,18 @@ class RemoteAgentTurnProcessor {
     this.conversation = turnContext.conversation;
     this.turn = turnContext.turn;
   }
+
   async process(
     workDoneToken: WorkDoneToken,
     cancellationToken: CancellationToken,
     followUp: Unknown.FollowUp,
-    doc: TextDocument
+    doc: CopilotTextDocument
   ): Promise<void> {
     try {
       await this.processWithAgent(workDoneToken, cancellationToken, this.turnContext, doc);
     } catch (err) {
       conversationLogger.error(this.turnContext.ctx, `Error processing turn ${this.turn.id}`, err);
-      let errorMessage = (err as any).message;
+      const errorMessage = err instanceof Error ? err.message : String(err);
       this.turn.status = 'error';
       this.turn.response = { message: errorMessage, type: 'meta' };
       if (err instanceof RemoteAgentAuthorizationError) {
@@ -88,11 +102,12 @@ class RemoteAgentTurnProcessor {
       }
     }
   }
+
   async processWithAgent(
     workDoneToken: WorkDoneToken,
     cancellationToken: CancellationToken,
     turnContext: TurnContext,
-    doc: TextDocument
+    doc: CopilotTextDocument
   ) {
     await this.conversationProgress.begin(this.conversation, this.turn, workDoneToken);
     const telemetryWithExp = await createTelemetryWithExpWithId(
@@ -155,22 +170,51 @@ class RemoteAgentTurnProcessor {
       }
     }
   }
+
   async buildAgentPrompt(turnContext: TurnContext) {
-    const modelConfiguration = await this.getModelConfiguration();
     const messages = this.createMessagesFromHistory(turnContext);
     const outgoingReferences = await this.computeCopilotReferences(turnContext);
-    messages.push({
-      role: ChatRole.User,
-      content: turnContext.turn.request.message,
-      copilot_references: outgoingReferences.length > 0 ? outgoingReferences : undefined,
-    });
+    const sessionId = this.getOrCreateAgentSessionId(turnContext);
 
-    return {
-      messages,
-      tokens: countMessagesTokens(messages, modelConfiguration),
-      skillResolutions: [],
-    };
+    if (this.turn.agent) {
+      this.turn.agent.sessionId = sessionId;
+    }
+
+    if (this.turn.confirmationResponse) {
+      this.addConfirmationResponse(this.turn.confirmationResponse, messages);
+    } else {
+      messages.push({
+        role: 'user',
+        content: turnContext.turn.request.message,
+        copilot_references: outgoingReferences.length > 0 ? outgoingReferences : undefined,
+      });
+    }
+
+    return { messages, tokens: -1, skillResolutions: [] };
   }
+
+  getOrCreateAgentSessionId(turnContext: TurnContext): string {
+    const agentSlug = this.turn.agent?.agentSlug;
+    if (agentSlug) {
+      for (const turn of turnContext.conversation.turns)
+        if (turn.agent?.agentSlug === agentSlug && turn.agent.sessionId) {
+          return turn.agent.sessionId;
+        }
+    }
+    return uuidv4();
+  }
+
+  addConfirmationResponse(
+    confirmationResponse: NonNullable<Turn['confirmationResponse']>,
+    messages: Chat.ChatMessage[]
+  ) {
+    messages.push({
+      role: 'user',
+      content: '',
+      copilot_confirmations: [confirmationResponse],
+    });
+  }
+
   createMessagesFromHistory(turnContext: TurnContext): Chat.ChatMessage[] {
     return filterTurns(turnContext.conversation.turns.slice(0, -1), this.agent.slug).flatMap((turn) => {
       const messages: Chat.ChatMessage[] = [];
@@ -205,43 +249,45 @@ class RemoteAgentTurnProcessor {
     token: CancellationToken,
     baseTelemetryWithExp: TelemetryWithExp,
     augmentedTelemetryWithExp: TelemetryWithExp,
-    doc: TextDocument
+    doc: CopilotTextDocument
   ) {
     token.onCancellationRequested(async () => {
       await this.cancelProgress();
     });
-    const finishCallback = new ConversationFinishCallback(
-      (text: string, annotations: Unknown.Annotation[], references: Reference[], errors: unknown[]) => {
-        this.conversationProgress
-          .report(this.conversation, this.turn, {
-            reply: text,
-            annotations,
-            references,
-            notifications: errors.map((e) => ({ message: (e as any).message, severity: 'warning' })),
-          })
-          .then();
+    const finishCallback = new ConversationFinishCallback((text, annotations, references, errors, confirmation) => {
+      const confirmationRequest = confirmation ? { ...confirmation, agentSlug: this.agent.slug } : undefined;
 
-        if (this.turn.response) {
-          this.turn.response.message += text;
-          this.turn.response.references!.push(...references);
-        } else {
-          this.turn.response = { message: text, type: 'model', references };
-        }
+      this.conversationProgress.report(this.conversation, this.turn, {
+        reply: text,
+        annotations,
+        references,
+        notifications: errors.map((e) => ({ message: (e as any).message, severity: 'warning' })),
+        confirmationRequest,
+      });
 
-        this.turn.annotations.push(...(annotations ?? []));
+      if (this.turn.response) {
+        this.turn.response.message += text;
+        this.turn.response.references!.push(...references); // MARK problematic it assume the response still the one set in the else branch
+      } else {
+        this.turn.response = { message: text, type: 'model', references };
       }
-    );
-    const modelConfiguration = await this.getModelConfiguration();
+
+      this.turn.annotations.push(...(annotations ?? []));
+
+      if (confirmationRequest) {
+        this.turn.confirmationRequest = confirmationRequest;
+      }
+    });
     const agentsUrl = this.turnContext.ctx.get(NetworkConfiguration).getCAPIUrl(this.turnContext.ctx, 'agents');
-    const authToken = await this.turnContext.ctx.get(CopilotTokenManager).getGitHubToken(this.turnContext.ctx);
+    const authToken = await this.turnContext.ctx.get(CopilotTokenManager).getGitHubToken();
     const params: ChatMLFetcher.Params = {
-      modelConfiguration: modelConfiguration,
       engineUrl: agentsUrl,
       endpoint: this.agent.endpoint ?? this.agent.slug,
       messages,
       uiKind: 'conversationPanel',
       intentParams: { intent: true, intent_threshold: 0.7, intent_content: this.turn.request.message },
-      authToken: authToken,
+      authToken,
+      copilot_thread_id: this.turn.agent?.sessionId,
     };
 
     const fetchResult = await this.chatFetcher.fetchResponse(params, token, baseTelemetryWithExp, async (text, delta) =>
@@ -260,20 +306,7 @@ class RemoteAgentTurnProcessor {
       doc
     );
   }
-  async getModelConfiguration(): Promise<Model.Configuration> {
-    return {
-      modelId: this.agent.slug,
-      uiName: this.agent.name,
-      modelFamily: ChatModelFamily.Unknown,
-      maxRequestTokens: -1,
-      maxResponseTokens: -1,
-      baseTokensPerMessage: 3,
-      baseTokensPerName: 1,
-      baseTokensPerCompletion: 3,
-      tokenizer: 'cl100k_base',
-      isExperimental: false,
-    };
-  }
+
   ensureAgentIsAuthorized(fetchResult: ChatMLFetcher.Response) {
     if (fetchResult.type === 'agentAuthRequired') {
       this.turnContext.turn.status = 'error';
@@ -290,7 +323,7 @@ class RemoteAgentTurnProcessor {
     conversationPrompt: Unknown.ConversationPrompt,
     userTelemetryWithExp: TelemetryWithExp,
     template?: Turn.Template,
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ): TelemetryWithExp {
     return extendUserMessageTelemetryData(
       this.conversation,
@@ -319,10 +352,12 @@ class RemoteAgentTurnProcessor {
       ? await turnContext.steps.error(GENERATE_RESPONSE_STEP, error.message)
       : await turnContext.steps.finish(GENERATE_RESPONSE_STEP);
   }
-  async endProgress(payload?: unknown) {
+
+  async endProgress(payload?: ConversationProgress.IEndPayload) {
     await this.turnContext.steps.finishAll();
     await this.conversationProgress.end(this.conversation, this.turn, payload);
   }
+
   async cancelProgress() {
     await this.turnContext.steps.finishAll('cancelled');
     await this.conversationProgress.cancel(this.conversation, this.turn);

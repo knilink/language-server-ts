@@ -1,10 +1,12 @@
-import os from 'os';
+import os from 'node:os';
 import { BreezeChannelIdentifier } from '@microsoft/applicationinsights-common';
 import { ApplicationInsights } from '@microsoft/applicationinsights-web-basic';
+import { Disposable } from 'vscode-languageserver/node.js';
 
 import { IReporter, TelemetryProperties, TelemetryMeasurements } from '../types.ts';
 import { Context } from '../context.ts';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
+import { onCopilotToken } from '../auth/copilotTokenNotifier.ts';
+
 import { logger } from '../logger.ts';
 // import { } from '../telemetry';
 import { EditorSession, BuildInfo } from '../config.ts';
@@ -49,6 +51,8 @@ function getCommonProperties(ctx: Context): Record<string, string> {
   const properties: Record<string, string> = {};
   properties.common = os.platform();
   properties.common_platformversion = os.release();
+  properties.common_arch = os.arch();
+  properties.common_cpu = Array.from(new Set(os.cpus().map((c) => c.model))).join();
 
   const editorSession = ctx.get(EditorSession);
   properties.common_vscodemachineid = editorSession.machineId;
@@ -61,11 +65,13 @@ function getCommonProperties(ctx: Context): Record<string, string> {
 }
 
 class AppInsightsReporter implements IReporter {
+  // explicitly private
   private client: ApplicationInsights;
   private tags: Tags;
   private commonProperties: Record<string, string>;
   private token?: CopilotToken;
   private onCopilotToken: (token: CopilotToken) => void;
+  private _onCopilotToken: Disposable;
 
   constructor(
     private ctx: Context,
@@ -99,13 +105,13 @@ class AppInsightsReporter implements IReporter {
 
     this.tags = getTags(ctx);
     this.commonProperties = getCommonProperties(ctx);
-    ctx.get(CopilotTokenNotifier).on('onCopilotToken', this.onCopilotToken);
+    this._onCopilotToken = onCopilotToken(ctx, this.onCopilotToken);
   }
 
   private xhrOverride = {
     sendPOST: (
       payload: { data: unknown; urlString: string; headers?: Request['headers'] },
-      oncomplete: (responseStatus: Response['status'], responseHeaders?: Response['headers'], text?: string) => void
+      oncomplete: (responseStatus: Response['status'], responseHeaders?: Record<string, string>, text?: string) => void
     ) => {
       if (typeof payload.data !== 'string')
         throw new Error(`AppInsightsReporter only supports string payloads, received ${typeof payload.data}`);
@@ -120,7 +126,7 @@ class AppInsightsReporter implements IReporter {
         .fetch(payload.urlString, options)
         .then((response) =>
           response.text().then((text: string) => {
-            oncomplete(response.status, response.headers, text);
+            oncomplete(response.status, Object.fromEntries(response.headers), text);
           })
         )
         .catch((err: unknown) => {
@@ -151,7 +157,7 @@ class AppInsightsReporter implements IReporter {
   }
 
   async dispose(): Promise<void> {
-    this.ctx.get(CopilotTokenNotifier).removeListener('onCopilotToken', this.onCopilotToken);
+    this._onCopilotToken.dispose();
     await this.client.unload(true, undefined, 200);
   }
 

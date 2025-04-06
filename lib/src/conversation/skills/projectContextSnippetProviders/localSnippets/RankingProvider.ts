@@ -1,9 +1,9 @@
-import { URI } from 'vscode-uri';
-import { DocumentUri } from 'vscode-languageserver-types';
-import { LRUCacheMap } from '../../../../common/cache.ts';
-import { Context } from '../../../../context.ts';
-import { IRanking, ChunkId, DocumentChunk } from './IndexingTypes.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import type { Context } from '../../../../context.ts';
+import type { IRanking, DocumentChunk } from './IndexingTypes.ts';
+
 import { getRankingAlgorithm } from './RankingAlgorithms.ts';
+import { LRUCacheMap } from '../../../../common/cache.ts';
 
 class RankingProvider {
   private workspaceRankingProviders = new LRUCacheMap<string, IRanking>(25);
@@ -33,17 +33,22 @@ class RankingProvider {
     return this.getImplementation(ctx, workspaceFolder, type).status;
   }
 
-  initialize(
+  async initialize(
     ctx: Context,
     workspaceFolder: DocumentUri,
-    chunks: Map<ChunkId, DocumentChunk>,
+    chunks: AsyncIterable<DocumentChunk>,
     type: string = 'default'
-  ): void {
-    this.getImplementation(ctx, workspaceFolder, type).initialize([...chunks.values()]);
+  ): Promise<void> {
+    await this.getImplementation(ctx, workspaceFolder, type).initialize(chunks);
   }
 
-  addChunks(ctx: Context, workspaceFolder: DocumentUri, chunks: DocumentChunk[], type: string = 'default'): void {
-    this.getImplementation(ctx, workspaceFolder, type).addChunks(chunks);
+  async addChunks(
+    ctx: Context,
+    workspaceFolder: DocumentUri,
+    chunks: AsyncIterable<DocumentChunk>,
+    type: string = 'default'
+  ): Promise<void> {
+    await this.getImplementation(ctx, workspaceFolder, type).addChunks(chunks);
   }
 
   async query(
@@ -53,31 +58,27 @@ class RankingProvider {
     queries: string[],
     type?: string
   ) {
-    const impl = this.getImplementation(ctx, workspaceFolder, type);
-    const start = performance.now();
-    const snippets = await impl.query(queries);
-    const end = performance.now();
-    return { snippets, rankingTimeMs: end - start };
+    return this.getImplementation(ctx, workspaceFolder, type).query(queries);
   }
 
-  terminateRanking(
+  async terminateRanking(
     ctx: Context,
     workspaceFolder: string,
     // optional ../../ProjectContextSkill.ts
     type?: string
-  ): void {
-    this.getImplementation(ctx, workspaceFolder, type).terminateRanking();
+  ): Promise<void> {
+    await this.getImplementation(ctx, workspaceFolder, type).terminateRanking();
     this.workspaceRankingProviders.delete(workspaceFolder);
   }
 
-  deleteEmbeddings(
+  async deleteEmbeddings(
     ctx: Context,
     workspaceFolder: string,
-    chunkIds: ChunkId[],
+    chunks: DocumentChunk[],
     // optional ../../ProjectContextSkill.ts
     type?: string
-  ): void {
-    this.getImplementation(ctx, workspaceFolder, type).deleteEmbeddings(chunkIds);
+  ): Promise<void> {
+    return this.getImplementation(ctx, workspaceFolder, type).deleteEmbeddings(chunks);
   }
 }
 

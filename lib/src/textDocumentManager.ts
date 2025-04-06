@@ -1,16 +1,16 @@
-import { URI } from 'vscode-uri';
+import type { URI } from 'vscode-uri';
 import type { DocumentUri, Range, WorkspaceFolder } from 'vscode-languageserver-types';
-import { Disposable, NotificationHandler } from 'vscode-languageserver/node.js';
-import { basename, parseUri } from './util/uri.ts';
+import type { Disposable, NotificationHandler } from 'vscode-languageserver/node.js';
+import type { Context } from './context.ts';
 
-import { Context } from './context.ts';
-import { TextDocument } from './textDocument.ts';
-
-import { isDocumentValid, DocumentValidationResult } from './util/documentEvaluation.ts';
+import { FileSystem } from './fileSystem.ts';
+import { CopilotTextDocument } from './textDocument.ts';
+import { isDocumentValid, type DocumentValidationResult } from './util/documentEvaluation.ts';
+import { basename, normalizeUri } from './util/uri.ts';
 
 type NotebookCell = {
   index: number; // ? cell.index < activeCell.index
-  document: TextDocument;
+  document: CopilotTextDocument;
 };
 
 // ./prompt/prompt.ts
@@ -28,7 +28,7 @@ namespace TextDocumentManager {
   // ../../agent/src/textDocumentManager.ts
   export type DidChangeTextDocumentParams = {
     // TextDocument ../../agent/src/textDocumentManager.ts
-    document: TextDocument;
+    document: CopilotTextDocument;
     contentChanges: { range: Range; rangeOffset: number; rangeLength: number; text: string }[];
   };
 
@@ -42,10 +42,10 @@ namespace TextDocumentManager {
 }
 
 abstract class TextDocumentManager {
-  abstract getOpenTextDocuments(): TextDocument[];
+  abstract getOpenTextDocuments(): CopilotTextDocument[];
   abstract getWorkspaceFolders(): WorkspaceFolder[];
   abstract onDidFocusTextDocument(
-    handler: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams>
+    handler: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams | undefined>
   ): Disposable;
   abstract onDidChangeTextDocument(
     handler: NotificationHandler<TextDocumentManager.DidChangeTextDocumentParams>
@@ -55,14 +55,14 @@ abstract class TextDocumentManager {
   //   thisArgs: T,
   //   disposables?: boolean
   // ): Disposable;
-  abstract findNotebook(doc: TextDocument): INotebook | void;
+  abstract findNotebook(doc: CopilotTextDocument): INotebook | void;
 
   constructor(readonly ctx: Context) {}
 
-  async textDocuments(): Promise<TextDocument[]> {
+  async textDocuments(): Promise<CopilotTextDocument[]> {
     this.textDocuments.bind;
     const documents = this.getOpenTextDocuments();
-    const filteredDocuments: TextDocument[] = [];
+    const filteredDocuments: CopilotTextDocument[] = [];
     for (const doc of documents) {
       if ((await isDocumentValid(this.ctx, doc)).status === 'valid') {
         filteredDocuments.push(doc);
@@ -71,14 +71,19 @@ abstract class TextDocumentManager {
     return filteredDocuments;
   }
 
+  getOpenTextDocument(docId: { uri: DocumentUri }) {
+    const uri = normalizeUri(docId.uri);
+    return this.getOpenTextDocuments().find((t) => t.uri == uri);
+  }
+
   // uri: URI lib/src/conversation/dump.ts
-  async getTextDocument(arg: URI | { uri: DocumentUri }): Promise<TextDocument | undefined> {
+  async getTextDocument(arg: URI | { uri: DocumentUri }): Promise<CopilotTextDocument | undefined> {
     const docId = 'uri' in arg ? arg : { uri: arg.toString() };
     const result = await this.getTextDocumentWithValidation(docId);
     if (result.status === 'valid') return result.document;
   }
 
-  async validateTextDocument(document: TextDocument, uri: DocumentUri): Promise<DocumentValidationResult> {
+  async validateTextDocument(document: CopilotTextDocument, uri: DocumentUri): Promise<DocumentValidationResult> {
     if (document) {
       try {
         const validationResult = await isDocumentValid(this.ctx, document);
@@ -92,24 +97,18 @@ abstract class TextDocumentManager {
   }
 
   async getTextDocumentWithValidation(docId: { uri: DocumentUri }): Promise<DocumentValidationResult> {
-    const uri = parseUri(docId.uri);
     try {
-      let document = this.getOpenTextDocuments().find((t) => t.uri == uri.toString());
-      if (!document) {
-        document = await this.openTextDocument(uri.toString());
-        if (!document) {
-          return await this.notFoundResult(docId.uri);
-        }
-      }
-      return isDocumentValid(this.ctx, document);
+      let document = this.getOpenTextDocument(docId);
+      return !document && ((document = await this.openTextDocument(docId.uri)), !document)
+        ? await this.notFoundResult(docId.uri)
+        : isDocumentValid(this.ctx, document);
     } catch {
       return await this.notFoundResult(docId.uri);
     }
   }
 
   getOpenTextDocumentWithValidation(docId: { uri: DocumentUri }): PromiseLike<DocumentValidationResult> {
-    const uri = parseUri(docId.uri);
-    const document = this.getOpenTextDocuments().find((t) => t.uri == uri.toString());
+    const document = this.getOpenTextDocument(docId);
     if (document) {
       let memoized;
       return {
@@ -131,15 +130,23 @@ abstract class TextDocumentManager {
     };
   }
 
-  async openTextDocument(_: DocumentUri): Promise<TextDocument | undefined> {
-    throw new Error('Not found');
+  async openTextDocument(uri: DocumentUri): Promise<CopilotTextDocument | undefined> {
+    try {
+      if ((await this.ctx.get(FileSystem).stat(uri)).size > 5 * 1024 * 1024) {
+        return;
+      }
+    } catch {
+      return;
+    }
+    const text = await this.ctx.get(FileSystem).readFileString(uri);
+    return CopilotTextDocument.create(uri, 'UNKNOWN', 0, text);
   }
 
-  async getWorkspaceFolder(doc: TextDocument): Promise<WorkspaceFolder | undefined> {
+  async getWorkspaceFolder(doc: CopilotTextDocument): Promise<WorkspaceFolder | undefined> {
     return this.getWorkspaceFolders().find((f) => doc.clientUri.startsWith(f.uri));
   }
 
-  async getRelativePath(doc: TextDocument): Promise<string | undefined> {
+  getRelativePath(doc: CopilotTextDocument): string | undefined {
     if (!doc.uri.startsWith('untitled:')) {
       for (const folder of this.getWorkspaceFolders()) {
         let parentURI = folder.uri.replace(/[#?].*/, '').replace(/\/?$/, '/');

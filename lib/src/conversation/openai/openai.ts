@@ -1,5 +1,5 @@
 import { Type } from '@sinclair/typebox';
-import { ToolCall, Unknown, Chat, OpenAIRequestId, Model } from '../../types.ts';
+import { ToolCall, Chat, OpenAIRequestId } from '../../types.ts';
 import { Context } from '../../context.ts';
 import { TelemetryData } from '../../telemetry.ts';
 
@@ -13,7 +13,8 @@ type ChatCompletion = {
   finishReason: string;
   tokens: string[]; // MARK ?? might be string[]
   numTokens: number;
-  tool_calls: ToolCall[];
+  // optional ./fetch.ts
+  tool_calls?: ToolCall[];
   function_call?: { name: string; arguments: unknown[] };
   telemetryData: TelemetryData;
 };
@@ -71,4 +72,12 @@ function StringEnum(values: string[], options?: { description: string }) {
   });
 }
 
-export { ChatRole, convertToChatCompletion, ChatCompletion, StringEnum };
+const ChatConfirmationResponseSchema = Type.Optional(
+  Type.Object({
+    agentSlug: Type.String(),
+    state: Type.Union([Type.Literal('accepted'), Type.Literal('dismissed')]),
+    confirmation: Type.Any(),
+  })
+);
+
+export { ChatConfirmationResponseSchema, ChatRole, StringEnum, convertToChatCompletion, ChatCompletion };

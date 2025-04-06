@@ -10,6 +10,7 @@ import {
   BLOCKED_POLICY_ERROR_RESPONSE,
   NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE,
   NOT_BLOCKED_RESPONSE,
+  SCOPES,
   logger,
 } from './constants.ts';
 
@@ -90,17 +91,21 @@ class CopilotContentExclusion extends PolicyEvaluator {
   }
 
   private ruleLoader = factory(async (scopes: string[]): Promise<Rules[]> => {
-    const session = await this._context.get(CopilotTokenManager).getGitHubSession(this._context);
+    const session = await this._context.get(CopilotTokenManager).getGitHubSession();
     if (!session) throw new CopilotAuthError('No token found');
     const endpoint = this._context.get(NetworkConfiguration).getContentRestrictionsUrl(session);
     const url = new URL(endpoint);
-    const hasAllScope = scopes.includes('all');
-    // if (scopes.filter((s) => s !== 'all').length > 0) {
-    const filteredScopes = scopes.filter((s) => s !== 'all');
+    const hasAllScope = scopes.includes(SCOPES.all);
+    // EDITED
+    // if (scopes.filter((s) => s !== SCOPES.all).length > 0) {
+    //   url.searchParams.set('repos', scopes.filter((s) => s !== SCOPES.all).join(','));
+    // }
+    const filteredScopes = scopes.filter((s) => s !== SCOPES.all);
     if (filteredScopes.length > 0) {
       url.searchParams.set('repos', filteredScopes.join(','));
     }
-    url.searchParams.set('scope', hasAllScope ? 'all' : 'repo');
+
+    url.searchParams.set('scope', hasAllScope ? SCOPES.all : SCOPES.repo);
     logger.debug(this._context, 'Fetching content exclusion policies', {
       params: Object.fromEntries(url.searchParams),
     });
@@ -112,10 +117,6 @@ class CopilotContentExclusion extends PolicyEvaluator {
 
     if (!result.ok) {
       if (result.status === 404) return Array.from(scopes, () => []);
-      logger.error(this._context, 'Failed fetching content exclusion policies', {
-        params: Object.fromEntries(url.searchParams),
-        data,
-      });
       this._telemetry('fetch.error', { message: (data as any).message });
       throw new FetchResponseError(result);
     }
@@ -127,7 +128,7 @@ class CopilotContentExclusion extends PolicyEvaluator {
     try {
       uri = resolveFilePath(uri).toString();
       const repoInfo = await this.getGitRepo(uri);
-      const rules = await this._rulesForScope((repoInfo?.url ?? 'all').toLowerCase());
+      const rules = await this._rulesForScope((repoInfo?.url ?? SCOPES.all).toLowerCase());
 
       if (!rules) return NOT_BLOCKED_NO_MATCHING_POLICY_RESPONSE;
 
@@ -147,41 +148,27 @@ class CopilotContentExclusion extends PolicyEvaluator {
   }
 
   async evaluateFilePathRules(uri: DocumentUri, baseUri: string, rules: Rule[]): Promise<DocumentEvaluateResult> {
-    let cacheKey = uri;
+    const cacheKey = uri;
     if (this._evaluateResultCache.has(cacheKey)) {
       return this._evaluateResultCache.get(cacheKey)!;
     }
     let result = NOT_BLOCKED_RESPONSE;
-    let fileName = percentDecode(uri.replace(baseUri, ''));
-    logger.debug(this._context, '[Path Based]', `Evaluating rules for <${fileName}>`, {
-      uri,
-      baseUri,
-      rules,
-    });
+    let matchingPattern: string | undefined;
+    const fileName = percentDecode(uri.replace(baseUri, ''));
     ruleLoop: for (let rule of rules) {
-      logger.debug(this._context, '[Path Based]', `Evaluating rule for <${fileName}>`, {
-        uri,
-        baseUri,
-        rule,
-      });
-      for (let pattern of rule.paths) {
-        let matchResult = minimatch(fileName, pattern, { nocase: true, matchBase: true, nonegate: true, dot: true });
-        logger.debug(this._context, '[Path Based]', `Tried to match <${fileName}> with <${pattern}>`, {
-          uri,
-          baseUri,
-          pattern,
-          result: matchResult,
-        });
-        if (matchResult) {
+      for (const pattern of rule.paths) {
+        if (minimatch(fileName, pattern, { nocase: true, matchBase: true, nonegate: true, dot: true })) {
           result = fileBlockedEvaluationResult(rule, 'FILE_BLOCKED_PATH');
+          matchingPattern = pattern;
           break ruleLoop;
         }
       }
     }
-    logger.debug(this._context, '[Path Based]', `Evaluation result for <${fileName}>`, {
-      uri,
-      baseUri,
+    logger.debug(this._context, `Evaluated path-based exclusion rules for <${uri}>`, {
       result,
+      baseUri,
+      fileName,
+      matchingPattern,
     });
     this._evaluateResultCache.set(cacheKey, result);
     return result;

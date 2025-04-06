@@ -1,10 +1,9 @@
 import { type TSchema, type Static } from '@sinclair/typebox';
 import { TypeCompiler, ValueError, ValueErrorIterator } from '@sinclair/typebox/compiler';
+import { type CancellationToken } from 'vscode-languageserver';
 
 import { Context } from '../../lib/src/context.ts';
-import { CancellationToken } from './cancellation.ts';
-// import { } from './rpc';
-
+import { ErrorCode } from './rpc.ts';
 type ValidationError = { code: number; message: string };
 
 type HandlerFunction<T extends TSchema = TSchema, R = unknown, P extends Static<T> = unknown> = (
@@ -30,7 +29,7 @@ function addMethodHandlerValidation<T extends TSchema, R>(
   ): Promise<['OK' | R, null] | [null, ValidationError]> => {
     if (!typeCheck.Check(params)) {
       const message = createErrorMessage(typeCheck.Errors(params));
-      return [null, { code: -32602, message }];
+      return [null, { code: ErrorCode.InvalidParams, message }];
     }
     return handleFn(ctx, token, params);
   };
@@ -51,9 +50,3 @@ class SchemaValidationError extends Error {
 }
 
 export { addMethodHandlerValidation, SchemaValidationError, ValidationError, HandlerFunction };
-
-// import { Type } from '@sinclair/typebox';
-// const Params = Type.Object({
-//   authType: Type.Union([Type.Literal('editorAuth'), Type.Literal('deviceFlow')]),
-// });
-// export const aasdfasf: (params: Static<TSchema>) => void = (params: Static<typeof Params>) => { };

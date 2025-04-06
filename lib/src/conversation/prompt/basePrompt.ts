@@ -40,7 +40,7 @@ async function chatBasePrompt(
     ? `The user works in an IDE called ${editor} which can be used to edit code, run and debug the user's application as well as executing tests.`
     : '';
   const osInfo = os ? `The user is using ${os} as their operating system.` : '';
-  const modelInfo = modelName ? `You use the ${modelName} version of OpenAI's GPT models.` : '';
+  const modelInfo = modelName ? `You use the ${modelName} large language model.` : '';
   const userInfo = username ? `The user is logged in as ${username} on GitHub.` : '';
   return [safetyRulesJoined, osInfo, modelInfo, userInfo, editorInfo, promptSecondBlock].filter((s) => s).join(`\n`);
 }

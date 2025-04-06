@@ -1,7 +1,7 @@
 import { Position } from 'vscode-languageserver-types';
 
 import { type Context } from '../context.ts';
-import { type TextDocument } from '../textDocument.ts';
+import { type CopilotTextDocument } from '../textDocument.ts';
 import { type APIChoice } from '../openai/openai.ts';
 
 import { promptLibProxy } from '../prompt/promptLibProxy.ts';
@@ -10,7 +10,7 @@ import { TelemetryData, telemetry } from '../telemetry.ts';
 import { OpenAIRequestId, TelemetryStore } from '../types.ts';
 import { Logger } from '../logger.ts';
 
-function maybeSnipCompletion(ctx: Context, doc: TextDocument, position: Position, completion: string): string {
+function maybeSnipCompletion(ctx: Context, doc: CopilotTextDocument, position: Position, completion: string): string {
   let blockCloseToken = '}';
   try {
     blockCloseToken = promptLibProxy.getBlockCloseToken(doc.languageId) ?? '}';
@@ -45,7 +45,7 @@ function maybeSnipCompletionImpl(
       offset++
     ) {
       let docLine: string | undefined;
-      do {
+      while (true) {
         const docLineIdx = position.line + 1 + offset + docSkippedEmptyLineCount;
         docLine = docLineIdx >= doc.getLineCount() ? undefined : doc.getLineText(docLineIdx);
         if (docLine !== undefined && docLine.trim() === '') {
@@ -53,29 +53,27 @@ function maybeSnipCompletionImpl(
         } else {
           break;
         }
-      } while (true);
+      }
 
-      const completionLineIdx = completionLineStartIdx + offset + completionSkippedEmptyLineCount;
-      const completionLine =
-        completionLineIdx >= completionLines.length ? undefined : completionLines[completionLineIdx];
-      do {
+      let completionLineIdx;
+      let completionLine;
+      while (true) {
+        completionLineIdx = completionLineStartIdx + offset + completionSkippedEmptyLineCount;
+        completionLine = completionLineIdx >= completionLines.length ? undefined : completionLines[completionLineIdx];
         if (completionLine !== undefined && completionLine.trim() === '') {
           completionSkippedEmptyLineCount++;
         } else {
           break;
         }
-      } while (true);
+      }
 
       const isLastCompletionLine = completionLineIdx === completionLines.length - 1;
 
       if (
-        !(
-          completionLine &&
-          docLine &&
-          (isLastCompletionLine
-            ? docLine.startsWith(completionLine) || completionLine.startsWith(docLine)
-            : docLine === completionLine && completionLine.trim() === blockCloseToken)
-        )
+        !completionLine ||
+        !(isLastCompletionLine
+          ? docLine?.startsWith(completionLine) || (docLine !== undefined && completionLine.startsWith(docLine))
+          : docLine === completionLine && completionLine.trim() === blockCloseToken)
       ) {
         matched = false;
         break;
@@ -91,7 +89,7 @@ function splitByNewLine(text: string): { lines: string[]; newLineCharacter: stri
   return { lines: text.split(newLineCharacter), newLineCharacter };
 }
 
-function matchesNextLine(document: TextDocument, position: Position, text: string): boolean {
+function matchesNextLine(document: CopilotTextDocument, position: Position, text: string): boolean {
   let nextLine = '';
   let lineNo = position.line + 1;
   while (nextLine === '' && lineNo < document.lineCount) {
@@ -102,11 +100,12 @@ function matchesNextLine(document: TextDocument, position: Position, text: strin
   return false;
 }
 
-async function postProcessChoice(
+async function postProcessChoiceInContext(
   ctx: Context,
-  document: TextDocument,
+  document: CopilotTextDocument,
   position: Position,
   choice: APIChoice,
+  requestForNextLine: boolean,
   logger: Logger
 ): Promise<APIChoice | undefined> {
   if (isRepetitive(choice.tokens)) {
@@ -119,6 +118,10 @@ async function postProcessChoice(
 
   const postProcessedChoice = { ...choice };
 
+  if (requestForNextLine) {
+    postProcessedChoice.completionText = '\n' + postProcessedChoice.completionText;
+  }
+
   if (matchesNextLine(document, position, postProcessedChoice.completionText)) {
     const baseTelemetryData = TelemetryData.createAndMarkAsIssued();
     baseTelemetryData.extendWithRequestId(choice.requestId);
@@ -127,7 +130,7 @@ async function postProcessChoice(
       ctx,
       'completion.alreadyInDocument',
       baseTelemetryData.extendedBy({ completionTextJson: JSON.stringify(postProcessedChoice.completionText) }),
-      TelemetryStore.RESTRICTED
+      1
     );
     logger.info(ctx, 'Filtered out solution matching next line');
     return;
@@ -138,7 +141,7 @@ async function postProcessChoice(
   return postProcessedChoice.completionText ? postProcessedChoice : undefined;
 }
 
-function checkSuffix(document: TextDocument, position: Position, choice: APIChoice): number {
+function checkSuffix(document: CopilotTextDocument, position: Position, choice: APIChoice): number {
   const restOfLine = document.lineAt(position.line).text.substring(position.character);
   if (restOfLine.length > 0) {
     if (choice.completionText.indexOf(restOfLine) !== -1) return restOfLine.length;
@@ -156,4 +159,4 @@ function checkSuffix(document: TextDocument, position: Position, choice: APIChoi
   return 0;
 }
 
-export { checkSuffix, postProcessChoice };
+export { checkSuffix, postProcessChoiceInContext };

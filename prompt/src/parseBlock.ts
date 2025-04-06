@@ -42,6 +42,9 @@ function outdented(fst: SyntaxNode, snd: SyntaxNode, source: string): boolean {
 }
 
 function getBlockParser(languageId: string): BaseBlockParser {
+  if (!isSupportedLanguageId(languageId)) {
+    throw new Error(`Language ${languageId} is not supported`);
+  }
   return wasmLanguageToBlockParser[languageIdToWasmLanguage(languageId)];
 }
 
@@ -221,7 +224,7 @@ class TreeSitterBasedBlockParser extends BaseBlockParser {
   async isEmptyBlockStart(text: string, offset: number): Promise<boolean> {
     if (offset > text.length) throw new RangeError('Invalid offset');
 
-    for (let i = offset; i < text.length && text.charAt(i) !== `\n`; i++) if (/\S/.test(text.charAt(i))) return false;
+    for (let i = offset; i < text.length && text.charAt(i) !== '\n'; i++) if (/\S/.test(text.charAt(i))) return false;
     offset = rewindToNearestNonWs(text, offset);
     const tree = await parseTreeSitter(this.languageId, text);
     try {
@@ -581,6 +584,8 @@ const wasmLanguageToBlockParser: {
     },
     new Map()
   ),
+  c_sharp: new TreeSitterBasedBlockParser('csharp', {}, new Map([]), [], 'block', null, true),
+  java: new TreeSitterBasedBlockParser('java', {}, new Map([]), [], 'block', null, true),
 };
 
 export { isEmptyBlockStart, isBlockBodyFinished, getNodeStart };

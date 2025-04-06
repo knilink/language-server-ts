@@ -6,6 +6,7 @@ const CopilotCapabilities = Type.Object({
   token: Type.Optional(Type.Boolean()),
   related: Type.Optional(Type.Boolean()),
   watchedFiles: Type.Optional(Type.Boolean()),
+  ipCodeCitation: Type.Optional(Type.Boolean()),
 });
 
 type CopilotCapabilitiesType = Static<typeof CopilotCapabilities>;
@@ -22,10 +23,13 @@ const CopilotInitializationOptions = Type.Object({
   editorInfo: Type.Optional(NameAndVersion),
   editorPluginInfo: Type.Optional(NameAndVersion),
   relatedPluginInfo: Type.Optional(Type.Array(NameAndVersion)),
+  copilotIntegrationId: Type.Optional(Type.String()),
   copilotCapabilities: Type.Optional(CopilotCapabilities),
   githubAppId: Type.Optional(Type.String()),
 });
 
 type CopilotInitializationOptionsType = Static<typeof CopilotInitializationOptions>;
 
-export { CopilotInitializationOptions, CopilotInitializationOptionsType, CopilotCapabilitiesType, NameAndVersionType };
+export { CopilotInitializationOptions };
+
+export type { CopilotInitializationOptionsType, CopilotCapabilitiesType, NameAndVersionType };

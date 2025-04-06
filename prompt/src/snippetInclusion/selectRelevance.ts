@@ -45,7 +45,7 @@ class Tokenizer {
   constructor(doc: CurrentDocument) {
     this.stopsForLanguage = SPECIFIC_STOPS.get(doc.languageId) ?? GENERIC_STOPS;
   }
-  tokenize(a: string) {
+  tokenize(a: string): Set<string> {
     return new Set(splitIntoWords(a).filter((x) => !this.stopsForLanguage.has(x)));
   }
 }
@@ -60,7 +60,11 @@ abstract class WindowedMatcher {
     this.tokenizer = new Tokenizer(referenceDoc);
   }
 
-  get referenceTokens(): Set<string> {
+  get referenceTokens(): Promise<Set<string>> {
+    return this.createReferenceTokens();
+  }
+
+  async createReferenceTokens(): Promise<Set<string>> {
     this.referenceTokensCache ??= this.tokenizer.tokenize(this._getCursorContextInfo(this.referenceDoc).context);
     return this.referenceTokensCache;
   }
@@ -77,29 +81,29 @@ abstract class WindowedMatcher {
     return snippets;
   }
 
-  private retrieveAllSnippets(
+  async retrieveAllSnippets(
     objectDoc: OpenDocument,
     sortOption: 'ascending' | 'descending' = 'descending'
-  ): { score: number; startLine: number; endLine: number }[] {
+  ): Promise<{ score: number; startLine: number; endLine: number }[]> {
     const snippets: { score: number; startLine: number; endLine: number }[] = [];
-    if (objectDoc.source.length === 0 || this.referenceTokens.size === 0) return snippets;
+    if (objectDoc.source.length === 0 || (await this.referenceTokens).size === 0) return snippets;
 
     const lines = objectDoc.source.split('\n');
     const key = `${this.id()}:${objectDoc.source}`;
     let tokensInWindows: TokenWindow[] = WINDOWED_TOKEN_SET_CACHE.get(key) || [];
     const needToComputeTokens = tokensInWindows.length === 0;
-    const tokenizedLines = needToComputeTokens ? lines.map((line) => this.tokenizer.tokenize(line)) : [];
+    const tokenizedLines = needToComputeTokens ? lines.map((l) => this.tokenizer.tokenize(l)) : [];
 
     for (const [index, [startLine, endLine]] of this.getWindowsDelineations(lines).entries()) {
       if (needToComputeTokens) {
         const tokensInWindow: TokenWindow = new Set<string>();
-        tokenizedLines.slice(startLine, endLine).forEach((lineTokens) => {
-          lineTokens.forEach((token) => tokensInWindow.add(token));
+        tokenizedLines.slice(startLine, endLine).forEach((x) => {
+          x.forEach((s) => tokensInWindow.add(s));
         });
         tokensInWindows.push(tokensInWindow);
       }
 
-      const score = this.similarityScore(tokensInWindows[index], this.referenceTokens);
+      const score = this.similarityScore(tokensInWindows[index], await this.referenceTokens);
       if (snippets.length && startLine > 0 && snippets[snippets.length - 1].endLine > startLine) {
         if (snippets[snippets.length - 1].score < score) {
           snippets[snippets.length - 1].score = score;
@@ -119,21 +123,21 @@ abstract class WindowedMatcher {
     return this.sortScoredSnippets(snippets, sortOption);
   }
 
-  findMatches(objectDoc: OpenDocument, maxSnippetsPerFile: number): Snippet[] {
+  async findMatches(objectDoc: OpenDocument, maxSnippetsPerFile: number): Promise<Snippet[]> {
     return this.findBestMatch(objectDoc, maxSnippetsPerFile);
   }
 
-  findBestMatch(objectDoc: OpenDocument, maxSnippetsPerFile: number): Snippet[] {
-    if (objectDoc.source.length === 0 || this.referenceTokens.size === 0) return [];
+  async findBestMatch(objectDoc: OpenDocument, maxSnippetsPerFile: number): Promise<Snippet[]> {
+    if (objectDoc.source.length === 0 || (await this.referenceTokens).size === 0) return [];
 
     const lines = objectDoc.source.split('\n');
-    const snippets = this.retrieveAllSnippets(objectDoc, 'descending');
+    const snippets = await this.retrieveAllSnippets(objectDoc, 'descending');
 
     if (snippets.length === 0) return [];
     const bestSnippets: Snippet[] = [];
     for (let i = 0; i < snippets.length && i < maxSnippetsPerFile; i++)
       if (snippets[i].score !== 0) {
-        const snippetCode = lines.slice(snippets[i].startLine, snippets[i].endLine).join(`\n+  `);
+        const snippetCode = lines.slice(snippets[i].startLine, snippets[i].endLine).join(`\n`);
         bestSnippets.push({ snippet: snippetCode, semantics: 'snippet', provider: 'similar-files', ...snippets[i] });
       }
     return bestSnippets;

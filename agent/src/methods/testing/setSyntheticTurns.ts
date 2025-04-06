@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
 import { type Context } from '../../../../lib/src/context.ts';
 import { SyntheticTurns } from '../../conversation/syntheticTurnProcessor.ts';
 import { ReferenceSchema } from '../../../../lib/src/conversation/schema.ts';
@@ -17,7 +16,7 @@ const Params = Type.Object({
 
 async function handleTestingSetSyntheticTurnsChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
   ctx

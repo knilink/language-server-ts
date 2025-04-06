@@ -1,4 +1,4 @@
-import {} from 'vscode-languageserver-protocol';
+import { type CancellationTokenSource, type Disposable } from 'vscode-languageserver-protocol';
 import { Type, type Static } from '@sinclair/typebox';
 
 const DocumentUriSchema = Type.String();
@@ -11,6 +11,10 @@ const VersionedTextDocumentIdentifierSchema = Type.Required(OptionalVersionedTex
 const PositionSchema = Type.Object({ line: Type.Integer({ minimum: 0 }), character: Type.Integer({ minimum: 0 }) });
 const RangeSchema = Type.Object({ start: PositionSchema, end: PositionSchema });
 const ProgressTokenSchema = Type.Union([Type.Integer(), Type.String()]);
+const CancellationTokenSchema = Type.Object({
+  isCancellationRequested: Type.Boolean(),
+  onCancellationRequested: Type.Any(),
+});
 
 export {
   DocumentUriSchema,

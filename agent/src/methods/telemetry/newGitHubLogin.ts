@@ -1,9 +1,10 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type Context } from '../../../../lib/src/context.ts';
-import { type CancellationToken } from '../../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { Context } from '../../../../lib/src/context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 
 import { telemetryNewGitHubLogin } from '../../../../lib/src/telemetry/auth.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({
   authSource: Type.Union([Type.Literal('toast'), Type.Literal('goldbar'), Type.Literal('menu')]),
@@ -15,7 +16,7 @@ async function handleTelemetryNewGitHubLoginChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
-  await telemetryNewGitHubLogin(ctx, params.authSource, params.authType);
+  telemetryNewGitHubLogin(ctx, params.authSource, params.authType);
   return ['OK', null];
 }
 

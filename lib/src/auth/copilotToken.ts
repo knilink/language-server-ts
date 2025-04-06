@@ -1,33 +1,23 @@
-import { CopilotAuthStatus, TokenEnvelope, GitHubToken } from './types.ts';
-import { Context } from '../context.ts';
-import { CopilotTokenManagerFromGitHubTokenBase } from './copilotTokenManager.ts';
+import type { CopilotAuthStatus, TokenEnvelope, GitHubToken, UserNotification } from './types.ts';
+import type { Context } from '../context.ts';
 
-import { Logger, LogLevel } from '../logger.ts';
+import { Logger } from '../logger.ts';
 import { telemetry, telemetryError, TelemetryData } from '../telemetry.ts';
-import { AvailableModelManager } from '../openai/model.ts';
+import { emitCopilotToken } from './copilotTokenNotifier.ts';
+import { findKnownOrg } from './orgs.ts';
 import { editorVersionHeaders, EditorAndPluginInfo } from '../config.ts';
 import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
 import { NotificationSender } from '../notificationSender.ts';
 import { Fetcher, Response } from '../networking.ts';
 import { NetworkConfiguration } from '../networkConfiguration.ts';
-import { CopilotTokenNotifier } from './copilotTokenNotifier.ts';
 import { UrlOpener } from '../util/opener.ts';
 
-const authLogger = new Logger(LogLevel.INFO, 'auth');
+const authLogger = new Logger('auth');
 const REFRESH_BUFFER_SECONDS: number = 60;
-let refreshRunningCount: number = 0;
-const TOKEN_REFRESHED_EVENT: string = 'token_refreshed';
 
 function nowSeconds() {
   return Math.floor(Date.now() / 1000);
 }
-
-type Notification = {
-  notification_id?: string;
-  message: string;
-  title: string;
-  url: string;
-};
 
 async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Promise<CopilotAuthStatus> {
   let resultTelemetryData = TelemetryData.createAndMarkAsIssued({}, {});
@@ -36,18 +26,21 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
   const response = await fetchCopilotToken(ctx, githubToken);
   const tokenEnvelope: TokenEnvelope = (await response.json()) as TokenEnvelope; //MARK unknown type
 
-  if (!tokenEnvelope) {
-    authLogger.info(ctx, 'Failed to get copilot token');
-    telemetryError(ctx, 'auth.request_read_failed');
-    return { kind: 'failure', reason: 'FailedToGetToken' };
+  const notification = tokenEnvelope.user_notification;
+  notifyUser(ctx, notification, githubToken);
+
+  if (response.clientError && !response.headers.get('x-github-request-id')) {
+    authLogger.error(
+      ctx,
+      `HTTP ${response.status} response does not appear to originate from GitHub. Is a proxy or firewall intercepting this request? https://gh.io/copilot-firewall`
+    );
   }
 
-  const notification = tokenEnvelope.user_notification;
-  if (notification && response.status === 401) {
+  if (response.status === 401) {
     const message = 'Failed to get copilot token due to 401 status. Please sign out and try again.';
     authLogger.info(ctx, message);
     telemetryError(ctx, 'auth.unknown_401', resultTelemetryData);
-    return { kind: 'failure', reason: 'HTTP401', message };
+    return { kind: 'failure', reason: 'HTTP401', message, envelope: tokenEnvelope };
   }
 
   if (!response.ok || !tokenEnvelope.token) {
@@ -58,15 +51,26 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
       resultTelemetryData.extendedBy({ status: response.status.toString(), status_text: response.statusText })
     );
 
-    const errorDetails = tokenEnvelope.error_details;
-    return { kind: 'failure', reason: 'NotAuthorized', message: 'User not authorized', ...errorDetails };
+    const error_details = tokenEnvelope.error_details;
+
+    if (error_details?.notification_id !== 'not_signed_up') {
+      notifyUser(ctx, error_details, githubToken);
+    }
+
+    return {
+      kind: 'failure',
+      reason: 'NotAuthorized',
+      message: 'User not authorized',
+      envelope: tokenEnvelope,
+      ...error_details,
+    };
   }
 
   let expires_at = tokenEnvelope.expires_at;
   tokenEnvelope.expires_at = nowSeconds() + (tokenEnvelope.refresh_in ?? 0) + REFRESH_BUFFER_SECONDS;
   const copilotToken = new CopilotToken(tokenEnvelope);
 
-  ctx.get(CopilotTokenNotifier).emit('onCopilotToken', copilotToken);
+  emitCopilotToken(ctx, copilotToken);
   telemetry(
     ctx,
     'auth.new_token',
@@ -75,7 +79,6 @@ async function authFromGitHubToken(ctx: Context, githubToken: GitHubToken): Prom
       { adjusted_expires_at: tokenEnvelope.expires_at, expires_at, current: nowSeconds() }
     )
   );
-  ctx.get(AvailableModelManager).logModelsForToken(ctx, copilotToken);
 
   return { kind: 'success', envelope: tokenEnvelope };
 }
@@ -93,12 +96,21 @@ async function fetchCopilotToken(ctx: Context, githubToken: GitHubToken): Promis
   }
 }
 
-async function notifyUser(ctx: Context, notification: Notification, githubToken: GitHubToken): Promise<void> {
+async function notifyUser(
+  ctx: Context,
+  notification: UserNotification | undefined,
+  githubToken: GitHubToken
+): Promise<void> {
   if (!notification) return;
   try {
     const response = await ctx
       .get<NotificationSender>(NotificationSender)
-      .showWarningMessageOnlyOnce(notification.message, { title: notification.title || '' });
+      .showWarningMessageOnlyOnce(
+        notification.notification_id,
+        notification.message,
+        { title: notification.title },
+        { title: 'Dismiss' }
+      );
     const showUrl = response?.title === notification.title;
     const ackNotification = showUrl || response?.title === 'Dismiss';
 
@@ -111,7 +123,7 @@ async function notifyUser(ctx: Context, notification: Notification, githubToken:
       await ctx.get(UrlOpener).open(urlWithContext);
     }
 
-    if (ackNotification && notification.notification_id !== undefined) {
+    if (notification.notification_id && ackNotification) {
       await sendNotificationResultToGitHub(ctx, notification.notification_id, githubToken);
     }
   } catch (error) {
@@ -130,33 +142,6 @@ async function sendNotificationResultToGitHub(ctx: Context, notificationId: stri
   if (!response || !response.ok) {
     authLogger.error(ctx, `Failed to send notification result to GitHub: ${response?.status} ${response?.statusText}`);
   }
-}
-
-function refreshToken(ctx: Context, tokenManager: CopilotTokenManagerFromGitHubTokenBase, refreshIn: number): void {
-  const now = nowSeconds();
-  if (refreshRunningCount > 0) return;
-
-  refreshRunningCount++;
-  setTimeout(async () => {
-    let kind: 'success' | 'failure';
-    let error = '';
-    try {
-      refreshRunningCount--;
-      await tokenManager.getCopilotToken(ctx, true);
-      kind = 'success';
-      tokenManager.tokenRefreshEventEmitter.emit(TOKEN_REFRESHED_EVENT);
-    } catch (e) {
-      kind = 'failure';
-      error = (e as any).toString();
-    }
-
-    const data = TelemetryData.createAndMarkAsIssued(
-      { result: kind },
-      { time_taken: nowSeconds() - now, refresh_count: refreshRunningCount }
-    );
-    if (error) data.properties.reason = error;
-    telemetry(ctx, 'auth.token_refresh', data);
-  }, refreshIn * 1000);
 }
 
 class CopilotToken {
@@ -179,26 +164,16 @@ class CopilotToken {
     this.tokenMap = this.parseToken(this.token);
   }
 
-  get expiresAt(): number {
-    return this.envelope.expires_at;
-  }
-
-  get refreshIn(): number {
-    return this.envelope.refresh_in;
+  needsRefresh() {
+    return (this.envelope.expires_at - REFRESH_BUFFER_SECONDS) * 1000 < Date.now();
   }
 
   isExpired(): boolean {
-    return this.expiresAt * 1000 < Date.now();
+    return this.envelope.expires_at * 1000 < Date.now();
   }
 
-  // ./tokenManager.ts
-  static testToken(envelope?: Partial<TokenEnvelope>): CopilotToken {
-    const defaultEnvelope: Pick<TokenEnvelope, 'token' | 'refresh_in' | 'expires_at'> = {
-      token: 'token',
-      refresh_in: 0,
-      expires_at: 0,
-    };
-    return new CopilotToken({ ...defaultEnvelope, ...envelope });
+  get hasKnownOrg() {
+    return findKnownOrg(this.organization_list || []) !== undefined;
   }
 
   parseToken(token?: string): Map<string, string> {
@@ -218,4 +193,4 @@ class CopilotToken {
   }
 }
 
-export { CopilotToken, authFromGitHubToken, authLogger, refreshToken, CopilotTokenManagerFromGitHubTokenBase };
+export { CopilotToken, authFromGitHubToken, authLogger };

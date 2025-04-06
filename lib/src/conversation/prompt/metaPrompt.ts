@@ -1,17 +1,19 @@
-import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { Context } from '../../context.ts';
-import { type UiKind, type SkillId, TelemetryStore, type Unknown, type Skill } from '../../types.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../context.ts';
+import type { UiKind, SkillId, Unknown, Skill } from '../../types.ts';
+import { TelemetryStore } from '../../types.ts';
+import type { TelemetryData, TelemetryWithExp } from '../../telemetry.ts';
+import type { TurnContext } from '../turnContext.ts';
+import type { ChatMLFetcher } from '../chatMLFetcher.ts';
+import type { PromptOptions } from './strategies/types.ts';
 
-import { conversationLogger } from '../logger.ts';
 import { ConversationPromptEngine } from './conversationPromptEngine.ts';
-import { telemetry, TelemetryData, TelemetryWithExp } from '../../telemetry.ts';
-import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { ConversationInspector } from '../conversationInspector.ts';
-import { telemetryPrefixForUiKind } from '../telemetry.ts';
+import { conversationLogger } from '../logger.ts';
+import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
-import { TurnContext } from '../turnContext.ts';
-import { ChatMLFetcher } from '../chatMLFetcher.ts';
-import { PromptOptions } from './strategies/types.ts';
+import { telemetryPrefixForUiKind } from '../telemetry.ts';
+import { telemetry } from '../../telemetry.ts';
 
 type MetaPromptContext = { skillIds: SkillId[] };
 
@@ -61,7 +63,7 @@ class MetaPromptFetcher {
         fetchResult = await this.chatFetcher.fetchResponse(params, token, extendedTelemetryWithExp);
       }
 
-      turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
+      await turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
       return await this.handleResult(fetchResult, extendedTelemetryWithExp, userQuestion, uiKind, prompt.toolConfig);
     } else return DEFAULT_PROMPT_CONTEXT;
   }

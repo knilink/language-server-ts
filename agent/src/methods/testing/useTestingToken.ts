@@ -1,13 +1,14 @@
-import { Type, type Static } from '@sinclair/typebox';
+import type { Context } from '../../../../lib/src/context.ts';
+import { type Static } from '@sinclair/typebox';
 
-import { type CancellationToken } from '../../cancellation.ts';
-import { type AuthRecord } from '../../../../lib/src/auth/types.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { AuthRecord } from '../../../../lib/src/auth/types.ts';
 
-import { Context } from '../../../../lib/src/context.ts';
-import { getTestingCopilotTokenManager } from '../../../../lib/src/testing/copilotToken.ts';
-import { AuthManager } from '../../../../lib/src/auth/manager.ts';
-import { CopilotTokenManager } from '../../../../lib/src/auth/copilotTokenManager.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { CopilotTokenManager } from '../../../../lib/src/auth/copilotTokenManager.ts';
+import { AuthManager } from '../../../../lib/src/auth/manager.ts';
+import { setTestingCopilotTokenManager } from '../../../../lib/src/testing/copilotToken.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({
   options: Type.Optional(Type.Object({})),
@@ -19,9 +20,8 @@ async function handleTestingUseTestingTokenChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
-  const tokenManager = getTestingCopilotTokenManager();
-  ctx.forceSet(AuthManager, new FakeAuthManager(tokenManager, params.githubAppId));
-  ctx.forceSet(CopilotTokenManager, tokenManager);
+  await setTestingCopilotTokenManager(ctx);
+  ctx.forceSet(AuthManager, new FakeAuthManager(ctx.get(CopilotTokenManager), params.githubAppId));
   return ['OK', null];
 }
 

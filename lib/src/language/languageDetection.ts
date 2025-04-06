@@ -1,13 +1,11 @@
-import path from 'path';
+import type { CopilotTextDocument } from '../textDocument.ts';
+import type { LanguageId } from '../types.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
 
+import * as path from 'node:path';
 import { knownLanguages } from './generatedLanguages.ts';
-import { knownTemplateLanguageExtensions, knownFileExtensions, templateLanguageLimitations } from './languages.ts';
-// import { LRUCacheMap } from '../common/cache.ts';
-import { TextDocument } from '../textDocument.ts';
-import { LanguageId } from '../types.ts';
-// import { TextDocumentManager, INotebook } from '../textDocumentManager.ts';
+import { knownFileExtensions, knownTemplateLanguageExtensions, templateLanguageLimitations } from './languages.ts';
 import { basename } from '../util/uri.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
 
 function detectLanguage({ uri, clientLanguageId }: { uri: DocumentUri; clientLanguageId: LanguageId }): LanguageId {
   const language = languageDetection.detectLanguage({ uri, languageId: 'UNKNOWN' });
@@ -23,7 +21,7 @@ class Language {
 }
 
 abstract class LanguageDetection {
-  abstract detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language;
+  abstract detectLanguage(doc: Pick<CopilotTextDocument, 'uri' | 'languageId'>): Language;
 }
 
 const knownExtensions = new Map<string, LanguageId[]>(
@@ -36,7 +34,7 @@ const knownFilenames = new Map<string, DocumentUri[]>(
 );
 
 class FilenameAndExensionLanguageDetection extends LanguageDetection {
-  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
+  detectLanguage(doc: Pick<CopilotTextDocument, 'uri' | 'languageId'>): Language {
     const filename = basename(doc.uri);
     const extension = path.extname(filename).toLowerCase();
     const extensionWithoutTemplate = this.extensionWithoutTemplateLanguage(filename, extension);
@@ -92,7 +90,7 @@ class GroupingLanguageDetection extends LanguageDetection {
     super();
   }
 
-  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
+  detectLanguage(doc: Pick<CopilotTextDocument, 'uri' | 'languageId'>): Language {
     const language = this.delegate.detectLanguage(doc);
     if (language.languageId === 'c' || language.languageId === 'cpp') {
       return new Language('cpp', language.isGuess, language.fileExtension);
@@ -106,7 +104,7 @@ class ClientProvidedLanguageDetection extends LanguageDetection {
     super();
   }
 
-  detectLanguage(doc: Pick<TextDocument, 'uri' | 'languageId'>): Language {
+  detectLanguage(doc: Pick<CopilotTextDocument, 'uri' | 'languageId'>): Language {
     return doc.uri.startsWith('untitled:') || doc.uri.startsWith('vscode-notebook-cell:')
       ? new Language(doc.languageId, true, '')
       : this.delegate.detectLanguage(doc);

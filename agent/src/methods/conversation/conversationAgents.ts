@@ -1,11 +1,12 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { RemoteAgentTurnProcessor } from '../../../../lib/src/conversation/extensibility/remoteAgentTurnProcessor.ts';
+import type { Context } from '../../../../lib/src/context.ts';
 
-import { type Context } from '../../../../lib/src/context.ts';
 import { getAgents } from '../../../../lib/src/conversation/agents/agents.ts';
 import { TestingOptions } from '../testingOptions.ts';
 import { ensureAuthenticated } from '../../auth/authDecorator.ts';
 import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({ options: Type.Optional(TestingOptions) });
 
@@ -18,7 +19,7 @@ type Agent = {
 
 async function handleConversationAgentsChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[Agent[], null]> {
   return [
@@ -26,7 +27,7 @@ async function handleConversationAgentsChecked(
       slug: a.slug,
       name: a.name,
       description: a.description,
-      avatarUrl: 'avatarUrl' in a ? a.avatarUrl : undefined,
+      avatarUrl: a.avatarUrl,
     })),
     null,
   ];

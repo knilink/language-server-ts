@@ -1,3 +1,5 @@
+import type { Range } from 'vscode-languageserver-types';
+
 type SuggestionStatus = { compType: 'full' } | { compType: 'partial'; acceptedLength?: number };
 
 function computeCompCharLen(suggestionStatus: SuggestionStatus, completionText: string): number {
@@ -12,4 +14,20 @@ function computeCompletionText(completionText: string, suggestionStatus: Suggest
     : completionText;
 }
 
-export { computeCompCharLen, computeCompletionText, SuggestionStatus };
+type CompletionItem = {
+  displayText: string;
+  insertText: string;
+  range: Range;
+};
+
+function computePartialLength(
+  cmp: CompletionItem,
+  acceptedLength: number,
+  triggerKind: number // TODO: enum
+): number {
+  return (cmp.displayText !== cmp.insertText && cmp.insertText.trim() === cmp.displayText) || triggerKind === 3
+    ? acceptedLength
+    : acceptedLength - cmp.range.end.character + cmp.range.start.character;
+}
+
+export { computeCompCharLen, computeCompletionText, computePartialLength, SuggestionStatus };

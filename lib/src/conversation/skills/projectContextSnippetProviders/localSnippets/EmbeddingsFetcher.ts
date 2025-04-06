@@ -1,14 +1,16 @@
-import { v4 as uuidv4 } from 'uuid';
 import type { Model } from '../../../../types.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../../context.ts';
+import type { Response } from '../../../../networking.ts';
 
-import { Context } from '../../../../context.ts';
 import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
-import { CancellationToken } from '../../../../../../agent/src/cancellation.ts';
-import { getTokenizer } from '../../../../../../prompt/src/tokenization/tokenizer.ts';
-import { NetworkConfiguration } from '../../../../networkConfiguration.ts';
 import { CopilotTokenManager } from '../../../../auth/copilotTokenManager.ts';
-import { postRequest, Response } from '../../../../networking.ts';
+import { NetworkConfiguration } from '../../../../networkConfiguration.ts';
+import { postRequest } from '../../../../networking.ts';
 import { telemetryException } from '../../../../telemetry.ts';
+import { v4 as uuidv4 } from 'uuid';
+import { getTokenizer } from '../../../../../../prompt/src/tokenization/tokenizer.ts';
+import type {} from '../../../../../../prompt/src/tokenization/index.ts';
 
 type Input = {
   id: string;
@@ -33,7 +35,7 @@ async function fetchEmbeddings(
 
   const output: Output[] = [];
   const endpoint = ctx.get(NetworkConfiguration).getEmbeddingsUrl(ctx);
-  const secretKey = (await ctx.get(CopilotTokenManager).getCopilotToken(ctx)).token;
+  const secretKey = (await ctx.get(CopilotTokenManager).getToken()).token;
   let idx = 0;
 
   while (idx < validInputs.length && !cancellationToken.isCancellationRequested) {

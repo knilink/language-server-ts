@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { CancellationToken } from '../../cancellation.ts';
 
 import { Context } from '../../../../lib/src/context.ts';
 import { setupTelemetryReporters } from '../../../../lib/src/telemetry/setupTelemetryReporters.ts';
@@ -13,7 +12,7 @@ const Params = Type.Object({ telemetryCapture: Type.Boolean() });
 
 async function handleTestingSetTelemetryCaptureChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
   if (params.telemetryCapture) {

@@ -1,7 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 import { type Context } from '../../../lib/src/context.ts';
-import { type CancellationToken } from '../cancellation.ts';
 
 import { FileReader, statusFromTextDocumentResult } from '../../../lib/src/fileReader.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
@@ -10,7 +9,7 @@ const Params = Type.Object({ uri: Type.String({ minLength: 1 }) });
 
 async function handleCheckFileStatusChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[{ status: 'blocked' | 'notfound'; reason: string } | { status: 'included' | 'empty' }, null]> {
   const fileReader = ctx.get(FileReader);

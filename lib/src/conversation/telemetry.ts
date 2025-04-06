@@ -5,7 +5,7 @@ import { Features } from '../experiments/features.ts';
 import { Context } from '../context.ts';
 import { UiKind, TelemetryProperties, TelemetryMeasurements, TelemetryStore, Unknown, LanguageId } from '../types.ts';
 import { Turn, Conversation } from '../conversation/conversation.ts';
-import { TextDocument } from '../textDocument.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
 
 import { v4 as uuidv4 } from 'uuid';
 import {} from '../openai/fetch.ts';
@@ -73,7 +73,7 @@ function createUserMessageTelemetryData(
   messageText: string,
   offTopic: boolean,
   requestId: string,
-  doc: TextDocument | undefined,
+  doc: CopilotTextDocument | undefined,
   baseTelemetryWithExp: TelemetryWithExp
 ): string {
   if (offTopic != null) {
@@ -98,7 +98,7 @@ function createModelMessageTelemetryData(
   appliedText: string,
   responseNumTokens: number,
   requestId: string,
-  doc?: TextDocument,
+  doc?: CopilotTextDocument,
   baseTelemetryWithExp?: TelemetryWithExp
 ): string {
   let codeBlockLanguages = getCodeBlocks(appliedText);
@@ -130,7 +130,7 @@ function createOffTopicMessageTelemetryData(
   uiKind: UiKind,
   appliedText: string,
   userMessageId: string,
-  doc?: TextDocument,
+  doc?: CopilotTextDocument,
   baseTelemetryWithExp?: TelemetryWithExp
 ): void {
   telemetryMessage(
@@ -157,7 +157,7 @@ function createSuggestionMessageTelemetryData(
   promptTokenLen: number,
   suggestion: string,
   suggestionId: string,
-  doc?: TextDocument,
+  doc?: CopilotTextDocument,
   baseTelemetryWithExp?: TelemetryWithExp
 ): string {
   const { messageId, standardTelemetryData: telemetryData } = telemetryMessage(
@@ -190,12 +190,11 @@ function createSuggestionMessageTelemetryData(
   return messageId;
 }
 
-async function telemetryCodeSearch(
+async function telemetryIndexCodesearch(
   turnContext: TurnContext,
   provider: string,
-  measurements?: TelemetryMeasurements
+  measurements: TelemetryMeasurements
 ): Promise<void> {
-  const defaultMeasurements = { fileCount: 0, chunkCount: 0, chunkingTimeMs: 0, rankingTimeMs: 0 };
   const baseTelemetryWithExP = await createTelemetryWithExpWithId(
     turnContext.ctx,
     turnContext.turn.id,
@@ -212,15 +211,15 @@ async function telemetryCodeSearch(
       provider,
       uiKind,
     },
-    { ...defaultMeasurements, ...measurements },
-    'conversation.codeSearch',
+    measurements,
+    'index.codesearch',
     baseTelemetryWithExP
   );
 }
 
 function telemetryMessage(
   ctx: Context,
-  document: TextDocument | undefined,
+  document: CopilotTextDocument | undefined,
   uiKind: UiKind,
   messageText: string,
   properties: TelemetryProperties,
@@ -264,7 +263,7 @@ function createSuggestionShownTelemetryData(
   ctx: Context,
   uiKind: UiKind,
   baseTelemetryWithExp: TelemetryWithExp,
-  doc?: TextDocument
+  doc?: CopilotTextDocument
 ): void {
   telemetryUserAction(ctx, doc, { uiKind: uiKind }, {}, 'conversation.suggestionShown', baseTelemetryWithExp);
 }
@@ -277,7 +276,7 @@ function createSuggestionSelectedTelemetryData(
   conversationId: string,
   suggestionId: string,
   baseTelemetryWithExp?: TelemetryWithExp,
-  doc?: TextDocument
+  doc?: CopilotTextDocument
 ): void {
   telemetryUserAction(
     ctx,
@@ -297,7 +296,7 @@ function createSuggestionSelectedTelemetryData(
 
 function telemetryUserAction(
   ctx: Context,
-  document: TextDocument | undefined,
+  document: CopilotTextDocument | undefined,
   properties: TelemetryProperties,
   measurements: TelemetryMeasurements,
   name: string,
@@ -314,13 +313,15 @@ function telemetryUserAction(
   return standardTelemetryData;
 }
 
-async function logEngineMessages(ctx: Context, messages: unknown[], telemetryData: TelemetryData): Promise<void> {
+function logEngineMessages(ctx: Context, messages: unknown[], telemetryData: TelemetryData): void {
   const telemetryDataWithPrompt = telemetryData.extendedBy({ messagesJson: JSON.stringify(messages) });
-  await telemetry(ctx, 'engine.messages', telemetryDataWithPrompt, TelemetryStore.RESTRICTED);
+  return telemetry(ctx, 'engine.messages', telemetryDataWithPrompt, TelemetryStore.RESTRICTED);
 }
 
-function telemetryPrefixForUiKind(uiKind?: UiKind): 'inlineConversation' | 'conversation' {
+function telemetryPrefixForUiKind(uiKind?: UiKind): 'copilotEditsPanel' | 'inlineConversation' | 'conversation' {
   switch (uiKind) {
+    case 'editsPanel':
+      return 'copilotEditsPanel';
     case 'conversationInline':
       return 'inlineConversation';
     case 'conversationPanel':
@@ -329,8 +330,17 @@ function telemetryPrefixForUiKind(uiKind?: UiKind): 'inlineConversation' | 'conv
   }
 }
 
+const defaultCodesearchMeasurements = {
+  synonymTimeMs: 0,
+  rankingTimeMs: 0,
+  chunkCount: 0,
+  localSnippetCount: 0,
+  embeddingsTimeMs: 0,
+  rerankingTimeMs: 0,
+};
+
 function getCodeBlocks(text: string): string[] {
-  const textLines = text.split(`\n`);
+  const textLines = text.split('\n');
   const codeBlockLanguages: string[] = [];
   const languageStack: string[] = [];
   for (let i = 0; i < textLines.length; i++) {
@@ -363,9 +373,10 @@ export {
   createSuggestionShownTelemetryData,
   createTelemetryWithExpWithId,
   createUserMessageTelemetryData,
+  defaultCodesearchMeasurements,
   extendUserMessageTelemetryData,
   logEngineMessages,
-  telemetryCodeSearch,
+  telemetryIndexCodesearch,
   telemetryPrefixForUiKind,
   telemetryUserAction,
   uiKindToIntent,

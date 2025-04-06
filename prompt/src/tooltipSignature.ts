@@ -23,6 +23,6 @@ function transferLastLineToTooltipSignature(
   return [directContextBeforePartialLastLine, tooltipSignatureSnippet];
 }
 
-const regexAttributeOrMethod = /(\.|\->|::)\w+$/;
+const regexAttributeOrMethod = /(\.|->|::)\w+$/;
 
 export { announceTooltipSignatureSnippet, endsWithAttributesOrMethod, transferLastLineToTooltipSignature };

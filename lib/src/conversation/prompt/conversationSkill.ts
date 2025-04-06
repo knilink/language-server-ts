@@ -40,7 +40,7 @@ class StepReportingSkillResolver<T> implements Skill.ISkillResolver<T> {
       }
       return resolvedSkill;
     } catch (e: any) {
-      await turnContext.steps.error(this.stepId, e?.message ?? `Error resolving ${this.stepTitle}`);
+      await turnContext.steps.error(this.stepId, e instanceof Error ? e.message : `Error resolving ${this.stepTitle}`);
       throw e;
     }
   }
@@ -62,7 +62,7 @@ class StepReportingSkillProcessor<T> implements Skill.ISkillProcessor<T> {
       await turnContext.steps.finish(this.stepId);
       return processedSkill;
     } catch (e: any) {
-      await turnContext.steps.error(this.stepId, e?.message ?? `Error processing ${this.stepId}`);
+      await turnContext.steps.error(this.stepId, e instanceof Error ? e.message : `Error processing ${this.stepId}`);
       throw e;
     }
   }

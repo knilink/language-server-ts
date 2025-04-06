@@ -1,25 +1,26 @@
-import { Type, type Static } from '@sinclair/typebox';
-import SHA256 from 'crypto-js/sha256.js';
-import { Range } from 'vscode-languageserver-types';
-import { NotificationType, ResponseError } from 'vscode-languageserver';
+import type { Static } from '@sinclair/typebox';
+import type { Range } from 'vscode-languageserver-types';
+import type { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
-import { type CancellationToken } from '../cancellation.ts';
-import { type Context } from '../../../lib/src/context.ts';
-
-import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel.ts';
-import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
-import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { LocationFactory } from '../../../lib/src/textDocument.ts';
-import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
-
-import { completionContextForDocument, solutionCountTarget } from '../../../lib/src/copilotPanel/common.ts';
-import { Service } from '../service.ts';
+import { SHA256 } from 'crypto-js';
+import { NotificationType, ResponseError, CancellationTokenSource } from 'vscode-languageserver/node.js';
+import { ExternalTestingPanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
 import { TestingOptions } from './testingOptions.ts';
+import { MergedToken } from '../cancellation.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { ErrorCode } from '../rpc.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { CancellationTokenSource, MergedToken } from '../cancellation.ts';
-import { Logger, LogLevel } from '../../../lib/src/logger.ts';
-import { DocumentUriSchema, PositionSchema } from '../../../types/src/index.ts';
+import { Service } from '../service.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { completionContextForDocument, solutionCountTarget } from '../../../lib/src/copilotPanel/common.ts';
+import { SolutionManager, normalizeCompletionText, runSolutions } from '../../../lib/src/copilotPanel/panel.ts';
+import { LocationFactory } from '../../../lib/src/textDocument.ts';
+import { Type } from '@sinclair/typebox';
+import { DocumentUriSchema, PositionSchema } from '../../../types/src/core.ts';
+import '../lib/src/ghostText/ghostText.ts';
+import type {} from '../../../types/src/index.ts';
 
 const Params = Type.Object({
   doc: Type.Object({ position: PositionSchema, uri: DocumentUriSchema, version: Type.Number() }),
@@ -54,6 +55,7 @@ function makeSolution(
       position: range.end,
       resultType: 0,
       triggerCategory: 'solution',
+      copilotAnnotations: unformattedSolution.copilotAnnotations,
     }),
     {
       panelId: params.panelId,
@@ -66,10 +68,10 @@ function makeSolution(
   );
 }
 
-async function reportDone(panelId: string, service: Service) {
-  service.connection.sendNotification(PanelSolutionsDoneNotification, {
+async function reportDone(panelId: string, service: Service): Promise<void> {
+  await service.connection.sendNotification(new NotificationType('PanelSolutionsDone'), {
     status: 'OK',
-    panelId: panelId,
+    panelId,
   });
 }
 
@@ -88,15 +90,10 @@ async function handleGetPanelCompletionsChecked(
   const position = params.doc.position;
   const range = LocationFactory.range(position, position);
   const solutionHandler = new SolutionHandler(ctx, params, range);
-  let testingDocs: PanelCompletionDocuments | undefined;
-
-  try {
-    testingDocs = ctx.get(PanelCompletionDocuments);
-  } catch {}
-
-  if (testingDocs) {
+  const testingDocs = ctx.get(ExternalTestingPanelCompletionDocuments);
+  if (testingDocs.documents) {
     const documents = testingDocs.documents;
-    setImmediate(() => runTestSolutions(position, documents, solutionHandler));
+    runTestSolutions(position, documents, solutionHandler);
   } else {
     let textDocument;
     try {
@@ -104,8 +101,8 @@ async function handleGetPanelCompletionsChecked(
     } catch (e) {
       if (!(e instanceof ResponseError)) throw e;
       switch (e.code) {
-        case 1002:
-        case -32801:
+        case ErrorCode.CopilotNotAvailable:
+        case ErrorCode.ContentModified:
           return produceEmptySolutions(ctx, params);
       }
       throw e;
@@ -115,14 +112,17 @@ async function handleGetPanelCompletionsChecked(
     const completionContext = completionContextForDocument(ctx, textDocument, position);
     const solutionManager = new SolutionManager(textDocument, position, completionContext, token, solutionCountTarget);
 
-    setImmediate(() => runSolutions(ctx, solutionManager, solutionHandler));
+    runSolutions(ctx, solutionManager, solutionHandler);
   }
 
   return [{ solutionCountTarget: solutionCountTarget }, null];
 }
 
-function produceEmptySolutions(ctx: Context, params: ParamsType): [{ solutionCountTarget: number }, null] {
-  reportDone(params.panelId, ctx.get(Service));
+async function produceEmptySolutions(
+  ctx: Context,
+  params: ParamsType
+): Promise<[{ solutionCountTarget: number }, null]> {
+  await reportDone(params.panelId, ctx.get(Service));
   return [{ solutionCountTarget: 0 }, null];
 }
 
@@ -139,19 +139,19 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
     return this.ctx.get(Service);
   }
 
-  onSolution(unformattedSolution: SolutionHandlerNS.UnformattedSolution) {
-    this.service.connection.sendNotification(
+  async onSolution(unformattedSolution: SolutionHandlerNS.UnformattedSolution): Promise<void> {
+    await this.service.connection.sendNotification(
       PanelSolutionNotification,
       makeSolution(this.ctx, this.params, this.range, this.offset, unformattedSolution)
     );
   }
 
-  onFinishedNormally() {
-    reportDone(this.params.panelId, this.service);
+  async onFinishedNormally(): Promise<void> {
+    await reportDone(this.params.panelId, this.service);
   }
 
-  onFinishedWithError(error: string) {
-    this.service.connection.sendNotification(PanelSolutionsDoneNotification, {
+  async onFinishedWithError(error: string): Promise<void> {
+    await this.service.connection.sendNotification(PanelSolutionsDoneNotification, {
       status: 'Error',
       message: error,
       panelId: this.params.panelId,

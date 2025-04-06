@@ -1,20 +1,21 @@
-import { type CancellationToken } from '../cancellation.ts';
-import { Type, type Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Static } from '@sinclair/typebox';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { type Context } from '../../../lib/src/context.ts';
-import { EditorAndPluginInfo } from '../../../lib/src/config.ts';
 import {
-  applySettingsToConfiguration,
-  applyNetworkProxyConfiguration,
-  initializePostConfigurationDependencies,
-  NetworkProxy,
   AuthProvider,
+  NetworkProxy,
+  applyNetworkProxyConfiguration,
+  applySettingsToConfiguration,
+  initializePostConfigurationDependencies,
 } from './notifyChangeConfiguration.ts';
-import { Fetcher } from '../../../lib/src/networking.ts';
 import { AgentConfigProvider } from '../config.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { EditorAndPluginInfo } from '../../../lib/src/config.ts';
 import { getProxyFromEnvironment, proxySettingFromUrl } from '../../../lib/src/network/proxy.ts';
 import { NetworkConfiguration } from '../../../lib/src/networkConfiguration.ts';
-import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { Fetcher } from '../../../lib/src/networking.ts';
+import { Type } from '@sinclair/typebox';
 
 const NameAndVersionParam = Type.Object({
   name: Type.String(),
@@ -37,7 +38,7 @@ const handleSetEditorInfoChecked = async (
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null]> => {
-  ctx.get(EditorAndPluginInfo).setEditorAndPluginInfo(params.editorInfo, params.editorPluginInfo);
+  ctx.get(EditorAndPluginInfo).setEditorAndPluginInfo(params.editorPluginInfo, params.editorInfo);
 
   if (params.editorConfiguration) {
     applySettingsToConfiguration(ctx, params.editorConfiguration);

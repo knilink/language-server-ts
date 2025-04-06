@@ -1,9 +1,9 @@
 import { Unknown, UiKind } from '../types.ts';
 import { v4 as uuidv4 } from 'uuid';
 import { TurnContext } from './turnContext.ts';
-import { TextDocument } from '../textDocument.ts';
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
-import { TelemetryWithExp } from '../telemetry.ts';
+import { CopilotTextDocument } from '../textDocument.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { TelemetryWithExp } from '../telemetry.ts';
 import { createOffTopicMessageTelemetryData } from './telemetry.ts';
 
 import { ConversationInspector } from './conversationInspector.ts';
@@ -29,6 +29,8 @@ namespace ChatFetchResultPostProcessor {
           message: string;
           responseIsFiltered?: boolean;
           responseIsIncomplete?: boolean;
+          code?: number;
+          reason?: 'model_not_supported';
         };
       };
 }
@@ -51,7 +53,7 @@ class ChatFetchResultPostProcessor {
     messageText: string,
     uiKind: UiKind,
     // optional ./turnProcessor.ts
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ): Promise<ChatFetchResultPostProcessor.PostProcessResult> {
     createUserMessageTelemetryData(
       this.turnContext.ctx,
@@ -62,7 +64,7 @@ class ChatFetchResultPostProcessor {
       doc,
       augmentedTelemetryWithExp.extendedBy({}, { fileCount: this.turnContext.ctx.get(ChunkingProvider).workspaceCount })
     );
-    this.turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
+    await this.turnContext.ctx.get(ConversationInspector).inspectFetchResult(fetchResult);
     switch (fetchResult.type) {
       case 'success':
         return await this.processSuccessfulFetchResult(
@@ -84,7 +86,13 @@ class ChatFetchResultPostProcessor {
       case 'failed':
         this.turnContext.turn.status = 'error';
         this.turnContext.turn.response = { message: fetchResult.reason, type: 'server' };
-        return { error: { message: this.translateErrorMessage(fetchResult.code) } };
+        return {
+          error: {
+            message: this.translateErrorMessage(fetchResult.code, fetchResult.reason),
+            code: fetchResult.code,
+          },
+        };
+
       case 'filtered':
         this.turnContext.turn.status = 'filtered';
         return {
@@ -139,6 +147,18 @@ class ChatFetchResultPostProcessor {
         };
       }
 
+      case 'model_not_supported':
+        this.turnContext.turn.status = 'error';
+        this.turnContext.turn.response = { message: 'Model not supported', type: 'server' };
+        return {
+          error: {
+            message: 'Oops, the model is not supported. Please try again.',
+            code: 400,
+            reason: 'model_not_supported',
+            responseIsFiltered: false,
+          },
+        };
+
       case 'successMultiple':
       case 'tool_calls':
       case 'unknown':
@@ -157,7 +177,7 @@ class ChatFetchResultPostProcessor {
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp,
     augmentedTelemetryWithExp: TelemetryWithExp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ): Promise<ChatFetchResultPostProcessor.PostProcessResult> {
     if (appliedText && appliedText.length > 0) {
       baseTelemetryWithExp.markAsDisplayed();
@@ -199,12 +219,14 @@ class ChatFetchResultPostProcessor {
     return { error: this.turnContext.turn.response };
   }
 
-  translateErrorMessage(errorCode?: number): string {
+  translateErrorMessage(errorCode?: number, reason?: string): string {
     switch (errorCode) {
       case 466:
         return 'Oops, your plugin is out of date. Please update it.';
       case 401:
         return 'Oops, you are not authorized. Please sign in.';
+      case 402:
+        return reason || 'Oops, you need to upgrade your plan.';
       case 429:
         return 'Oops, there was a problem with your request. Please try again.';
       default:
@@ -216,7 +238,7 @@ class ChatFetchResultPostProcessor {
     cancelationToken: CancellationToken,
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ): Promise<Unknown.Suggestions | undefined> {
     const suggestionsFetchResult = await new TurnSuggestions(
       this.turnContext.ctx,
@@ -236,7 +258,7 @@ class ChatFetchResultPostProcessor {
     suggestionsFetchResult: TurnSuggestions.SuggestionsFetchResult,
     uiKind: UiKind,
     baseTelemetryWithExp: TelemetryWithExp,
-    doc?: TextDocument
+    doc?: CopilotTextDocument
   ) {
     let extendedTelemetry = baseTelemetryWithExp.extendedBy(
       { messageSource: 'chat.suggestions', suggestionId: uuidv4(), suggestion: 'Follow-up from model' },
@@ -250,7 +272,7 @@ class ChatFetchResultPostProcessor {
     };
   }
 
-  async processOffTopicFetchResult(baseTelemetryWithExp: TelemetryWithExp, uiKind: UiKind, doc?: TextDocument) {
+  async processOffTopicFetchResult(baseTelemetryWithExp: TelemetryWithExp, uiKind: UiKind, doc?: CopilotTextDocument) {
     const offTopicMessage = 'Sorry, but I can only assist with programming related questions.';
     this.turnContext.turn.response = { message: offTopicMessage, type: 'offtopic-detection' };
     this.turnContext.turn.status = 'off-topic';

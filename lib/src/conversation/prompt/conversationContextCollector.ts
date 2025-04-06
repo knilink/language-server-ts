@@ -1,4 +1,5 @@
-import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+
 import { Skill, SkillId, UiKind } from '../../types.ts';
 import { Context } from '../../context.ts';
 
@@ -16,10 +17,6 @@ import { ReferencesSkillId } from '../skills/ReferencesSkill.ts';
 import { type ChatMLFetcher } from '../chatMLFetcher.ts';
 import { IPromptTemplate } from '../promptTemplates.ts';
 import { Conversation, Turn } from '../conversation.ts';
-
-namespace ConversationContextCollector {
-  export type Agent = { additionalSkills: (ctx: Context) => Promise<SkillId[]> };
-}
 
 const mandatorySkills = (): SkillId[] => [
   ProjectMetadataSkillId,
@@ -111,6 +108,13 @@ class ConversationContextCollector {
 
   isIgnoredSkill(id: SkillId, turn: Turn) {
     return turn.ignoredSkills?.some((ignoredSkill) => ignoredSkill.skillId === id);
+  }
+}
+
+namespace ConversationContextCollector {
+  // TODO replace with RemoteAgentTurnProcessor.IAgent
+  export interface Agent {
+    additionalSkills: (ctx: Context) => Promise<SkillId[]>;
   }
 }
 

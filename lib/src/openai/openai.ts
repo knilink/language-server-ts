@@ -1,12 +1,14 @@
-import { OpenAIRequestId, Choice, Unknown } from '../types.ts';
-import { LanguageId } from '../../../prompt/src/types.ts';
-import { Context } from '../context.ts';
+import type { OpenAIRequestId, Choice, Unknown } from '../types.ts';
+import type { LanguageId } from '../../../prompt/src/types.ts';
+import type { Context } from '../context.ts';
 
-import {} from './fetch.ts';
-import { isRunningInTest } from '../testing/runtimeMode.ts';
 import { logger } from '../logger.ts';
-import { TelemetryData, TelemetryWithExp, logEngineCompletion } from '../telemetry.ts';
-import { DEFAULT_MAX_COMPLETION_LENGTH } from '../../../prompt/src/lib.ts';
+import { logEngineCompletion, type TelemetryWithExp } from '../telemetry.ts';
+import { isRunningInTest } from '../testing/runtimeMode.ts';
+import { v4 as uuidv4 } from 'uuid';
+import { DEFAULT_MAX_COMPLETION_LENGTH } from '../../../prompt/src/prompt.ts';
+import type {} from './fetch.ts';
+import type {} from '../../../prompt/src/lib.ts';
 
 type APIChoice = {
   completionText: string;
@@ -21,6 +23,10 @@ type APIChoice = {
   numTokens: number;
   // TelemetryWithExp ../../../agent/src/methods/getCompletions.ts
   telemetryData: TelemetryWithExp;
+  // optional ../ghostText/progressiveReveal.ts
+  // Record<...> Object.entries(this.choice.copilotAnnotations) at ../ghostText/progressiveReveal.ts
+  copilotAnnotations?: { ip_code_citations?: Unknown.Annotation[] };
+  clientCompletionId: string;
 };
 
 function convertToAPIChoice(
@@ -44,6 +50,8 @@ function convertToAPIChoice(
     tokens: jsonData.tokens,
     numTokens: jsonData.tokens.length,
     telemetryData: telemetryData,
+    copilotAnnotations: jsonData.copilot_annotations,
+    clientCompletionId: uuidv4(),
   };
 }
 

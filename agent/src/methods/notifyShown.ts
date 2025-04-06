@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
 
 import { Context } from '../../../lib/src/context.ts';
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
@@ -12,15 +11,10 @@ const Params = Type.Object({
   options: Type.Optional(TestingOptions),
 });
 
-async function notifyShownChecked(
-  ctx: Context,
-  token: CancellationToken,
-  params: Static<typeof Params>
-): Promise<['OK', null]> {
+async function notifyShownChecked(ctx: Context, token: unknown, params: Static<typeof Params>): Promise<['OK', null]> {
   const completion = ctx.get(CopilotCompletionCache).get(params.uuid);
   if (completion) {
-    const fromCache = completion.resultType !== 0;
-    telemetryShown(ctx, completion.triggerCategory, completion.telemetry, fromCache);
+    telemetryShown(ctx, completion.triggerCategory, completion);
   }
   return ['OK', null];
 }

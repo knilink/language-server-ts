@@ -1,7 +1,4 @@
-import { URI } from 'vscode-uri';
-
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
 import { type Context } from '../../../lib/src/context.ts';
 
 import { TextDocumentManager } from '../../../lib/src/textDocumentManager.ts';
@@ -15,7 +12,7 @@ const Params = Type.Object({
 
 async function handleVerifyStateChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[{ status: boolean; message: string }, null]> {
   const document = await ctx.get(TextDocumentManager).getTextDocument(params);
@@ -38,13 +35,7 @@ async function handleVerifyStateChecked(
       return [{ status: true, message: '' }, null];
     }
   } else {
-    return [
-      {
-        status: false,
-        message: `Document not found: "${URI.parse(params.uri)}" (given by the editor: "${params.uri}")`,
-      },
-      null,
-    ];
+    return [{ status: false, message: `Document not found: <${params.uri}>` }, null];
   }
 }
 

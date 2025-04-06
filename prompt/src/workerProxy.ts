@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as WorkerThread from 'node:worker_threads';
 // import { install as registerSourceMapSupport } from 'source-map-support';
+import { CopilotPromptLoadFailure } from './error.ts';
 import { getSimilarSnippets } from './snippetInclusion/similarFiles.ts';
 
 function sleep(delay: number): Promise<string> {
@@ -82,25 +83,35 @@ class WorkerProxy {
     this.proxyEnabled = false;
   }
 
-  private configureWorkerResponse(port: WorkerThread.MessagePort) {
+  configureWorkerResponse(port: WorkerThread.MessagePort) {
     this.port = port;
-    this.port.on('message', async ({ id, fn, args }: { id: number; fn: string; args: any[] }) => {
-      let method = methods[fn];
-      if (!method) throw new Error(`Function not found: ${fn}`);
-      try {
-        let res = await method(args);
-        this.port!.postMessage({ id: id, res: res }); // was this.port.postMessage({ id: id, res: res })
-      } catch (err) {
-        if (!(err instanceof Error)) throw err;
-        const code = typeof (err as any).code; // type casting
-        typeof code === 'string' // type casting
-          ? this.port!.postMessage({ id: id, err: err, code: code })
-          : this.port!.postMessage({ id: id, err: err });
-      }
+    this.port.on('message', (a) => {
+      this.onMessage(a);
     });
   }
 
-  private handleMessage({ id, err, code, res }: { id: number; err: unknown; code: unknown; res: unknown }) {
+  async onMessage({ id, fn, args }: any) {
+    let proxiedFunction = (this as any)[fn];
+    if (!proxiedFunction) {
+      throw new Error(`Function not found: ${fn}`);
+    }
+    try {
+      let res = await proxiedFunction.apply(this, args);
+      this.port!.postMessage({ id, res });
+    } catch (err) {
+      if (!(err instanceof Error)) {
+        throw err;
+      }
+
+      if (typeof (err as any).code === 'string') {
+        this.port!.postMessage({ id, err, code: (err as any).code });
+      } else {
+        this.port!.postMessage({ id, err });
+      }
+    }
+  }
+
+  handleMessage({ id, err, code, res }: { id: number; err: unknown; code: unknown; res: unknown }) {
     let pendingPromise = this.pendingPromises.get(id);
     if (pendingPromise) {
       this.pendingPromises.delete(id);
@@ -114,24 +125,28 @@ class WorkerProxy {
   }
 
   private handleError(maybeError: unknown) {
-    console.log(maybeError);
-
     let err;
     if (maybeError instanceof Error) {
       err = maybeError;
       if (err.message === 'MODULE_NOT_FOUND' && err.message.endsWith("workerProxy.js'")) {
-        err = new Error('Failed to load workerProxy.js');
-        (err as any).code = 'CopilotPromptLoadFailure';
+        err = new CopilotPromptLoadFailure('Failed to load workerProxy.js');
       }
       const ourStack = new Error().stack;
       if (err.stack && ourStack != null) {
         err.stack += ourStack?.replace(/^Error/, '');
       }
-    } else if ((maybeError as any)?.name === 'ExitStatus' && typeof (maybeError as any).status == 'number') {
+    } else if (
+      maybeError &&
+      typeof maybeError == 'object' &&
+      'name' in maybeError &&
+      maybeError.name === 'ExitStatus' &&
+      'status' in maybeError &&
+      typeof maybeError.status == 'number'
+    ) {
       err = new Error(`workerProxy.js exited with status ${(maybeError as any).status}`);
       (err as any).code = `CopilotPromptWorkerExit${(maybeError as any).status}`;
     } else {
-      err = new Error(`Non-error thrown: ${maybeError}`);
+      err = new Error(`Non-error thrown: ${JSON.stringify(maybeError)}`);
     }
 
     for (const pendingPromise of this.pendingPromises.values()) {

@@ -1,21 +1,27 @@
-import { OpenAIFetcher } from '../../openai/fetch.ts';
-import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { type Context } from '../../context.ts';
-import { StatusReporter } from '../../progress.ts';
-import { TelemetryData, TelemetryWithExp, now, telemetry } from '../../telemetry.ts';
-import { extractEngineName, getRequestId, getProcessingTime } from '../../openai/fetch.ts';
-import { uiKindToIntent, logEngineMessages } from '../telemetry.ts';
-import { postRequest, isAbortError, type Response } from '../../networking.ts';
-import { SSEProcessor } from '../../openai/stream.ts';
-import { asyncIterableMap } from '../../common/iterableHelpers.ts';
-import { prepareChatCompletionForReturn } from './stream.ts';
-import { getMaxSolutionTokens, getTemperatureForSamples, getTopP } from '../../openai/openai.ts';
-import { tryGetGitHubNWO } from '../../prompt/repository.ts';
-import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
-import { Logger, LogLevel } from '../../logger.ts';
-import { Chat, UiKind } from '../../types.ts';
+import type { OpenAIFetcher } from '../../openai/fetch.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../context.ts';
+import type { TelemetryWithExp } from '../../telemetry.ts';
+import type { Response } from '../../networking.ts';
+import type { Chat, UiKind } from '../../types.ts';
 
-const logger = new Logger(LogLevel.INFO, 'fetchChat');
+// import * as util from 'util';
+import { prepareChatCompletionForReturn } from './stream.ts';
+import { logEngineMessages, uiKindToIntent } from '../telemetry.ts';
+import { CopilotTokenManager } from '../../auth/copilotTokenManager.ts';
+import { asyncIterableMap } from '../../common/iterableHelpers.ts';
+import { Logger } from '../../logger.ts';
+import { isAbortError, postRequest } from '../../networking.ts';
+import { extractEngineName, getProcessingTime, getRequestId } from '../../openai/fetch.ts';
+import { getTemperatureForSamples, getTopP } from '../../openai/openai.ts';
+import { SSEProcessor } from '../../openai/stream.ts';
+import { tryGetGitHubNWO } from '../../prompt/repository.ts';
+import { TelemetryData, now, telemetry } from '../../telemetry.ts';
+import { getKey } from '../../util/unknown.ts';
+import { v4 as uuidv4 } from 'uuid';
+import type { ChatCompletion } from './openai.ts';
+
+const logger = new Logger('fetchChat');
 
 async function fetchWithInstrumentation(
   ctx: Context,
@@ -29,7 +35,8 @@ async function fetchWithInstrumentation(
   telemetryWithExp: TelemetryWithExp,
   cancel: CancellationToken | undefined
 ): Promise<Response> {
-  const statusReporter = ctx.get(StatusReporter);
+  // const uri = util.format('%s/%s', engineUrl, endpoint);
+  // EDITED
   const uri = `${engineUrl}/${endpoint}`;
 
   if (!secretKey) throw new Error(`Failed to send request to ${uri} due to missing key`);
@@ -69,15 +76,14 @@ async function fetchWithInstrumentation(
   } catch (error: any) {
     if (isAbortError(error)) throw error;
 
-    statusReporter.setWarning(error.message);
     const warningTelemetry = extendedTelemetryWithExp.extendedBy({ error: 'Network exception' });
 
     telemetry(ctx, 'request.shownWarning', warningTelemetry);
 
-    extendedTelemetryWithExp.properties.message = String(error.name ?? '');
-    extendedTelemetryWithExp.properties.code = String(error.code ?? '');
-    extendedTelemetryWithExp.properties.errno = String(error.errno ?? '');
-    extendedTelemetryWithExp.properties.type = String(error.type ?? '');
+    extendedTelemetryWithExp.properties.message = String(getKey(error, 'name') ?? '');
+    extendedTelemetryWithExp.properties.code = String(getKey(error, 'code') ?? '');
+    extendedTelemetryWithExp.properties.errno = String(getKey(error, 'errno') ?? '');
+    extendedTelemetryWithExp.properties.type = String(getKey(error, 'type') ?? '');
 
     const totalTimeMs = now() - requestStart;
     extendedTelemetryWithExp.measurements.totalTimeMs = totalTimeMs;
@@ -100,11 +106,10 @@ class OpenAIChatMLFetcher {
     finishedCb: SSEProcessor.FinishedCb,
     cancel?: CancellationToken
   ): Promise<OpenAIFetcher.ConversationResponse> {
-    const statusReporter = ctx.get(StatusReporter);
     const response = await this.fetchWithParameters(ctx, params.endpoint, params, baseTelemetryWithExp, cancel);
     if (response === 'not-sent') return { type: 'canceled', reason: 'before fetch request' };
     if (cancel?.isCancellationRequested) {
-      const body = await response.body();
+      const body = response.body();
       try {
         body.destroy();
       } catch (e) {
@@ -114,18 +119,57 @@ class OpenAIChatMLFetcher {
     }
     if (response.status !== 200) {
       const telemetryData = this.createTelemetryData(params.endpoint, ctx, params);
-      return this.handleError(ctx, statusReporter, telemetryData, response);
+      return this.handleError(ctx, telemetryData, response);
     }
-    const finishedCompletions = (
-      await SSEProcessor.create(ctx, params.count, response, baseTelemetryWithExp, [], cancel)
-    ).processSSE(finishedCb);
-    return {
-      type: 'success',
-      chatCompletions: asyncIterableMap(finishedCompletions, async (solution) =>
-        prepareChatCompletionForReturn(ctx, solution, baseTelemetryWithExp)
-      ),
-      getProcessingTime: () => getProcessingTime(response),
-    };
+
+    if (params.model === 'o1' || params.model === 'o1-mini') {
+      const textResponse = await response.text();
+      const jsonResponse = JSON.parse(textResponse);
+      const message =
+        jsonResponse.choices != null ? jsonResponse.choices[0].message : { role: 'assistant', content: '' };
+      const requestId = response.headers.get('X-Request-ID') ?? uuidv4();
+      const completion: ChatCompletion = {
+        blockFinished: false,
+        choiceIndex: 0,
+        finishReason: 'stop',
+        message,
+        tokens: message.content.split(' '),
+        requestId: {
+          headerRequestId: requestId,
+          completionId: jsonResponse.id ? jsonResponse.id : '',
+          created: jsonResponse.created ? Number(jsonResponse.created) : 0,
+          deploymentId: '',
+          serverExperiments: '',
+        },
+        telemetryData: baseTelemetryWithExp,
+        numTokens: 0,
+      };
+      const text = message.content;
+      await finishedCb(text, { text, copilotReferences: jsonResponse.copilot_references });
+      return {
+        type: 'success',
+        chatCompletions: (async function* () {
+          yield completion;
+        })(),
+        getProcessingTime: () => getProcessingTime(response),
+      };
+    } else {
+      const finishedCompletions = SSEProcessor.create(
+        ctx,
+        params.count,
+        response,
+        baseTelemetryWithExp,
+        [],
+        cancel
+      ).processSSE(finishedCb);
+      return {
+        type: 'success',
+        chatCompletions: asyncIterableMap(finishedCompletions, async (solution) =>
+          prepareChatCompletionForReturn(ctx, solution, baseTelemetryWithExp)
+        ),
+        getProcessingTime: () => getProcessingTime(response),
+      };
+    }
   }
 
   createTelemetryData(endpoint: string, ctx: Context, params: OpenAIFetcher.ConversationParams): TelemetryData {
@@ -144,16 +188,16 @@ class OpenAIChatMLFetcher {
     telemetryWithExp: TelemetryWithExp,
     cancel: CancellationToken | undefined
   ): Promise<'not-sent' | Response> {
-    const request: Partial<OpenAIFetcher.ConversationRequest> = {
+    let request: Partial<OpenAIFetcher.ConversationRequest> = {
       messages: params.messages,
       tools: params.tools,
       tool_choice: params.tool_choice,
       model: params.model,
-      max_tokens: getMaxSolutionTokens(ctx),
       temperature: getTemperatureForSamples(ctx, params.count),
       top_p: getTopP(ctx),
       n: params.count,
       stop: ['\n\n\n'],
+      copilot_thread_id: params.copilot_thread_id,
     };
 
     const githubNWO = tryGetGitHubNWO(params.repoInfo);
@@ -165,6 +209,23 @@ class OpenAIChatMLFetcher {
       if (params.intent_tokenizer) request.intent_tokenizer = params.intent_tokenizer;
       if (params.intent_threshold) request.intent_threshold = params.intent_threshold;
       if (params.intent_content) request.intent_content = params.intent_content;
+    }
+
+    if (params.model === 'o1' || params.model === 'o1-mini') {
+      // Object.keys(request).forEach((key) => {
+      //   if (key !== 'model' && key !== 'stream' && key !== 'messages') {
+      //     delete request[key];
+      //   }
+      // });
+      //
+      // request.stream = false;
+
+      // EDITED
+      request = {
+        model: request.model,
+        messages: request.messages,
+        stream: false,
+      };
     }
 
     return cancel?.isCancellationRequested
@@ -185,12 +246,19 @@ class OpenAIChatMLFetcher {
 
   async handleError(
     ctx: Context,
-    statusReporter: StatusReporter,
     telemetryData: TelemetryData,
     response: Response
   ): Promise<OpenAIFetcher.ConversationResponse> {
-    statusReporter.setWarning(`Last response was a ${response.status} error`);
-    telemetryData.properties.error = `Response status was ${response.status}`;
+    if (response.clientError && !response.headers.get('x-github-request-id')) {
+      {
+        let message = `Last response was a ${response.status} error and does not appear to originate from GitHub. Is a proxy or firewall intercepting this request? https://gh.io/copilot-firewall`;
+        logger.error(ctx, message);
+        telemetryData.properties.error = `Response status was ${response.status} with no x-github-request-id header`;
+      }
+    } else {
+      telemetryData.properties.error = `Response status was ${response.status}`;
+    }
+
     telemetryData.properties.status = String(response.status);
     telemetry(ctx, 'request.shownWarning', telemetryData);
 
@@ -201,7 +269,7 @@ class OpenAIChatMLFetcher {
         if (json.authorize_url) return { type: 'authRequired', reason: 'not authorized', authUrl: json.authorize_url };
       } catch {}
     } else if (response.status === 401 || response.status === 403) {
-      ctx.get(CopilotTokenManager).resetCopilotToken(ctx, response.status);
+      ctx.get(CopilotTokenManager).resetToken(response.status);
       return { type: 'failed', reason: `token expired or invalid: ${response.status}`, code: response.status };
     } else if (response.status === 499) {
       logger.info(ctx, 'Cancelled by server');
@@ -210,25 +278,38 @@ class OpenAIChatMLFetcher {
 
     const text = await response.text();
     if (response.status === 466) {
-      statusReporter.setError(text);
       logger.info(ctx, text);
       return { type: 'failed', reason: `client not supported: ${text}`, code: response.status };
-    } else if (response.status === 400 && text.includes('off_topic')) {
+    }
+    if (response.status === 400 && text.includes('off_topic')) {
       return {
         type: 'failed',
         reason: 'filtered as off_topic by intent classifier: message was not programming related',
         code: response.status,
       };
-    } else if (response.status === 424) {
+    }
+    if (response.status === 400 && text.includes('model_not_supported')) {
+      return { type: 'failed', reason: 'model is not supported.', code: response.status };
+    }
+    if (response.status === 424) {
       return { type: 'failedDependency', reason: text };
-    } else {
-      logger.error(ctx, 'Unhandled status from server:', response.status, text);
+    }
+    if (response.status === 402) {
+      let retryAfter = response.headers.get('retry-after');
       return {
         type: 'failed',
-        reason: `unhandled status from server: ${response.status} ${text}`,
+        reason: retryAfter
+          ? `You've reached your monthly chat messages limit. Upgrade to Copilot Pro (30-day free trial) or wait until ${new Date(retryAfter).toLocaleString()} for your limit to reset.`
+          : "You've reached your monthly chat messages limit. Upgrade to Copilot Pro (30-day free trial) or wait for your limit to reset.",
         code: response.status,
       };
     }
+    logger.error(ctx, 'Unhandled status from server:', response.status, text);
+    return {
+      type: 'failed',
+      reason: `unhandled status from server: ${response.status} ${text}`,
+      code: response.status,
+    };
   }
 }
 

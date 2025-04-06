@@ -7,6 +7,7 @@ import { kindForSnippetProviderType, PromptPriorityList } from '../wishlist.ts';
 const snippetSemanticsToString = {
   function: 'function',
   snippet: 'snippet',
+  snippets: 'snippets',
   variable: 'variable',
   parameter: 'parameter',
   method: 'method',
@@ -18,11 +19,12 @@ const snippetSemanticsToString = {
 };
 
 function announceSnippet(snippet: Snippet, targetDocLanguageId: string): string {
-  let semantics = snippetSemanticsToString[snippet.semantics];
+  const semantics = snippetSemanticsToString[snippet.semantics];
+  const pluralizedSemantics = snippet.semantics === 'snippets' ? 'these' : 'this';
   let headlinedSnippet = snippet.relativePath
-    ? `Compare this ${semantics} from ${snippet.relativePath}:`
-    : `Compare this ${semantics}:`;
-  headlinedSnippet += `\n` + snippet.snippet;
+    ? `Compare ${pluralizedSemantics} ${semantics} from ${snippet.relativePath}:`
+    : `Compare ${pluralizedSemantics} ${semantics}:`;
+  headlinedSnippet += '\n' + snippet.snippet;
   if (headlinedSnippet.endsWith('\n')) {
     headlinedSnippet += '\n';
   }
@@ -79,4 +81,4 @@ function processSnippetsForWishlist(
   return processedSnippets;
 }
 
-export { processSnippetsForWishlist };
+export { announceSnippet, processSnippetsForWishlist };

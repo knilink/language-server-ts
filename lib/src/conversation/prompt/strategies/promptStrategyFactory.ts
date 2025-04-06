@@ -1,6 +1,7 @@
 import type { IPromptStrategy } from './types.ts';
 import type { PromptType } from '../../../types.ts';
 import { Context } from '../../../context.ts';
+import type { ChatModelFamilyValues } from '../../modelMetadata.ts';
 
 import { ChatModelFamily } from '../../modelMetadata.ts';
 import { PanelUserPromptStrategy } from './userPromptStrategy.ts';
@@ -12,7 +13,7 @@ import { getSupportedModelFamiliesForPrompt } from '../../modelMetadata.ts';
 
 function descriptor(
   promptType: PromptType,
-  modelFamilies: ChatModelFamily[],
+  modelFamilies: ChatModelFamilyValues[],
   strategy: () => Promise<IPromptStrategy>
 ) {
   return new PromptStrategyDescriptor(promptType, modelFamilies, strategy);
@@ -21,7 +22,7 @@ function descriptor(
 class PromptStrategyDescriptor {
   constructor(
     public promptType: PromptType,
-    public modelFamilies: ChatModelFamily[],
+    public modelFamilies: ChatModelFamilyValues[],
     public strategy: (ctx: Context) => Promise<IPromptStrategy>
   ) {}
 }
@@ -46,7 +47,7 @@ class DefaultPromptStrategyFactory {
   async createPromptStrategy(
     ctx: Context,
     promptType: PromptType,
-    modelFamily: ChatModelFamily
+    modelFamily: ChatModelFamilyValues
   ): Promise<IPromptStrategy> {
     const descriptor = descriptors.find((d) => d.promptType === promptType && d.modelFamilies.includes(modelFamily));
     if (!descriptor) {

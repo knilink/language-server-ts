@@ -1,22 +1,24 @@
-import SHA256 from 'crypto-js/sha256.js';
-import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
-import { WorkDoneProgress } from 'vscode-languageserver';
-import { Range } from 'vscode-languageserver-types';
-import { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
-import { Context } from '../../../lib/src/context.ts';
-import { normalizeCompletionText, runSolutions, SolutionManager } from '../../../lib/src/copilotPanel/panel.ts';
-import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
-import { solutionCountTarget, completionContextForDocument } from '../../../lib/src/copilotPanel/common.ts';
-import { getOpenTextDocumentChecked } from '../textDocument.ts';
-import { Service } from '../service.ts';
-import { PanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
-import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Range } from 'vscode-languageserver-types';
+import type { SolutionHandler as SolutionHandlerNS } from '../../../lib/src/types.ts';
+import type { Context } from '../../../lib/src/context.ts';
+import type { CopilotPanelCompletionParamsType } from '../../../types/src/index.ts';
+
+import { SHA256 } from 'crypto-js';
+import { WorkDoneProgress, CancellationTokenSource } from 'vscode-languageserver/node.js';
+import { ExternalTestingPanelCompletionDocuments, runTestSolutions } from './testing/setPanelCompletionDocuments.ts';
+import { MergedToken } from '../cancellation.ts';
 import { didAcceptPanelCompletionItemCommand } from '../commands/panel.ts';
-import {
-  CopilotPanelCompletionParams,
-  CopilotPanelCompletionParamsType,
-  CopilotPanelCompletionRequest,
-} from '../../../types/src/index.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { ErrorCode } from '../rpc.ts';
+import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { Service } from '../service.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { completionContextForDocument, solutionCountTarget } from '../../../lib/src/copilotPanel/common.ts';
+import { SolutionManager, normalizeCompletionText, runSolutions } from '../../../lib/src/copilotPanel/panel.ts';
+import { CopilotPanelCompletionParams, CopilotPanelCompletionRequest } from '../../../types/src/panelCompletion.ts';
+import type {} from '../../../lib/src/ghostText/ghostText.ts';
+import type {} from '../../../types/src/index.ts';
 
 // import { } from '../rpc';
 // import { } from '../../../lib/src/ghostText/ghostText';
@@ -40,6 +42,7 @@ function makeCompletion(
 ): Completion {
   const normalizedText = normalizeCompletionText(unformattedSolution.completionText);
   const id = SHA256(normalizedText).toString();
+
   ctx.get(CopilotCompletionCache).set(id, {
     displayText: unformattedSolution.completionText,
     insertText: unformattedSolution.insertText,
@@ -52,7 +55,9 @@ function makeCompletion(
     position: params.position,
     resultType: 0,
     triggerCategory: 'solution',
+    copilotAnnotations: unformattedSolution.copilotAnnotations,
   });
+
   return {
     range: unformattedSolution.range,
     insertText: unformattedSolution.insertText,
@@ -68,7 +73,7 @@ function progressMessage(countReceived: number, countTarget: number): string {
   return `${countReceived}/${countTarget}`;
 }
 
-async function reportDone(token: string | number | undefined, service: Service, count: number = 0) {
+async function reportDone(token: string | number | undefined, service: Service, count: number = 0): Promise<void> {
   if (token !== undefined) {
     await service.connection.sendProgress(WorkDoneProgress.type, token, {
       kind: 'end',
@@ -111,15 +116,11 @@ async function handleChecked(
         };
 
   const solutionHandler = new SolutionHandler(ctx, params, onCompletion);
-  let testingDocs;
 
-  try {
-    testingDocs = ctx.get(PanelCompletionDocuments);
-  } catch {}
-
-  if (testingDocs) {
+  const testingDocs = ctx.get(ExternalTestingPanelCompletionDocuments);
+  if (testingDocs.documents) {
     const documents = testingDocs.documents;
-    runTestSolutions(position, documents, solutionHandler);
+    await runTestSolutions(position, documents, solutionHandler);
   } else {
     solutionHandler.offset = textDocument.offsetAt(position);
     const completionContext = completionContextForDocument(ctx, textDocument, position);
@@ -127,9 +128,8 @@ async function handleChecked(
     await runSolutions(ctx, solutionManager, solutionHandler);
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 0)); // MARK guess is to to wait for onCompletion
   return solutionHandler.error !== undefined
-    ? [null, { code: -32603, message: solutionHandler.error }]
+    ? [null, { code: ErrorCode.InternalError, message: solutionHandler.error }]
     : [{ items }, null];
 }
 
@@ -152,7 +152,7 @@ async function handleCheckedWithAbort(
     return await handleChecked(ctx, token, params);
   } catch (e) {
     if (serverToken.isCancellationRequested && !clientToken.isCancellationRequested) {
-      return [null, { code: -32802, message: 'Request was superseded by a new request' }];
+      return [null, { code: ErrorCode.ServerCancelled, message: 'Request was superseded by a new request' }];
     }
     throw e;
   }
@@ -179,16 +179,16 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
     return this.ctx.get(Service);
   }
 
-  onSolution(unformattedSolution: SolutionHandlerNS.UnformattedSolution) {
+  async onSolution(unformattedSolution: SolutionHandlerNS.UnformattedSolution): Promise<void> {
     this.count += 1;
     const completion = makeCompletion(this.ctx, this.params, this.offset, unformattedSolution, this.items.size + 1);
     if (!this.items.has(completion.command.arguments[0])) {
       this.items.set(completion.command.arguments[0], completion);
-      this.onCompletion(completion);
+      await this.onCompletion(completion);
     }
 
     if (this.params.workDoneToken !== undefined) {
-      this.service.connection.sendProgress(WorkDoneProgress.type, this.params.workDoneToken, {
+      await this.service.connection.sendProgress(WorkDoneProgress.type, this.params.workDoneToken, {
         kind: 'report',
         message: progressMessage(this.count, solutionCountTarget),
         percentage: Math.round((100 * this.count) / solutionCountTarget),
@@ -196,14 +196,14 @@ class SolutionHandler implements SolutionHandlerNS.ISolutionHandler {
     }
   }
 
-  onFinishedNormally() {
-    reportDone(this.params.workDoneToken, this.service, this.count);
+  async onFinishedNormally(): Promise<void> {
+    await reportDone(this.params.workDoneToken, this.service, this.count);
   }
 
-  onFinishedWithError(error: string) {
+  async onFinishedWithError(error: string): Promise<void> {
     this.error = error;
     if (this.params.workDoneToken !== undefined) {
-      this.service.connection.sendProgress(WorkDoneProgress.type, this.params.workDoneToken, {
+      await this.service.connection.sendProgress(WorkDoneProgress.type, this.params.workDoneToken, {
         kind: 'end',
         message: `Error: ${error}`,
       });

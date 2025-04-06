@@ -3,34 +3,33 @@ import { Context } from '../context.ts';
 import { telemetryException } from '../telemetry.ts';
 import { Fetcher, Response } from '../networking.ts';
 import { ExpConfig } from './expConfig.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
 import { FilterHeaders } from './filters.ts';
-
-const ProdExpDomain = 'https://default.exp-tas.com';
 
 abstract class ExpConfigMaker {
   abstract fetchExperiments(ctx: Context, filterHeaders: FilterHeaders): Promise<ExpConfig>;
 }
 
 class ExpConfigFromTAS extends ExpConfigMaker {
-  private expPath: string;
-
-  constructor(expPath: string = '/vscode/ab') {
+  constructor(
+    readonly overrideTASUrl = '',
+    readonly defaultFilters = {}
+  ) {
     super();
-    this.expPath = expPath;
   }
 
   public async fetchExperiments(ctx: Context, filterHeaders: FilterHeaders): Promise<ExpConfig> {
-    let fetcher = ctx.get(Fetcher);
+    const fetcher = ctx.get(Fetcher);
+    const headers = Object.keys(filterHeaders).length === 0 ? this.defaultFilters : filterHeaders;
+    const experimentationUrl =
+      this.overrideTASUrl.length === 0 ? ctx.get(NetworkConfiguration).getExperimentationUrl() : this.overrideTASUrl;
+
     let resp: Response;
 
     try {
-      resp = await fetcher.fetch(ProdExpDomain + this.expPath, {
-        method: 'GET',
-        headers: filterHeaders,
-        timeout: 5000, // milliseconds
-      });
+      resp = await fetcher.fetch(experimentationUrl, { method: 'GET', headers, timeout: 5_000 });
     } catch (e) {
-      return ExpConfig.createFallbackConfig(ctx, `Error fetching ExP config: ${e}`);
+      return ExpConfig.createFallbackConfig(ctx, `Error fetching ExP config: ${String(e)}`);
     }
 
     if (!resp || !resp.ok) {
@@ -60,4 +59,10 @@ class ExpConfigFromTAS extends ExpConfigMaker {
   }
 }
 
-export { ExpConfigMaker, ExpConfigFromTAS };
+class ExpConfigNone extends ExpConfigMaker {
+  async fetchExperiments(ctx: Context, filterHeaders: FilterHeaders) {
+    return ExpConfig.createEmptyConfig();
+  }
+}
+
+export { ExpConfigFromTAS, ExpConfigMaker, ExpConfigNone };

@@ -33,6 +33,8 @@ export type SimilarFilesOptions = {
   maxCharPerFile: number;
   maxNumberOfFiles: number;
   maxSnippetsPerFile: number;
+  // ./snippetInclusion/similarFiles.ts
+  useSubsetMatching: boolean;
 };
 
 export interface IPromptOptions {
@@ -51,15 +53,29 @@ export interface IPromptOptions {
   similarFilesOptions: SimilarFilesOptions;
 }
 
-export type SnippetContext = {
+// ../../lib/src/prompt/contextProviders/contextItemSchemas.ts
+export interface CodeSnippet {
+  uri: string;
+  value: string;
+  additionalUris?: string[];
+  importance?: number;
+  id?: string;
+  //
+  relativePath?: string;
+}
+
+export interface SnippetContext {
   currentFile: CurrentDocument;
   tooltipSignature?: string;
   similarFiles?: OpenDocument[];
   // ../../lib/src/prompt/prompt.ts options: new PromptOptions(promptOptions),
   options?: IPromptOptions;
 
+  // delc ../../lib/src/prompt/contextProviders/contextItemSchemas.ts
   traits: ({ kind: 'string'; value: string } | { kind: 'name-value'; name: string; value: string })[];
-};
+  // ./snippetProviders/codeSnippet.ts
+  codeSnippets?: CodeSnippet[];
+}
 
 export interface Element {
   id: number;
@@ -71,7 +87,7 @@ export interface Element {
 
 export interface Snippet {
   provider: string;
-  semantics: 'snippet';
+  semantics: 'snippets' | 'snippet';
   snippet: string;
   startLine: number;
   endLine: number;
@@ -114,8 +130,10 @@ export type PromptInfo = {
 export type Prompt = {
   prefix: string;
   suffix: string;
-  prefixTokens: number;
-  suffixTokens: number;
+  // ../../lib/src/prompt/prompt.ts
+  prefixTokens?: number;
+  // ../../lib/src/prompt/prompt.ts
+  suffixTokens?: number;
   isFimEnabled: boolean;
   // ../../lib/src/prompt/prompt.ts
   promptElementRanges: PromptElementRanges['ranges'];

@@ -1,14 +1,16 @@
-import { type CancellationToken } from '../../../../../../agent/src/cancellation.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { TurnContext } from '../../../turnContext.ts';
+import type { PromptOptions } from '../../../prompt/strategies/types.ts';
+
+import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
+import { ChatMLFetcher } from '../../../chatMLFetcher.ts';
+import { conversationLogger } from '../../../logger.ts';
 import { ModelConfigurationProvider } from '../../../modelConfigurations.ts';
 import { getSupportedModelFamiliesForPrompt } from '../../../modelMetadata.ts';
 import { ConversationPromptEngine } from '../../../prompt/conversationPromptEngine.ts';
-import { conversationLogger } from '../../../logger.ts';
-import { ChatMLFetcher } from '../../../chatMLFetcher.ts';
 import { createTelemetryWithExpWithId } from '../../../telemetry.ts';
 import { telemetryException } from '../../../../telemetry.ts';
-import { LocalSnippetProviderError } from './LocalSnippetProvider.ts';
-import { TurnContext } from '../../../turnContext.ts';
-import { PromptOptions } from '../../../prompt/strategies/types.ts';
+import type {} from '../../../../openai/fetch.ts';
 
 async function parseUserQuery(turnContext: TurnContext, token: CancellationToken): Promise<string[] | undefined> {
   const ctx = turnContext.ctx;

@@ -1,44 +1,67 @@
-import SHA256 from 'crypto-js/sha256.js';
-import { v4 as uuidv4 } from 'uuid';
-import { Position } from 'vscode-languageserver-types';
-
-import type { LanguageId, Prompt } from '../../../prompt/src/types.ts';
-import type { BlockMode, RepoInfo, TelemetryProperties, TelemetryMeasurements } from '../types.ts';
+import type { Position } from 'vscode-languageserver-types';
+import type { SSEProcessor } from '../openai/stream.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import { CancellationTokenSource } from 'vscode-languageserver/node.js';
+import type { Context } from '../context.ts';
+import type {
+  BlockMode,
+  CompletionResult,
+  LanguageId,
+  RepoInfo,
+  TelemetryMeasurements,
+  TelemetryProperties,
+} from '../types.ts';
+import type { Unknown } from '../types.ts';
 import { CompletionResultType } from '../types.ts';
+import type { APIChoice } from '../openai/openai.ts';
+import type { ExtractedPrompt } from '../prompt/prompt.ts';
+import type { Prompt, SnippetContext } from '../../../prompt/src/types.ts';
+import type { RequestInfo } from '../openai/config.ts';
 
-import { type Context } from '../context.ts';
-import { SSEProcessor } from '../openai/stream.ts';
-
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
-import { APIChoice, getTemperatureForSamples } from '../openai/openai.ts';
-import { shouldDoServerTrimming, shouldDoParsingTrimming, BlockModeConfig } from '../config.ts';
-import { telemetrizePromptLength, telemetry, TelemetryData, TelemetryWithExp } from '../telemetry.ts';
-import { OpenAIFetcher, extractEngineName } from '../openai/fetch.ts';
-import { mkBasicResultTelemetry, mkCanceledResultTelemetry } from './telemetry.ts';
-import { isAbortError } from '../networking.ts';
-import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
-import { shouldFailForDebugPurposes, isRunningInTest } from '../testing/runtimeMode.ts';
-import { Features } from '../experiments/features.ts';
-import { LocationFactory, TextDocument } from '../textDocument.ts';
-import { parsingBlockFinished, contextIndentation, isEmptyBlockStart } from '../prompt/parseBlock.ts';
-import { extractPrompt, trimLastLine, type ExtractedPrompt } from '../prompt/prompt.ts';
-import { StatusReporter } from '../progress.ts';
-import { extractRepoInfoInBackground } from '../prompt/repository.ts';
-import { getEngineRequestInfo } from '../openai/config.ts';
-import { getDebounceLimit } from './debounce.ts';
-import { asyncIterableMapFilter, asyncIterableFromArray } from '../common/iterableHelpers.ts';
-import { postProcessChoice, checkSuffix } from '../suggestions/suggestions.ts';
-import { requestMultilineScore } from './multilineModel.ts';
-import { isSupportedLanguageId } from '../../../prompt/src/parse.ts';
-import { keyForPrompt } from '../common/cache.ts';
+import { SHA256 } from 'crypto-js';
 import { CompletionsCache } from './completionsCache.ts';
-import { ghostTextScoreConfidence, ghostTextScoreQuantile } from '../suggestions/restraint.ts';
 import { contextualFilterScore } from './contextualFilter.ts';
-import { Logger, LogLevel } from '../logger.ts';
+import { CurrentGhostText } from './current.ts';
+import { requestMultilineScore } from './multilineModel.ts';
+import { ChoiceSplitter, isProgressRevealChoice, isProgressiveRevealEnabled } from './progressiveReveal.ts';
+import { mkBasicResultTelemetry, mkCanceledResultTelemetry, resultTypeToString } from './telemetry.ts';
+import { AsyncCompletionManager } from '../asyncCompletion/manager.ts';
+import { keyForPrompt } from '../common/cache.ts';
 import { Debouncer } from '../common/debounce.ts';
-import { type ParamsType } from '../../../agent/src/methods/getCompletions.ts';
+import { asyncIterableFromArray, asyncIterableMapFilter } from '../common/iterableHelpers.ts';
+import { BlockModeConfig, ConfigKey, getConfig, shouldDoParsingTrimming, shouldDoServerTrimming } from '../config.ts';
+import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
+import { Features } from '../experiments/features.ts';
+import { Logger } from '../logger.ts';
+import { isAbortError } from '../networking.ts';
+import { getEngineRequestInfo } from '../openai/config.ts';
+import { OpenAIFetcher } from '../openai/fetch.ts';
+import { getTemperatureForSamples } from '../openai/openai.ts';
+import { StatusReporter } from '../progress.ts';
+import {
+  contextIndentation,
+  isEmptyBlockStart,
+  parsingBlockFinished,
+  parsingBlockFinishedExtended,
+} from '../prompt/parseBlock.ts';
+import { extractPrompt, trimLastLine } from '../prompt/prompt.ts';
+import { extractRepoInfoInBackground } from '../prompt/repository.ts';
+import { ghostTextScoreConfidence, ghostTextScoreQuantile } from '../suggestions/restraint.ts';
+import { checkSuffix, postProcessChoiceInContext } from '../suggestions/suggestions.ts';
+import { TelemetryUserConfig } from '../telemetry/userConfig.ts';
+import { TelemetryData, TelemetryWithExp, telemetrizePromptLength, telemetry } from '../telemetry.ts';
+import { isRunningInTest, shouldFailForDebugPurposes } from '../testing/runtimeMode.ts';
+import { CopilotTextDocument, LocationFactory } from '../textDocument.ts';
+import { v4 as uuidv4 } from 'uuid';
+import { isSupportedLanguageId } from '../../../prompt/src/parse.ts';
+import type {} from './contextualFilterConstants.ts';
 
-type IfInserted = ParamsType['doc']['ifInserted'];
+interface GhostTextOptions {
+  isCycling: boolean;
+  promptOnly: boolean;
+  ifInserted?: { tooltipSignature?: SnippetContext['tooltipSignature'] };
+  isSpeculative: boolean;
+}
 
 type RequestContext = {
   languageId: LanguageId;
@@ -46,14 +69,18 @@ type RequestContext = {
   blockMode: BlockMode;
   prompt: Prompt;
   multiline: boolean;
-  multiLogitBias: boolean;
+  // TODO maybe removed or optional
+  // multiLogitBias: boolean;
   isCycling: boolean;
   repoInfo?: RepoInfo | 0; // computeInBackgroundAndMemoize not finished when 0
   ourRequestId: string;
   engineURL: string;
   headers: Record<string, string>;
-  delayMs: number;
+  // TODO maybe removed or maybe optional
+  // delayMs: number;
   prefix: string;
+
+  requestForNextLine?: boolean;
 };
 
 type ProcessChoicesFunc<T> = (
@@ -62,40 +89,6 @@ type ProcessChoicesFunc<T> = (
   processingTime: number,
   choices: AsyncIterable<APIChoice>
 ) => Promise<CompletionResult<T>>;
-
-const ghostTextLogger = new Logger(LogLevel.INFO, 'ghostText');
-
-const ghostTextDebouncer = new Debouncer();
-
-type CompletionResult<T> =
-  | {
-      type: 'failed';
-      reason: string;
-      telemetryData: TelemetryProperties;
-    }
-  | {
-      type: 'canceled';
-      reason: string;
-      telemetryData: { cancelledNetworkRequest?: boolean; telemetryBlob: TelemetryData };
-    }
-  | {
-      type: 'empty';
-      reason: string;
-      telemetryData: TelemetryProperties;
-    }
-  | {
-      type: 'abortedBeforeIssued';
-      reason: string;
-    }
-  | {
-      type: 'success';
-      // value: apiChoices, array
-      value: T;
-      telemetryData: TelemetryProperties;
-      telemetryBlob: TelemetryData;
-    }
-  // 1.40.0
-  | { type: 'promptOnly'; reason: string; prompt: ExtractedPrompt };
 
 type Result = {
   completion: {
@@ -108,13 +101,11 @@ type Result = {
   telemetry: TelemetryWithExp;
   isMiddleOfTheLine: boolean;
   suffixCoverage: number;
+  // TelemetryWithExp ./copilotCompletion.ts
+  copilotAnnotations?: { ip_code_citations?: Unknown.Annotation[] };
 };
 
 type GhostTextResult = CompletionResult<[Result[], CompletionResultType]>;
-
-class ForceMultiLine {
-  constructor(public requestMultilineOverride = false) {}
-}
 
 async function genericGetCompletionsFromNetwork<T>(
   ctx: Context,
@@ -145,24 +136,19 @@ async function genericGetCompletionsFromNetwork<T>(
 
   if (!requestContext.multiline) {
     postOptions.stop = ['\n'];
-  } else if (requestContext.multiLogitBias) {
-    postOptions.logit_bias = { 50256: -100 };
   }
 
   const requestStart = Date.now();
   const newProperties: TelemetryProperties = {
     endpoint: 'completions',
     uiKind: 'ghostText',
-    isCycling: JSON.stringify(requestContext.isCycling),
     temperature: JSON.stringify(temperature),
     n: JSON.stringify(numGhostCompletions),
     stop: JSON.stringify(postOptions.stop ?? 'unset'),
     logit_bias: JSON.stringify(postOptions.logit_bias ?? null),
   };
-  const newMeasurements = telemetrizePromptLength(requestContext.prompt);
 
   Object.assign(baseTelemetryData.properties, newProperties);
-  Object.assign(baseTelemetryData.measurements, newMeasurements);
 
   try {
     const completionParams: OpenAIFetcher.CompletionParams = {
@@ -177,21 +163,21 @@ async function genericGetCompletionsFromNetwork<T>(
       headers: requestContext.headers,
     };
 
-    if (requestContext.delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, requestContext.delayMs));
-    }
-
     const res = await ctx
       .get(OpenAIFetcher)
       .fetchAndStreamCompletions(ctx, completionParams, baseTelemetryData, finishedCb, cancellationToken);
 
     if (res.type === 'failed') {
       return { type: 'failed', reason: res.reason, telemetryData: mkBasicResultTelemetry(baseTelemetryData) };
-    } else if (res.type === 'canceled') {
+    }
+    if (res.type === 'canceled') {
       ghostTextLogger.debug(ctx, 'Cancelled after awaiting fetchCompletions');
       return { type: 'canceled', reason: res.reason, telemetryData: mkCanceledResultTelemetry(baseTelemetryData) };
     }
-    return processChoices(numGhostCompletions, requestStart, res.getProcessingTime(), res.choices);
+    const trimmedChoices = isProgressiveRevealEnabled(ctx, baseTelemetryData)
+      ? trimChoicesForProgressiveReveal(ctx, requestContext, baseTelemetryData, res.choices)
+      : res.choices;
+    return processChoices(numGhostCompletions, requestStart, res.getProcessingTime(), trimmedChoices);
   } catch (err) {
     if (isAbortError(err)) {
       return {
@@ -216,14 +202,54 @@ async function genericGetCompletionsFromNetwork<T>(
   }
 }
 
+function postProcessChoices(newChoice: APIChoice, currentChoices: APIChoice[] = []): APIChoice | undefined {
+  newChoice.completionText = newChoice.completionText.trimEnd();
+  if (
+    !!newChoice.completionText &&
+    currentChoices.findIndex((v) => v.completionText.trim() === newChoice.completionText.trim()) === -1
+  ) {
+    return newChoice;
+  }
+}
+
+async function* trimChoicesForProgressiveReveal(
+  ctx: Context,
+  requestContext: RequestContext,
+  telemetryWithExp: TelemetryWithExp,
+  choices: AsyncIterable<APIChoice>
+) {
+  for await (const choice of choices) {
+    const choices = new ChoiceSplitter(
+      ctx,
+      requestContext.prefix,
+      requestContext.prompt.prefix,
+      telemetryWithExp,
+      choice
+    ).choices();
+
+    const firstChoice = choices.next().value;
+    if (firstChoice) {
+      for (const nextChoice of choices) {
+        const newContext = {
+          ...requestContext,
+          prefix: nextChoice.docPrefix,
+          prompt: { ...requestContext.prompt, prefix: nextChoice.promptPrefix },
+        };
+        appendToCache(ctx, newContext, { multiline: requestContext.multiline, choices: [nextChoice.choice] });
+      }
+      yield firstChoice.choice;
+    }
+  }
+}
+
 async function getCompletionsFromNetwork(
   ctx: Context,
   requestContext: RequestContext,
   baseTelemetryData: TelemetryWithExp,
   cancellationToken: CancellationToken,
   finishedCb: SSEProcessor.FinishedCb
-): Promise<CompletionResult<APIChoice>> {
-  return genericGetCompletionsFromNetwork<APIChoice>(
+): Promise<CompletionResult<[APIChoice, Promise<void>]>> {
+  return genericGetCompletionsFromNetwork<[APIChoice, Promise<void>]>(
     ctx,
     requestContext,
     baseTelemetryData,
@@ -235,9 +261,8 @@ async function getCompletionsFromNetwork(
       requestStart: number,
       processingTime: number,
       choicesStream: AsyncIterable<APIChoice>
-    ): Promise<CompletionResult<APIChoice>> => {
-      const choicesIterator = choicesStream[Symbol.asyncIterator]();
-      const firstRes = await choicesIterator.next();
+    ): Promise<CompletionResult<[APIChoice, Promise<void>]>> => {
+      const firstRes = await choicesStream[Symbol.asyncIterator]().next();
 
       if (firstRes.done) {
         ghostTextLogger.debug(ctx, 'All choices redacted');
@@ -265,45 +290,57 @@ async function getCompletionsFromNetwork(
         };
       }
       telemetryPerformance(ctx, 'performance', firstChoice, requestStart, processingTime);
-      const remainingChoices = numGhostCompletions - 1;
       ghostTextLogger.debug(ctx, `Awaited first result, id: ${firstChoice.choiceIndex}`);
-      addToCache(ctx, requestContext, { multiline: requestContext.multiline, choices: [firstChoice] });
-      const remainingPromises: Promise<IteratorResult<APIChoice>>[] = [];
-      for (let index = 0; index < remainingChoices; index++) remainingPromises.push(choicesIterator.next());
-      const cacheDone = Promise.all(remainingPromises).then(async (results) => {
-        if (ctx.get(Features).fastCancellation(baseTelemetryData)) {
-          choicesIterator.next();
-        }
-        ghostTextLogger.debug(ctx, `Awaited remaining results, number of results: ${results.length}`);
-        const apiChoices: APIChoice[] = [];
+      const processedFirstChoice = postProcessChoices(firstChoice);
 
-        for (const innerChoice of results) {
-          const redactedChoice = innerChoice.value;
-          if (redactedChoice !== undefined) {
-            ghostTextLogger.debug(ctx, `GhostText later completion: ${JSON.stringify(redactedChoice.completionText)}`);
-            if (redactedChoice.completionText.trimEnd()) {
-              if (
-                apiChoices.some((v) => v.completionText.trim() === redactedChoice.completionText.trim()) ||
-                redactedChoice.completionText.trim() === firstChoice.completionText.trim()
-              )
-                continue;
-              apiChoices.push(redactedChoice);
-            }
+      if (processedFirstChoice) {
+        appendToCache(ctx, requestContext, { multiline: requestContext.multiline, choices: [processedFirstChoice] });
+
+        ghostTextLogger.debug(
+          ctx,
+          `GhostText first completion (index ${processedFirstChoice?.choiceIndex}): ${JSON.stringify(processedFirstChoice?.completionText)}`
+        );
+      }
+
+      const cacheDone = (async () => {
+        const apiChoices = processedFirstChoice !== undefined ? [processedFirstChoice] : [];
+        for await (const choice of choicesStream) {
+          if (choice === undefined) {
+            continue;
+          }
+          ghostTextLogger.debug(
+            ctx,
+            `GhostText later completion (index ${choice?.choiceIndex}): ${JSON.stringify(choice.completionText)}`
+          );
+          const processedChoice = postProcessChoices(choice, apiChoices);
+
+          if (processedChoice) {
+            apiChoices.push(processedChoice);
+            appendToCache(ctx, requestContext, { multiline: requestContext.multiline, choices: [processedChoice] });
           }
         }
-        if (apiChoices.length > 0) {
-          appendToCache(ctx, requestContext, { multiline: requestContext.multiline, choices: apiChoices });
-        }
-      });
+      })();
+
       if (isRunningInTest(ctx)) {
         await cacheDone;
       }
-      return {
-        type: 'success',
-        value: makeGhostAPIChoice(firstRes.value, { forceSingleLine: false }),
-        telemetryData: mkBasicResultTelemetry(baseTelemetryData),
-        telemetryBlob: baseTelemetryData,
-      };
+
+      return processedFirstChoice
+        ? {
+            type: 'success',
+            value: [makeGhostAPIChoice(processedFirstChoice, { forceSingleLine: false }), cacheDone] as [
+              APIChoice,
+              Promise<void>,
+            ],
+            telemetryData: mkBasicResultTelemetry(baseTelemetryData),
+            telemetryBlob: baseTelemetryData,
+            resultType: 0,
+          }
+        : {
+            type: 'empty',
+            reason: 'got undefined processedFirstChoice',
+            telemetryData: mkBasicResultTelemetry(baseTelemetryData),
+          };
     }
   );
 }
@@ -314,8 +351,8 @@ async function getAllCompletionsFromNetwork(
   baseTelemetryData: TelemetryWithExp,
   cancellationToken: CancellationToken,
   finishedCb: SSEProcessor.FinishedCb
-): Promise<CompletionResult<APIChoice[]>> {
-  return genericGetCompletionsFromNetwork<APIChoice[]>(
+): Promise<CompletionResult<[APIChoice[], Promise<void>]>> {
+  return genericGetCompletionsFromNetwork<[APIChoice[], Promise<void>]>(
     ctx,
     requestContext,
     baseTelemetryData,
@@ -327,7 +364,7 @@ async function getAllCompletionsFromNetwork(
       requestStart: number,
       processingTime: number,
       choicesStream: AsyncIterable<APIChoice>
-    ): Promise<CompletionResult<APIChoice[]>> => {
+    ): Promise<CompletionResult<[APIChoice[], Promise<void>]>> => {
       const apiChoices: APIChoice[] = [];
       for await (const choice of choicesStream) {
         if (cancellationToken?.isCancellationRequested) {
@@ -338,10 +375,11 @@ async function getAllCompletionsFromNetwork(
             telemetryData: mkCanceledResultTelemetry(baseTelemetryData),
           };
         }
-        if (choice.completionText.trimEnd()) {
-          const trimmedChoice = choice.completionText.trim();
-          if (apiChoices.some((v) => v.completionText.trim() === trimmedChoice)) continue;
-          apiChoices.push(choice);
+
+        const processedChoice = postProcessChoices(choice, apiChoices);
+
+        if (processedChoice) {
+          apiChoices.push(processedChoice);
         }
       }
 
@@ -351,9 +389,10 @@ async function getAllCompletionsFromNetwork(
       }
       return {
         type: 'success',
-        value: apiChoices,
+        value: [apiChoices, Promise.resolve()],
         telemetryData: mkBasicResultTelemetry(baseTelemetryData),
         telemetryBlob: baseTelemetryData,
+        resultType: CompletionResultType.Cycling,
       };
     }
   );
@@ -361,9 +400,14 @@ async function getAllCompletionsFromNetwork(
 
 function makeGhostAPIChoice(choice: APIChoice, options: { forceSingleLine: boolean }): APIChoice {
   const ghostChoice = { ...choice };
-  ghostChoice.completionText = choice.completionText.trimEnd();
   if (options.forceSingleLine) {
-    ghostChoice.completionText = ghostChoice.completionText.split(`\n`)[0];
+    const { completionText } = ghostChoice;
+
+    if (completionText?.[0] === '\n') {
+      ghostChoice.completionText = '\n' + completionText.split('\n')[1];
+    } else {
+      ghostChoice.completionText = completionText.split('\n')[0];
+    }
   }
   return ghostChoice;
 }
@@ -375,7 +419,7 @@ async function getNumGhostCompletions(
 ): Promise<number> {
   const override = ctx.get(Features).overrideNumGhostCompletions(telemetryData);
   if (override) {
-    return requestContext.isCycling ? Math.max(0, 3 - override) : override;
+    return requestContext.isCycling ? Math.max(3, override) : override;
   } else {
     if (shouldDoParsingTrimming(requestContext.blockMode) && requestContext.multiline) {
       return 3;
@@ -388,16 +432,13 @@ async function getNumGhostCompletions(
 
 async function getGhostTextStrategy(
   ctx: Context,
-  document: TextDocument,
+  document: CopilotTextDocument,
   position: Position,
   prompt: Extract<ExtractedPrompt, { type: 'prompt' }>,
   isCycling: boolean,
   inlineSuggestion: boolean,
-  preIssuedTelemetryData: TelemetryWithExp,
-  requestMultilineExploration = false,
-  requestMultilineOnNewLine = true,
-  requestMultiModel = true,
-  requestMultiModelThreshold = 0.5
+  requestForNextLine: boolean | undefined,
+  preIssuedTelemetryData: TelemetryWithExp
 ): Promise<{
   blockMode: BlockMode;
   requestMultiline: boolean;
@@ -411,26 +452,17 @@ async function getGhostTextStrategy(
         blockMode: 'server',
         requestMultiline: true,
         isCyclingRequest: isCycling,
-        finishedCb: async () => undefined,
+        finishedCb: async (_) => undefined,
       };
     case 'parsing':
     case 'parsingandserver':
+    case 'moremultiline':
     default: {
       if (
-        await shouldRequestMultiline(
-          ctx,
-          document,
-          position,
-          inlineSuggestion,
-          preIssuedTelemetryData,
-          prompt,
-          requestMultilineExploration,
-          requestMultilineOnNewLine,
-          requestMultiModel,
-          requestMultiModelThreshold
-        )
+        await shouldRequestMultiline(ctx, blockMode, document, position, inlineSuggestion, requestForNextLine, prompt)
       ) {
-        let adjustedPosition: Position;
+        let adjustedPosition;
+
         if (prompt.trailingWs.length > 0 && !prompt.prompt.prefix.endsWith(prompt.trailingWs)) {
           adjustedPosition = LocationFactory.position(
             position.line,
@@ -439,43 +471,80 @@ async function getGhostTextStrategy(
         } else {
           adjustedPosition = position;
         }
+
         return {
-          blockMode: blockMode,
+          blockMode,
           requestMultiline: true,
           isCyclingRequest: false,
-          finishedCb: parsingBlockFinished(ctx, document, adjustedPosition),
+          finishedCb:
+            blockMode == 'moremultiline'
+              ? parsingBlockFinishedExtended(ctx, document, adjustedPosition, 2, 15, 8)
+              : parsingBlockFinished(ctx, document, adjustedPosition),
         };
       }
       return {
-        blockMode: blockMode,
+        blockMode,
         requestMultiline: false,
         isCyclingRequest: isCycling,
-        finishedCb: async () => undefined,
+        finishedCb: async (_) => undefined,
       };
     }
   }
 }
 
-async function getGhostText(
+async function getGhostTextWithoutAbortHandling(
   ctx: Context,
-  document: TextDocument,
+  document: CopilotTextDocument,
   position: Position,
-  isCycling: boolean,
   preIssuedTelemetryData: TelemetryData,
   cancellationToken: CancellationToken,
-  ifInserted: IfInserted,
-  promptOnly: boolean,
+  options: Partial<GhostTextOptions>,
   data: unknown
 ): Promise<GhostTextResult> {
+  const ghostTextOptions = { ...defaultOptions, ...options };
   const ourRequestId = uuidv4();
   preIssuedTelemetryData = preIssuedTelemetryData.extendedBy({ headerRequestId: ourRequestId });
-
+  const currentGhostText = ctx.get(CurrentGhostText);
+  const currentClientCompletionId = currentGhostText.clientCompletionId;
   const features = ctx.get(Features);
+  let preIssuedTelemetryDataWithExp;
 
-  const preIssuedTelemetryDataWithExp = await features.updateExPValuesAndAssignments(
-    { uri: document.uri, languageId: document.languageId },
-    preIssuedTelemetryData
-  );
+  if (preIssuedTelemetryData instanceof TelemetryWithExp) {
+    preIssuedTelemetryDataWithExp = preIssuedTelemetryData;
+  } else {
+    preIssuedTelemetryDataWithExp = await features.updateExPValuesAndAssignments(
+      { uri: document.uri, languageId: document.detectedLanguageId },
+      preIssuedTelemetryData
+    );
+  }
+
+  const telemetryConfig = ctx.get(TelemetryUserConfig);
+
+  if (telemetryConfig.trackingId) {
+    preIssuedTelemetryDataWithExp = preIssuedTelemetryDataWithExp.extendedBy({
+      copilot_trackingId: telemetryConfig.trackingId,
+    });
+  }
+
+  const inlineSuggestion = isInlineSuggestion(document, position);
+  if (inlineSuggestion === undefined) {
+    ghostTextLogger.debug(ctx, 'Breaking, invalid middle of the line');
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Invalid middle of the line',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
+  }
+
+  const asyncCompletions = ctx.get(AsyncCompletionManager).isEnabled(preIssuedTelemetryDataWithExp)
+    ? ctx.get(AsyncCompletionManager)
+    : undefined;
+
+  const originalCancellationToken = cancellationToken;
+
+  if (asyncCompletions) {
+    cancellationToken = new CancellationTokenSource().token;
+  }
 
   const prompt = await extractPrompt(
     ctx,
@@ -483,97 +552,166 @@ async function getGhostText(
     position,
     preIssuedTelemetryDataWithExp,
     cancellationToken,
-    ifInserted,
+    ghostTextOptions.ifInserted,
     data
   );
-  if (prompt.type === 'copilotNotAvailable') {
+
+  if (prompt.type === 'copilotContentExclusion') {
     ghostTextLogger.debug(ctx, 'Copilot not available, due to content exclusion');
-    return { type: 'abortedBeforeIssued', reason: 'Copilot not available due to content exclusion' };
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Copilot not available due to content exclusion',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
   }
 
   if (prompt.type === 'contextTooShort') {
     ghostTextLogger.debug(ctx, 'Breaking, not enough context');
-    return { type: 'abortedBeforeIssued', reason: 'Not enough context' };
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Not enough context',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
   }
 
-  if (promptOnly) return { type: 'promptOnly', reason: 'Breaking, promptOnly set to true', prompt };
+  if (prompt.type === 'promptError') {
+    ghostTextLogger.debug(ctx, 'Error while building the prompt');
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Error while building the prompt',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
+  }
+
+  if (ghostTextOptions.promptOnly) {
+    return {
+      type: 'promptOnly',
+      reason: 'Breaking, promptOnly set to true',
+      prompt,
+    };
+  }
+
+  if (prompt.type === 'promptCancelled') {
+    ghostTextLogger.debug(ctx, 'Cancelled during extractPrompt');
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Cancelled during extractPrompt',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
+  }
+
+  if (prompt.prompt.prefix.length === 0 && prompt.prompt.suffix.length === 0) {
+    ghostTextLogger.debug(ctx, 'Error empty prompt');
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Empty prompt',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
+  }
 
   if (cancellationToken?.isCancellationRequested) {
     ghostTextLogger.debug(ctx, 'Cancelled after extractPrompt');
-    return { type: 'abortedBeforeIssued', reason: 'Cancelled after extractPrompt' };
+    return {
+      type: 'abortedBeforeIssued',
+      reason: 'Cancelled after extractPrompt',
+      telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+    };
   }
 
-  const inlineSuggestion = isInlineSuggestion(document, position);
-  if (inlineSuggestion === undefined) {
-    ghostTextLogger.debug(ctx, 'Breaking, invalid middle of the line');
-    return { type: 'abortedBeforeIssued', reason: 'Invalid middle of the line' };
-  }
+  return ctx.get(StatusReporter).withProgress(async () => {
+    const [prefix] = trimLastLine(document.getText(LocationFactory.range(LocationFactory.position(0, 0), position)));
 
-  const statusBarItem = ctx.get(StatusReporter);
-  const ghostTextStrategy = await getGhostTextStrategy(
-    ctx,
-    document,
-    position,
-    prompt,
-    isCycling,
-    inlineSuggestion,
-    preIssuedTelemetryDataWithExp
-  );
+    const requestForNextLine = features.triggerCompletionAfterAccept(preIssuedTelemetryDataWithExp)
+      ? ctx.get(CurrentGhostText).hasAcceptedCurrentCompletion(prefix, prompt.prompt.suffix)
+      : undefined;
 
-  if (cancellationToken?.isCancellationRequested) {
-    ghostTextLogger.debug(ctx, 'Cancelled after requestMultiline');
-    return { type: 'abortedBeforeIssued', reason: 'Cancelled after requestMultiline' };
-  }
+    if (requestForNextLine) {
+      prompt.prompt = {
+        ...prompt.prompt,
+        prefix: prompt.prompt.prefix + '\n',
+      };
+    }
 
-  const [prefix] = trimLastLine(document.getText(LocationFactory.range(LocationFactory.position(0, 0), position)));
-  let choices = getLocalInlineSuggestion(ctx, prefix, prompt.prompt, ghostTextStrategy.requestMultiline);
-  const repoInfo = extractRepoInfoInBackground(ctx, document.uri);
-  const engineInfo = await getEngineRequestInfo(ctx, document.uri, preIssuedTelemetryDataWithExp);
-  const delayMs = features.beforeRequestWaitMs(preIssuedTelemetryDataWithExp);
-  const multiLogitBias = features.multiLogitBias(preIssuedTelemetryDataWithExp);
+    const ghostTextStrategy = await getGhostTextStrategy(
+      ctx,
+      document,
+      position,
+      prompt,
+      ghostTextOptions.isCycling,
+      inlineSuggestion,
+      requestForNextLine ?? false,
+      preIssuedTelemetryDataWithExp
+    );
 
-  const requestContext: RequestContext = {
-    blockMode: ghostTextStrategy.blockMode,
-    languageId: document.languageId,
-    repoInfo,
-    engineURL: engineInfo.url,
-    ourRequestId,
-    prefix,
-    prompt: prompt.prompt,
-    multiline: ghostTextStrategy.requestMultiline,
-    indentation: contextIndentation(document, position),
-    isCycling,
-    delayMs,
-    multiLogitBias,
-    headers: engineInfo.headers,
-  };
+    if (cancellationToken?.isCancellationRequested) {
+      ghostTextLogger.debug(ctx, 'Cancelled after requestMultiline');
+      return {
+        type: 'abortedBeforeIssued',
+        reason: 'Cancelled after requestMultiline',
+        telemetryData: mkBasicResultTelemetry(preIssuedTelemetryDataWithExp),
+      };
+    }
 
-  const debouncePredict = features.debouncePredict(preIssuedTelemetryDataWithExp);
-  const contextualFilterEnable = features.contextualFilterEnable(preIssuedTelemetryDataWithExp);
-  const contextualFilterAcceptThreshold = features.contextualFilterAcceptThreshold(preIssuedTelemetryDataWithExp);
-  const contextualFilterEnableTree = features.contextualFilterEnableTree(preIssuedTelemetryDataWithExp);
-  const contextualFilterExplorationTraffic = features.contextualFilterExplorationTraffic(preIssuedTelemetryDataWithExp);
+    let choices = getLocalInlineSuggestion(ctx, prefix, prompt.prompt, ghostTextStrategy.requestMultiline);
 
-  const telemetryData = telemetryIssued(
-    ctx,
-    document,
-    requestContext,
-    position,
-    prompt,
-    preIssuedTelemetryDataWithExp,
-    debouncePredict || contextualFilterEnable,
-    contextualFilterEnableTree
-  );
+    const repoInfo = extractRepoInfoInBackground(ctx, document.uri);
+    const engineInfo = await getEngineRequestInfo(ctx, preIssuedTelemetryDataWithExp);
 
-  if (
-    (ghostTextStrategy.isCyclingRequest && (choices?.[0].length ?? 0) > 1) ||
-    (!ghostTextStrategy.isCyclingRequest && choices !== undefined)
-  ) {
-    ghostTextLogger.debug(ctx, 'Found inline suggestions locally');
-  } else {
-    statusBarItem?.setProgress();
+    const requestContext = {
+      blockMode: ghostTextStrategy.blockMode,
+      languageId: document.languageId,
+      repoInfo,
+      engineURL: engineInfo.url,
+      ourRequestId,
+      prefix,
+      prompt: prompt.prompt,
+      multiline: ghostTextStrategy.requestMultiline,
+      indentation: contextIndentation(document, position),
+      isCycling: ghostTextOptions.isCycling,
+      headers: engineInfo.headers,
+      requestForNextLine,
+    };
 
-    if (ghostTextStrategy.isCyclingRequest) {
+    const telemetryData = telemetryIssued(
+      ctx,
+      document,
+      requestContext,
+      position,
+      prompt,
+      preIssuedTelemetryDataWithExp,
+      engineInfo
+    );
+
+    const speculativeConfig = getConfig(ctx, ConfigKey.EnableSpeculativeRequests);
+    const speculativeFlag = features.enableSpeculativeRequests(preIssuedTelemetryDataWithExp);
+
+    const speculativeEnabled =
+      (speculativeConfig || speculativeFlag) && !ghostTextOptions.isSpeculative && !ghostTextStrategy.isCyclingRequest;
+    let allChoicesPromise: Promise<void> = Promise.resolve();
+    if (
+      asyncCompletions &&
+      choices === undefined &&
+      !ghostTextStrategy.isCyclingRequest &&
+      !asyncCompletions.shouldWaitForAsyncCompletions(prompt.prompt)
+    ) {
+      const choice = await asyncCompletions.getFirstMatchingRequestWithTimeout(prompt.prompt);
+      if (choice) {
+        const forceSingleLine = !ghostTextStrategy.requestMultiline;
+        choices = [[makeGhostAPIChoice(choice[0], { forceSingleLine })], 4];
+        allChoicesPromise = choice[1];
+      }
+      if (originalCancellationToken?.isCancellationRequested) {
+        ghostTextLogger.debug(ctx, 'Cancelled before requesting a new completion');
+        return {
+          type: 'abortedBeforeIssued',
+          reason: 'Cancelled after waiting for async completion',
+          telemetryData: mkBasicResultTelemetry(telemetryData),
+        };
+      }
+    }
+    if (choices !== undefined && (!ghostTextStrategy.isCyclingRequest || choices[0].length > 1)) {
+      ghostTextLogger.debug(ctx, `Found inline suggestions locally via ${resultTypeToString(choices[1])}`);
+    } else if (ghostTextStrategy.isCyclingRequest) {
       const networkChoices = await getAllCompletionsFromNetwork(
         ctx,
         requestContext,
@@ -581,36 +719,51 @@ async function getGhostText(
         cancellationToken,
         ghostTextStrategy.finishedCb
       );
-
       if (networkChoices.type === 'success') {
         const resultChoices = choices?.[0] ?? [];
-        for (const c of networkChoices.value) {
-          if (resultChoices.every((v) => v.completionText.trim() !== c.completionText.trim())) {
+
+        networkChoices.value[0].forEach((c) => {
+          if (resultChoices.findIndex((v) => v.completionText.trim() === c.completionText.trim()) === -1) {
             resultChoices.push(c);
           }
-        }
-        choices = [resultChoices, CompletionResultType.WithCompletion];
-      } else if (!choices) {
-        statusBarItem?.removeProgress();
+        });
+
+        choices = [resultChoices, 3];
+      } else if (choices === undefined) {
         return networkChoices;
       }
     } else {
-      const debounceLimit = await getDebounceLimit(ctx, telemetryData);
-      try {
-        await ghostTextDebouncer.debounce(debounceLimit);
-      } catch (error) {
-        return { type: 'canceled', reason: 'by debouncer', telemetryData: mkCanceledResultTelemetry(telemetryData) };
+      const debounceThreshold = features.debounceThreshold(preIssuedTelemetryDataWithExp);
+      if (!(asyncCompletions !== undefined || requestContext.requestForNextLine === true || debounceThreshold === 0)) {
+        try {
+          await ghostTextDebouncer.debounce(debounceThreshold);
+        } catch {
+          return {
+            type: 'canceled',
+            reason: 'by debouncer',
+            telemetryData: mkCanceledResultTelemetry(telemetryData),
+          };
+        }
+        if (cancellationToken?.isCancellationRequested) {
+          ghostTextLogger.debug(ctx, 'Cancelled during debounce');
+          return {
+            type: 'canceled',
+            reason: 'during debounce',
+            telemetryData: mkCanceledResultTelemetry(telemetryData),
+          };
+        }
       }
       if (cancellationToken?.isCancellationRequested) {
-        ghostTextLogger.debug(ctx, 'Cancelled during debounce');
-        return { type: 'canceled', reason: 'during debounce', telemetryData: mkCanceledResultTelemetry(telemetryData) };
+        ghostTextLogger.debug(ctx, 'Cancelled before contextual filter');
+        return {
+          type: 'canceled',
+          reason: 'before contextual filter',
+          telemetryData: mkCanceledResultTelemetry(telemetryData),
+        };
       }
-
       if (
-        contextualFilterEnable &&
-        telemetryData.measurements.contextualFilterScore &&
-        telemetryData.measurements.contextualFilterScore < contextualFilterAcceptThreshold / 100 &&
-        Math.random() < 1 - contextualFilterExplorationTraffic / 100
+        !features.disableContextualFilter(preIssuedTelemetryDataWithExp) &&
+        telemetryData.measurements.contextualFilterScore < 35 / 100
       ) {
         ghostTextLogger.debug(ctx, 'Cancelled by contextual filter');
         return {
@@ -619,63 +772,167 @@ async function getGhostText(
           telemetryData: mkCanceledResultTelemetry(telemetryData),
         };
       }
-
-      const c = await getCompletionsFromNetwork(
+      const requestPromise = getCompletionsFromNetwork(
         ctx,
         requestContext,
         telemetryData,
         cancellationToken,
         ghostTextStrategy.finishedCb
       );
-
-      if (c.type !== 'success') {
-        statusBarItem?.removeProgress();
-        return c;
+      if (asyncCompletions) {
+        asyncCompletions.queueCompletionRequest(prompt.prompt, requestPromise); // TODO check requestPromise later
+        const c = await asyncCompletions.getFirstMatchingRequest(prompt.prompt);
+        if (c === undefined) {
+          return {
+            type: 'empty',
+            reason: 'received no results from async completions',
+            telemetryData: mkBasicResultTelemetry(telemetryData),
+          };
+        }
+        choices = [[c[0]], 4];
+        allChoicesPromise = c[1];
+      } else {
+        const c = await requestPromise;
+        if (c.type !== 'success') {
+          return c;
+        }
+        choices = [[c.value[0]], 0];
+        allChoicesPromise = c.value[1];
       }
-
-      choices = [[c.value], CompletionResultType.New]; //MARK
     }
-    statusBarItem.removeProgress();
-  }
-  if (!choices) {
-    return {
-      type: 'failed',
-      reason: 'internal error: choices should be defined after network call',
-      telemetryData: mkBasicResultTelemetry(telemetryData),
-    };
-  }
-
-  const [choicesArray, resultType] = choices;
-  const postProcessedChoices = asyncIterableMapFilter(asyncIterableFromArray(choicesArray), async (choice) =>
-    postProcessChoice(ctx, document, position, choice, ghostTextLogger)
-  );
-
-  const results: Result[] = [];
-  for await (const choice of postProcessedChoices) {
-    if (cancellationToken?.isCancellationRequested) {
-      ghostTextLogger.debug(ctx, 'Cancelled after post processing completions');
+    if (choices === undefined) {
       return {
-        type: 'canceled',
-        reason: 'after post processing completions',
-        telemetryData: mkCanceledResultTelemetry(telemetryData),
+        type: 'failed',
+        reason: 'internal error: choices should be defined after network call',
+        telemetryData: mkBasicResultTelemetry(telemetryData),
       };
     }
-    const choiceTelemetryData = telemetryWithAddData(ctx, choice);
-    const suffixCoverage = inlineSuggestion ? checkSuffix(document, position, choice) : 0;
-    results.push({
-      completion: adjustLeadingWhitespace(choice.choiceIndex, choice.completionText, prompt.trailingWs),
-      telemetry: choiceTelemetryData,
-      isMiddleOfTheLine: inlineSuggestion,
-      suffixCoverage,
-    });
-  }
+    const [choicesArray, resultType] = choices;
 
-  return {
-    type: 'success',
-    value: [results, resultType],
-    telemetryData: mkBasicResultTelemetry(telemetryData),
-    telemetryBlob: telemetryData,
-  };
+    const postProcessedChoices = asyncIterableMapFilter(asyncIterableFromArray(choicesArray), async (choice) => {
+      return postProcessChoiceInContext(
+        ctx,
+        document,
+        position,
+        choice,
+        requestContext.requestForNextLine ?? false,
+        ghostTextLogger
+      );
+    });
+
+    const postProcessedChoicesArray = [];
+    const results: Result[] = [];
+    for await (const choice of postProcessedChoices) {
+      postProcessedChoicesArray.push(choice);
+      if (originalCancellationToken?.isCancellationRequested) {
+        ghostTextLogger.debug(ctx, 'Cancelled after post processing completions');
+        return {
+          type: 'canceled',
+          reason: 'after post processing completions',
+          telemetryData: mkCanceledResultTelemetry(telemetryData),
+        };
+      }
+
+      const choiceTelemetryData = telemetryWithAddData(ctx, document, requestContext, choice, telemetryData);
+
+      const suffixCoverage = inlineSuggestion ? checkSuffix(document, position, choice) : 0;
+
+      const res: Result = {
+        completion: adjustLeadingWhitespace(choice.choiceIndex, choice.completionText, prompt.trailingWs),
+        telemetry: choiceTelemetryData,
+        isMiddleOfTheLine: inlineSuggestion,
+        suffixCoverage,
+        copilotAnnotations: choice.copilotAnnotations,
+      };
+
+      results.push(res);
+    }
+
+    telemetryData.measurements.foundOffset = results?.[0]?.telemetry?.measurements?.foundOffset ?? -1;
+
+    ghostTextLogger.debug(
+      ctx,
+      `Produced ${results.length} results from ${resultTypeToString(resultType)} at ${telemetryData.measurements.foundOffset} offset`
+    );
+
+    if (speculativeEnabled) {
+      const documentOffset = document.offsetAt(position);
+      const documentText = document.getText();
+
+      const newDocumentText =
+        documentText.slice(0, documentOffset) +
+        results[0].completion.completionText +
+        documentText.slice(documentOffset);
+
+      const newDocument = CopilotTextDocument.create(
+        document.uri.toString(),
+        document.clientLanguageId,
+        document.version - 1,
+        newDocumentText,
+        document.detectedLanguageId
+      );
+
+      const newPosition = newDocument.positionAt(documentOffset + results[0].completion.completionText.length);
+
+      const newTelemetryData = TelemetryData.createAndMarkAsIssued(
+        { ...preIssuedTelemetryData.properties, reason: 'speculative' },
+        preIssuedTelemetryData.measurements
+      );
+
+      const newCancellationToken = new CancellationTokenSource().token;
+      allChoicesPromise.then(() => {
+        getGhostText(ctx, newDocument, newPosition, newTelemetryData, newCancellationToken, {
+          isSpeculative: true,
+        });
+      });
+    }
+    if (currentClientCompletionId !== currentGhostText.clientCompletionId) {
+      const choicesTyping = currentGhostText.getCompletionsForUserTyping(prefix, prompt.prompt.suffix);
+      if ((choicesTyping?.length ?? 0) > 0) {
+        ghostTextLogger.warn(ctx, 'Current completion changed before returning');
+        return {
+          type: 'canceled',
+          reason: 'current completion changed before returning',
+          telemetryData: mkCanceledResultTelemetry(telemetryData),
+        };
+      }
+    }
+
+    if (!ghostTextOptions.isSpeculative) {
+      currentGhostText.setGhostText(prefix, prompt.prompt.suffix, postProcessedChoicesArray, resultType);
+    }
+
+    return {
+      type: 'success',
+      value: [results, resultType],
+      telemetryData: mkBasicResultTelemetry(telemetryData),
+      telemetryBlob: telemetryData,
+      resultType,
+    };
+  });
+}
+
+async function getGhostText(
+  ctx: Context,
+  textDocument: CopilotTextDocument,
+  position: Position,
+  telemetryData: TelemetryData,
+  token: CancellationToken,
+  options: Partial<GhostTextOptions>,
+  data?: unknown
+): Promise<GhostTextResult> {
+  try {
+    return await getGhostTextWithoutAbortHandling(ctx, textDocument, position, telemetryData, token, options, data);
+  } catch (e) {
+    if (isAbortError(e)) {
+      return {
+        type: 'canceled',
+        reason: 'aborted at unknown location',
+        telemetryData: mkCanceledResultTelemetry(telemetryData, { cancelledNetworkRequest: true }),
+      };
+    }
+    throw e;
+  }
 }
 
 function getLocalInlineSuggestion(
@@ -684,79 +941,50 @@ function getLocalInlineSuggestion(
   prompt: Prompt,
   requestMultiline: boolean
 ): [APIChoice[], CompletionResultType] | undefined {
-  let choicesTyping = getCompletionsForUserTyping(ctx, prefix, prompt, requestMultiline);
-  if (choicesTyping && choicesTyping.length > 0) return [choicesTyping, CompletionResultType.UserTyping];
-  let choicesCache = getCompletionsFromCache(ctx, prefix, prompt, requestMultiline);
-  if (choicesCache && choicesCache.length > 0) return [choicesCache, CompletionResultType.Cached];
+  const choicesTyping = ctx.get(CurrentGhostText).getCompletionsForUserTyping(prefix, prompt.suffix);
+  const choicesCache = getCompletionsFromCache(ctx, prefix, prompt, requestMultiline);
+  if (choicesTyping && choicesTyping.length > 0) {
+    const choicesCacheDeduped = (choicesCache ?? []).filter(
+      (c) => !choicesTyping.some((t) => t.completionText === c.completionText)
+    );
+    return [choicesTyping.concat(choicesCacheDeduped), CompletionResultType.TypingAsSuggested];
+  }
+  if (choicesCache && choicesCache.length > 0) {
+    return [choicesCache, CompletionResultType.Cache];
+  }
 }
 
-function isInlineSuggestion(document: TextDocument, position: Position): boolean | undefined {
+function isInlineSuggestion(document: CopilotTextDocument, position: Position): boolean | undefined {
   const isMiddleOfLine = isMiddleOfTheLine(position, document);
   const isValidMiddleOfLine = isValidMiddleOfTheLinePosition(position, document);
   return isMiddleOfLine && !isValidMiddleOfLine ? undefined : isMiddleOfLine && isValidMiddleOfLine;
 }
 
-function isMiddleOfTheLine(selectionPosition: Position, doc: TextDocument) {
+function isMiddleOfTheLine(selectionPosition: Position, doc: CopilotTextDocument) {
   return doc.lineAt(selectionPosition).text.substring(selectionPosition.character).trim().length !== 0;
 }
 
-function isValidMiddleOfTheLinePosition(selectionPosition: Position, doc: TextDocument) {
-  let endOfLine = doc.lineAt(selectionPosition).text.substring(selectionPosition.character).trim();
-  return /^\s*[)}\]"'`]*\s*[:{;,]?\s*$/.test(endOfLine);
+function isValidMiddleOfTheLinePosition(selectionPosition: Position, doc: CopilotTextDocument) {
+  const endOfLine = doc.lineAt(selectionPosition).text.substring(selectionPosition.character).trim();
+  return /^\s*[)>}\]"'`]*\s*[:{;,]?\s*$/.test(endOfLine);
 }
 
-function isNewLine(selectionPosition: Position, doc: TextDocument) {
+function isNewLine(selectionPosition: Position, doc: CopilotTextDocument) {
   return doc.lineAt(selectionPosition).text.trim().length === 0;
-}
-
-function exploreMultilineRandom() {
-  return Math.random() > 0.5;
-}
-
-async function requestMultilineExperiment(
-  requestMultilineExploration: boolean,
-  requestMultiModel: boolean,
-  requestMultiModelThreshold: number,
-  document: TextDocument,
-  prompt: Extract<ExtractedPrompt, { type: 'prompt' }>
-) {
-  if (requestMultilineExploration) {
-    return exploreMultilineRandom();
-  } else if (requestMultiModel && ['javascript', 'javascriptreact', 'python'].includes(document.languageId)) {
-    return requestMultilineScore(prompt.prompt, document.languageId) > requestMultiModelThreshold;
-  }
-  return false;
 }
 
 async function shouldRequestMultiline(
   ctx: Context,
-  document: TextDocument,
+  blockMode: BlockMode,
+  document: CopilotTextDocument,
   position: Position,
   inlineSuggestion: boolean,
-  preIssuedTelemetryData: TelemetryWithExp,
-  prompt: Extract<ExtractedPrompt, { type: 'prompt' }>,
-  requestMultilineExploration: boolean,
-  requestMultilineOnNewLine: boolean,
-  requestMultiModel: boolean,
-  requestMultiModelThreshold: number
+  requestForNextLine: boolean | undefined,
+  prompt: Extract<ExtractedPrompt, { type: 'prompt' }>
 ): Promise<boolean> {
-  if (ctx.get(ForceMultiLine).requestMultilineOverride) return true;
-
-  if (requestMultilineExploration) {
-    const isEmptyBlockStartDocumentPosition = await isEmptyBlockStart(document, position);
-    const isEmptyBlockStartDocumentPositionRangeEnd = await isEmptyBlockStart(
-      document,
-      document.lineAt(position).range.end
-    );
-
-    preIssuedTelemetryData.properties.isEmptyBlockStartDocumentPosition = isEmptyBlockStartDocumentPosition.toString();
-    preIssuedTelemetryData.properties.isEmptyBlockStartDocumentPositionRangeEnd =
-      isEmptyBlockStartDocumentPositionRangeEnd.toString();
-    preIssuedTelemetryData.properties.inlineSuggestion = inlineSuggestion.toString();
-    preIssuedTelemetryData.measurements.documentLineCount = document.lineCount;
-    preIssuedTelemetryData.measurements.positionLine = position.line;
+  if (ctx.get(ForceMultiLine).requestMultilineOverride) {
+    return true;
   }
-
   if (document.lineCount >= 8000) {
     telemetry(
       ctx,
@@ -767,63 +995,54 @@ async function shouldRequestMultiline(
         currentLine: String(position.line),
       })
     );
-  } else {
-    if (
-      requestMultilineOnNewLine &&
-      ['typescript', 'typescriptreact'].includes(document.languageId) &&
-      isNewLine(position, document)
-    ) {
-      return true;
-    }
-
-    let requestMultiline = false;
-
-    if (!inlineSuggestion && isSupportedLanguageId(document.languageId)) {
-      requestMultiline = await isEmptyBlockStart(document, position);
-    } else if (inlineSuggestion && isSupportedLanguageId(document.languageId)) {
-      requestMultiline =
-        (await isEmptyBlockStart(document, position)) ||
-        (await isEmptyBlockStart(document, document.lineAt(position).range.end));
-    }
-
-    if (!requestMultiline) {
-      requestMultiline = await requestMultilineExperiment(
-        requestMultilineExploration,
-        requestMultiModel,
-        requestMultiModelThreshold,
-        document,
-        prompt
-      );
-    }
-
-    return requestMultiline;
+    return false;
   }
 
-  return false;
-}
+  if (blockMode == 'moremultiline') {
+    return true;
+  }
 
-let lastPrefix: string;
-let lastSuffix: string;
-let lastPromptHash: string;
+  if (requestForNextLine) {
+    let indentation = contextIndentation(document, position);
+    let whitespaceChar = indentation.current > 0 ? document.lineAt(position).text[0] : undefined;
 
-function recordLastSuccessfulCompletionContext(prefix: string, suffix: string, promptHash: string) {
-  lastPrefix = prefix;
-  lastSuffix = suffix;
-  lastPromptHash = promptHash;
-}
+    let change = {
+      range: { start: position, end: position },
+      text: '\n' + (whitespaceChar ? whitespaceChar.repeat(indentation.current) : ''),
+    };
 
-function addToCache(
-  ctx: Context,
-  requestContext: RequestContext,
-  contents: { multiline: boolean; choices: APIChoice[] }
-) {
-  let promptHash = keyForPrompt(requestContext.prompt);
-  recordLastSuccessfulCompletionContext(requestContext.prefix, requestContext.prompt.suffix, promptHash);
-  ctx.get(CompletionsCache).set(promptHash, contents);
-  ghostTextLogger.debug(
-    ctx,
-    `Cached ghost text for key: ${promptHash}, multiline: ${contents.multiline}, number of suggestions: ${contents.choices.length}`
-  );
+    document = CopilotTextDocument.withChanges(document, [change], document.version + 1);
+  }
+
+  if (['typescript', 'typescriptreact'].includes(document.languageId) && isNewLine(position, document)) {
+    return true;
+  }
+
+  let requestMultiline = false;
+
+  // if (!inlineSuggestion && isSupportedLanguageId(document.languageId)) {
+  //   requestMultiline = await isEmptyBlockStart(document, position);
+  // } else {
+  //   if (inlineSuggestion && isSupportedLanguageId(document.languageId)) {
+  //     requestMultiline =
+  //       (await isEmptyBlockStart(document, position)) ||
+  //       (await isEmptyBlockStart(document, document.lineAt(position).range.end));
+  //   }
+  // }
+
+  // EDITED
+  if (isSupportedLanguageId(document.languageId)) {
+    requestMultiline = await isEmptyBlockStart(document, position);
+    if (inlineSuggestion) {
+      requestMultiline = requestMultiline || (await isEmptyBlockStart(document, document.lineAt(position).range.end));
+    }
+  }
+
+  if (!requestMultiline && ['javascript', 'javascriptreact', 'python'].includes(document.languageId)) {
+    requestMultiline = requestMultilineScore(prompt.prompt, document.languageId) > 0.5;
+  }
+
+  return requestMultiline;
 }
 
 function appendToCache(
@@ -834,7 +1053,7 @@ function appendToCache(
   const promptHash = keyForPrompt(requestContext.prompt);
   const existing = ctx.get(CompletionsCache).get(promptHash);
 
-  if (existing && existing.multiline === newContents.multiline) {
+  if (existing?.multiline === newContents.multiline) {
     ctx.get(CompletionsCache).set(promptHash, {
       multiline: existing.multiline,
       choices: existing.choices.concat(newContents.choices),
@@ -845,13 +1064,15 @@ function appendToCache(
 
   ghostTextLogger.debug(
     ctx,
-    `Appended cached ghost text for key: ${promptHash}, multiline: ${newContents.multiline}, number of suggestions: ${newContents.choices.length}`
+    `Appended ${newContents.choices.length} cached ghost text for key: ${promptHash}, multiline: ${newContents.multiline}, total number of suggestions: ${(existing?.choices.length ?? 0) + newContents.choices.length}`
   );
 }
 
 function getCachedChoices(ctx: Context, promptHash: string, multiline: boolean): APIChoice[] | undefined {
   const contents = ctx.get(CompletionsCache).get(promptHash);
-  if (contents && !(multiline && !contents.multiline)) return contents.choices;
+  if (contents && !(multiline && !contents.multiline)) {
+    return contents.choices;
+  }
 }
 
 function adjustLeadingWhitespace(index: number, text: string, ws: string): Result['completion'] {
@@ -863,24 +1084,21 @@ function adjustLeadingWhitespace(index: number, text: string, ws: string): Resul
         displayText: text.substring(ws.length),
         displayNeedsWsOffset: false,
       };
-    } else {
-      const textLeftWs = text.substring(0, text.length - text.trimStart().length);
-      if (ws.startsWith(textLeftWs)) {
-        return {
+    }
+    const textLeftWs = text.substring(0, text.length - text.trimStart().length);
+    return ws.startsWith(textLeftWs)
+      ? {
           completionIndex: index,
           completionText: text,
           displayText: text.trimStart(),
           displayNeedsWsOffset: true,
-        };
-      } else {
-        return {
+        }
+      : {
           completionIndex: index,
           completionText: text,
           displayText: text,
           displayNeedsWsOffset: false,
         };
-      }
-    }
   } else {
     return {
       completionIndex: index,
@@ -891,76 +1109,78 @@ function adjustLeadingWhitespace(index: number, text: string, ws: string): Resul
   }
 }
 
-function getCompletionsForUserTyping(
-  ctx: Context,
-  prefix: string,
-  prompt: Prompt,
-  multiline: boolean
-): APIChoice[] | undefined {
-  const prefixMatches = lastPrefix !== undefined ? prefix.startsWith(lastPrefix) : false;
-  const suffixMatches = lastSuffix !== undefined ? prompt.suffix === lastSuffix : false;
-
-  if (!lastPrefix || !lastPromptHash || !prefixMatches || !suffixMatches) return;
-
-  const lastCachedCompletion = getCachedChoices(ctx, lastPromptHash, multiline);
-  if (!lastCachedCompletion) return;
-
-  const remainingPrefix = prefix.substring(lastPrefix.length);
-  ghostTextLogger.debug(ctx, `Getting completions for user-typing flow - remaining prefix: ${remainingPrefix}`);
-
-  let completionsToReturn: APIChoice[] = [];
-  for (const element of lastCachedCompletion) {
-    const completionToReturn = makeGhostAPIChoice(element, { forceSingleLine: false });
-    if (completionToReturn.completionText.startsWith(remainingPrefix)) {
-      completionToReturn.completionText = completionToReturn.completionText.substring(remainingPrefix.length);
-      completionsToReturn.push(completionToReturn);
-    }
-  }
-
-  return completionsToReturn;
-}
-
 function getCompletionsFromCache(
   ctx: Context,
-  prefix: string,
+  currentPrefix: string,
   prompt: Prompt,
   multiline: boolean
 ): APIChoice[] | undefined {
-  const promptHash = keyForPrompt(prompt);
-  ghostTextLogger.debug(ctx, `Trying to get completions from cache for key: ${promptHash}`);
-  const cachedChoice = getCachedChoices(ctx, promptHash, multiline);
-
-  if (cachedChoice) {
-    ghostTextLogger.debug(ctx, `Got completions from cache for key: ${promptHash}`);
-    const completionsToReturn: APIChoice[] = [];
-
-    for (const element of cachedChoice) {
-      const completionToReturn = makeGhostAPIChoice(element, { forceSingleLine: !multiline });
-      completionsToReturn.push(completionToReturn);
+  for (let i = 0; i < MAX_COMPLETION_CACHE_PREFIX_BACKTRACK; i++) {
+    const choices = [];
+    const prefix = prompt.prefix.substring(0, prompt.prefix.length - i);
+    const promptHash = keyForPrompt({ prefix, suffix: prompt.suffix });
+    const cachedChoices = getCachedChoices(ctx, promptHash, multiline);
+    if (!cachedChoices) {
+      continue;
     }
+    ghostTextLogger.debug(
+      ctx,
+      `Got completions from cache at ${i} characters back for key: ${promptHash}, multiline: ${multiline}`
+    );
+    const remainingPrefix = prompt.prefix.substring(prefix.length);
+    for (const choice of cachedChoices) {
+      let completionText = choice.completionText;
+      if (!completionText.startsWith(remainingPrefix) || completionText.length <= remainingPrefix.length) {
+        continue;
+      }
+      completionText = completionText.substring(remainingPrefix.length);
+      const choiceToReturn = makeGhostAPIChoice(
+        { ...choice, completionText },
+        { forceSingleLine: !multiline && !isProgressRevealChoice(choice) }
+      );
+      choiceToReturn.telemetryData.measurements.foundOffset = i;
 
-    const result = completionsToReturn.filter((e) => e.completionText);
-    if (result.length > 0) {
-      recordLastSuccessfulCompletionContext(prefix, prompt.suffix, promptHash);
+      if (choiceToReturn.completionText !== '') {
+        choices.push(choiceToReturn);
+      }
     }
-    return result;
+    ghostTextLogger.debug(ctx, `Found ${choices.length} matching completions from cache at ${i} characters back`);
+    if (choices.length > 0) {
+      return choices;
+    }
   }
+  return [];
 }
 
 // APIChoice TelemetryWithExp ../../../agent/src/methods/getCompletions.ts
-function telemetryWithAddData(ctx: Context, choice: APIChoice): TelemetryWithExp {
+function telemetryWithAddData(
+  ctx: Context,
+  document: CopilotTextDocument,
+  requestContext: RequestContext,
+  choice: APIChoice,
+  issuedTelemetryData: TelemetryWithExp
+): TelemetryWithExp {
   const requestId = choice.requestId;
   const properties: TelemetryProperties = { choiceIndex: choice.choiceIndex.toString() };
+  const numLines = choice.completionText.split('\n').length;
+
   const measurements: TelemetryMeasurements = {
-    numTokens: choice.numTokens,
     compCharLen: choice.completionText.length,
-    numLines: choice.completionText.split('\n').length,
+    numLines: requestContext.requestForNextLine ? numLines - 1 : numLines,
   };
 
-  if (choice.meanLogProb) measurements.meanLogProb = choice.meanLogProb;
-  if (choice.meanAlternativeLogProb) measurements.meanAlternativeLogProb = choice.meanAlternativeLogProb;
+  if (choice.meanLogProb) {
+    measurements.meanLogProb = choice.meanLogProb;
+  }
 
-  const extendedTelemetry = choice.telemetryData.extendedBy(properties, measurements);
+  if (choice.meanAlternativeLogProb) {
+    measurements.meanAlternativeLogProb = choice.meanAlternativeLogProb;
+  }
+
+  let extendedTelemetry = choice.telemetryData.extendedBy(properties, measurements);
+  extendedTelemetry.issuedTime = issuedTelemetryData.issuedTime;
+  extendedTelemetry.measurements.timeToProduceMs = performance.now() - issuedTelemetryData.issuedTime;
+  addDocumentTelemetry(extendedTelemetry, document);
   extendedTelemetry.extendWithRequestId(requestId);
   extendedTelemetry.measurements.confidence = ghostTextScoreConfidence(ctx, extendedTelemetry);
   extendedTelemetry.measurements.quantile = ghostTextScoreQuantile(ctx, extendedTelemetry);
@@ -975,63 +1195,26 @@ function telemetryWithAddData(ctx: Context, choice: APIChoice): TelemetryWithExp
 
 function telemetryIssued(
   ctx: Context,
-  document: TextDocument,
+  document: CopilotTextDocument,
   requestContext: RequestContext,
   position: Position,
   prompt: Extract<ExtractedPrompt, { type: 'prompt' }>,
   baseTelemetryData: TelemetryWithExp,
-  computeContextualFilterScore: boolean,
-  contextualFilterEnableTree: boolean
+  requestInfo: RequestInfo
 ): TelemetryWithExp {
-  const currentLine = document.lineAt(position.line);
-  const lineBeforeCursor = document.getText(LocationFactory.range(currentLine.range.start, position));
-  const restOfLine = document.getText(LocationFactory.range(position, currentLine.range.end));
+  const properties: TelemetryProperties = { languageId: document.languageId };
 
-  const properties: TelemetryProperties = {
-    languageId: document.languageId,
-    beforeCursorWhitespace: JSON.stringify(lineBeforeCursor.trim() === ''),
-    afterCursorWhitespace: JSON.stringify(restOfLine.trim() === ''),
-  };
-
-  const measurements: TelemetryMeasurements = {
-    ...telemetrizePromptLength(prompt.prompt),
-    promptEndPos: document.offsetAt(position),
-    documentLength: document.getText().length,
-    delayMs: requestContext.delayMs,
-  };
-
-  let telemetryData = baseTelemetryData.extendedBy(properties, measurements);
-
-  telemetryData.properties.promptChoices = JSON.stringify(prompt.promptChoices, (key, value) =>
-    value instanceof Map ? Array.from(value.entries()).reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}) : value
-  );
-
-  telemetryData.properties.promptBackground = JSON.stringify(prompt.promptBackground, (key, value) =>
-    value instanceof Map ? Array.from(value.values()) : value
-  );
-
-  const typeFileHashCode = Array.from(prompt.neighborSource.entries()).map(([typeFilesKey, files]) => [
-    typeFilesKey,
-    files.map((f) => SHA256(f).toString()),
-  ]);
-
-  telemetryData.properties.neighborSource = JSON.stringify(typeFileHashCode);
-  telemetryData.measurements.promptComputeTimeMs = prompt.computeTimeMs;
-
-  if (computeContextualFilterScore) {
-    telemetryData.measurements.contextualFilterScore = contextualFilterScore(
-      ctx,
-      telemetryData,
-      prompt.prompt,
-      contextualFilterEnableTree
-    );
+  if (requestContext.requestForNextLine !== undefined) {
+    properties.requestForNextLine = requestContext.requestForNextLine.toString();
   }
 
+  const telemetryData = baseTelemetryData.extendedBy(properties);
+  addDocumentTelemetry(telemetryData, document);
   const repoInfo = requestContext.repoInfo;
   telemetryData.properties.gitRepoInformation =
     repoInfo === undefined ? 'unavailable' : repoInfo === 0 ? 'pending' : 'available';
 
-  if (repoInfo) {
+  if (repoInfo !== undefined && repoInfo !== 0) {
     telemetryData.properties.gitRepoUrl = repoInfo.url;
     telemetryData.properties.gitRepoHost = repoInfo.hostname;
     telemetryData.properties.gitRepoOwner = repoInfo.owner;
@@ -1039,13 +1222,57 @@ function telemetryIssued(
     telemetryData.properties.gitRepoPath = repoInfo.pathname;
   }
 
-  telemetryData.properties.engineName = extractEngineName(ctx, requestContext.engineURL);
+  telemetryData.properties.engineName = requestInfo.modelId;
+  telemetryData.properties.engineChoiceSource = requestInfo.engineChoiceSource;
   telemetryData.properties.isMultiline = JSON.stringify(requestContext.multiline);
-  telemetryData.properties.blockMode = requestContext.blockMode;
   telemetryData.properties.isCycling = JSON.stringify(requestContext.isCycling);
+  const currentLine = document.lineAt(position.line);
+  const lineBeforeCursor = document.getText(LocationFactory.range(currentLine.range.start, position));
+  const restOfLine = document.getText(LocationFactory.range(position, currentLine.range.end));
 
-  telemetry(ctx, 'ghostText.issued', telemetryData);
+  const typeFileHashCode = Array.from(prompt.neighborSource.entries()).map((typeFiles) => [
+    typeFiles[0],
+    typeFiles[1].map((f) => SHA256(f).toString()),
+  ]);
+
+  const extendedProperties: Record<string, string> = {
+    beforeCursorWhitespace: JSON.stringify(lineBeforeCursor.trim() === ''),
+    afterCursorWhitespace: JSON.stringify(restOfLine.trim() === ''),
+    promptChoices: JSON.stringify(prompt.promptChoices, (key, value) =>
+      value instanceof Map ? Array.from(value.entries()).reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}) : value
+    ),
+    promptBackground: JSON.stringify(prompt.promptBackground, (key, value) =>
+      value instanceof Map ? Array.from(value.values()) : value
+    ),
+    neighborSource: JSON.stringify(typeFileHashCode),
+    blockMode: requestContext.blockMode,
+  };
+
+  const extendedMeasurements = {
+    ...telemetrizePromptLength(prompt.prompt),
+    promptEndPos: document.offsetAt(position),
+    promptComputeTimeMs: prompt.computeTimeMs,
+  };
+
+  if (prompt.metadata) {
+    extendedProperties.promptMetadata = JSON.stringify(prompt.metadata);
+  }
+
+  const telemetryDataToSend = telemetryData.extendedBy(extendedProperties, extendedMeasurements);
+
+  telemetryDataToSend.measurements.contextualFilterScore = contextualFilterScore(
+    ctx,
+    telemetryDataToSend,
+    prompt.prompt
+  );
+
+  telemetry(ctx, 'ghostText.issued', telemetryDataToSend);
   return telemetryData;
+}
+
+function addDocumentTelemetry(telemetry: TelemetryWithExp, document: CopilotTextDocument): void {
+  telemetry.measurements.documentLength = document.getText().length;
+  telemetry.measurements.documentLineCount = document.lineCount;
 }
 
 function telemetryPerformance(
@@ -1057,22 +1284,39 @@ function telemetryPerformance(
 ) {
   const requestTimeMs = Date.now() - requestStart;
   const deltaMs = requestTimeMs - processingTimeMs;
+
   const telemetryData = choice.telemetryData.extendedBy(
     {},
     {
       completionCharLen: choice.completionText.length,
-      requestTimeMs: requestTimeMs,
-      processingTimeMs: processingTimeMs,
-      deltaMs: deltaMs,
+      requestTimeMs,
+      processingTimeMs,
+      deltaMs,
       meanLogProb: choice.meanLogProb || NaN,
       meanAlternativeLogProb: choice.meanAlternativeLogProb || NaN,
-      numTokens: choice.numTokens,
     }
   );
+
   telemetryData.extendWithRequestId(choice.requestId);
   telemetry(ctx, `ghostText.${performanceKind}`, telemetryData);
 }
 
-const forceMultiLine = new ForceMultiLine();
+const ghostTextLogger = new Logger('ghostText');
+const ghostTextDebouncer = new Debouncer();
+const defaultOptions: GhostTextOptions = {
+  isCycling: false,
+  promptOnly: false,
+  ifInserted: undefined,
+  isSpeculative: false,
+};
 
-export { ForceMultiLine, CompletionResult, Result, getGhostText, GhostTextResult, forceMultiLine };
+class ForceMultiLine {
+  static default = new ForceMultiLine();
+  constructor(public requestMultilineOverride = false) {}
+}
+
+const MAX_COMPLETION_CACHE_PREFIX_BACKTRACK = 50;
+
+export { ForceMultiLine, getGhostText };
+
+export type { Result, GhostTextResult };

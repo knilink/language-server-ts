@@ -1,24 +1,30 @@
-import { Type, type Static } from '@sinclair/typebox';
+import type { Static } from '@sinclair/typebox';
 import type { Position, Range } from 'vscode-languageserver-types';
-import { ResponseError } from 'vscode-languageserver';
-import { v4 } from 'uuid';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
+import type { CopilotTextDocument } from '../../../lib/src/textDocument.ts';
+import type { GhostTextResult } from '../../../lib/src/ghostText/ghostText.ts';
 
-import { Context } from '../../../lib/src/context.ts';
-import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { ResponseError, CancellationTokenSource } from 'vscode-languageserver/node.js';
 import { getTestCompletions } from './testing/setCompletionDocuments.ts';
-import { handleGhostTextResultTelemetry, mkCanceledResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
-import { setLastShown } from '../../../lib/src/ghostText/last.ts';
-import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
-import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
-import { TelemetryData } from '../../../lib/src/telemetry.ts';
-import { LocationFactory, TextDocument } from '../../../lib/src/textDocument.ts';
-import { getGhostText, GhostTextResult } from '../../../lib/src/ghostText/ghostText.ts';
-import { isAbortError } from '../../../lib/src/networking.ts';
 import { TestingOptions } from './testingOptions.ts';
+import { MergedToken } from '../cancellation.ts';
+import { setContextItems } from '../contextProvider.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
+import { ErrorCode } from '../rpc.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
-import { type CancellationToken, CancellationTokenSource, MergedToken } from '../cancellation.ts';
-import { Logger, LogLevel } from '../../../lib/src/logger.ts';
-import { DocumentUriSchema, PositionSchema } from '../../../types/src/index.ts';
+import { getOpenTextDocumentChecked } from '../textDocument.ts';
+import { completionsFromGhostTextResults } from '../../../lib/src/ghostText/copilotCompletion.ts';
+import { getGhostText } from '../../../lib/src/ghostText/ghostText.ts';
+import { setLastShown } from '../../../lib/src/ghostText/last.ts';
+import { handleGhostTextResultTelemetry } from '../../../lib/src/ghostText/telemetry.ts';
+import { Logger } from '../../../lib/src/logger.ts';
+import { LspContextItemSchema } from '../../../lib/src/prompt/contextProviders/contextItemSchemas.ts';
+import { TelemetryData } from '../../../lib/src/telemetry.ts';
+import { Type } from '@sinclair/typebox';
+import { v4 as uuidv4 } from 'uuid';
+import { DocumentUriSchema, PositionSchema } from '../../../types/src/core.ts';
+import type {} from '../../../types/src/index.ts';
 
 type _Completion = {
   uuid: string;
@@ -31,8 +37,6 @@ type _Completion = {
 
 let cancellationTokenSource: CancellationTokenSource | undefined;
 
-const logger = new Logger(LogLevel.DEBUG, 'getCompletions');
-
 const Params = Type.Object({
   doc: Type.Object({
     position: PositionSchema,
@@ -40,17 +44,13 @@ const Params = Type.Object({
     tabSize: Type.Optional(Type.Number()),
     uri: DocumentUriSchema,
     version: Type.Number(),
-    ifInserted: Type.Optional(
-      Type.Object({
-        text: Type.String(),
-        end: Type.Optional(Type.Object({ line: Type.Number({ minimum: 0 }), character: Type.Number({ minimum: 0 }) })),
-        tooltipSignature: Type.Optional(Type.String()),
-      })
-    ),
   }),
+  contextItems: Type.Optional(LspContextItemSchema),
   options: Type.Optional(TestingOptions),
 });
 type ParamsType = Static<typeof Params>;
+
+const logger = new Logger('getCompletions');
 
 export type Result = {
   uuid: string;
@@ -68,7 +68,7 @@ type GhostTextFetchResult =
     }
   | {
       type: 'earlyFailure';
-      result: [null, { code: -32602; message: string }];
+      result: [null, { code: number; message: string }];
     }
   | {
       type: 'earlyCancellation';
@@ -77,9 +77,8 @@ type GhostTextFetchResult =
   | {
       type: 'ghostTextResult';
       resultWithTelemetry: GhostTextResult;
-      textDocument: TextDocument;
+      textDocument: CopilotTextDocument;
       position: Position;
-      lineLengthIncrease: number;
     };
 
 async function fetchGhostText(
@@ -87,25 +86,24 @@ async function fetchGhostText(
   clientToken: CancellationToken,
   params: ParamsType,
   isCycling: boolean,
-  promptOnly: boolean
+  promptOnly: boolean,
+  telemetryData: TelemetryData
 ): Promise<GhostTextFetchResult> {
-  let telemetryData = TelemetryData.createAndMarkAsIssued();
-
   if (cancellationTokenSource) {
     cancellationTokenSource.cancel();
     cancellationTokenSource.dispose();
   }
 
   cancellationTokenSource = new CancellationTokenSource();
-  let token = new MergedToken([clientToken, cancellationTokenSource.token]);
-  let testCompletions = getTestCompletions(ctx, params.doc.position, isCycling);
+  const token = new MergedToken([clientToken, cancellationTokenSource.token]);
+  const testCompletions = getTestCompletions(ctx, params.doc.position, params.doc.uri, isCycling);
   if (testCompletions) {
     return {
       type: 'earlySuccess',
       result: [
         {
           completions: testCompletions.map((completion) => ({
-            uuid: v4(),
+            uuid: uuidv4(),
             text: completion.insertText,
             displayText: completion.insertText,
             position: params.doc.position,
@@ -117,20 +115,20 @@ async function fetchGhostText(
       ],
     };
   }
-  let textDocument: TextDocument;
+  let textDocument: CopilotTextDocument;
   try {
     textDocument = await getOpenTextDocumentChecked(ctx, params.doc, token);
   } catch (e) {
     if (!(e instanceof ResponseError)) throw e;
     switch (e.code) {
-      case -32602:
-        return { type: 'earlyFailure', result: [null, { code: -32602, message: e.message }] };
-      case 1002:
+      case ErrorCode.InvalidParams:
+        return { type: 'earlyFailure', result: [null, { code: ErrorCode.InvalidParams, message: e.message }] };
+      case ErrorCode.CopilotNotAvailable:
         return {
           type: 'earlyCancellation',
           result: [{ completions: [], cancellationReason: 'CopilotNotAvailable' }, null],
         };
-      case -32801:
+      case ErrorCode.ContentModified:
         return {
           type: 'earlyCancellation',
           result: [{ completions: [], cancellationReason: 'DocumentVersionMismatch' }, null],
@@ -138,31 +136,16 @@ async function fetchGhostText(
     }
     throw e;
   }
-  const { position, lineLengthIncrease, ...andContent } = positionAndContentForCompleting(
-    ctx,
-    telemetryData,
-    textDocument,
-    params.doc.position,
-    params.doc.ifInserted?.end,
-    params.doc.ifInserted
-  );
-  textDocument = andContent.textDocument;
+  const position = params.doc.position;
   logCompletionLocation(ctx, textDocument, position);
   return {
     type: 'ghostTextResult',
-    resultWithTelemetry: await getGhostTextWithAbortHandling(
-      ctx,
-      textDocument,
-      position,
+    resultWithTelemetry: await getGhostText(ctx, textDocument, position, telemetryData, token, {
       isCycling,
-      telemetryData,
-      token,
-      params.doc.ifInserted,
-      promptOnly
-    ),
+      promptOnly,
+    }),
     textDocument,
     position,
-    lineLengthIncrease,
   };
 }
 
@@ -181,10 +164,16 @@ async function handleGetCompletionsHelper(
     ]
   | [null, { code: number; message: string }]
 > {
-  const ghostTextFetchResult = await fetchGhostText(ctx, clientToken, params, isCycling, false);
+  const telemetryData = TelemetryData.createAndMarkAsIssued();
+
+  if (params.contextItems) {
+    setContextItems(ctx, params.contextItems);
+  }
+
+  const ghostTextFetchResult = await fetchGhostText(ctx, clientToken, params, isCycling, false, telemetryData);
   if (ghostTextFetchResult.type !== 'ghostTextResult') return ghostTextFetchResult.result;
-  const { resultWithTelemetry, textDocument, position, lineLengthIncrease } = ghostTextFetchResult;
-  const result = await handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
+  const { resultWithTelemetry, textDocument, position } = ghostTextFetchResult;
+  const result = handleGhostTextResultTelemetry(ctx, resultWithTelemetry);
   if (!result) return [{ completions: [], ...cancellationReason(resultWithTelemetry) }, null];
   const [resultArray, resultType] = result;
   setLastShown(ctx, textDocument, position, resultType);
@@ -200,50 +189,20 @@ async function handleGetCompletionsHelper(
   for (const completion of rawCompletions) cache.set(completion.uuid, { ...completion, triggerCategory: 'ghostText' });
   return [
     {
-      completions: rawCompletions.map((rawCompletion) => {
-        let range = { ...rawCompletion.range, end: { ...rawCompletion.range.end } };
-        range.end.character -= lineLengthIncrease;
-        return {
-          uuid: rawCompletion.uuid,
-          text: rawCompletion.insertText,
-          range,
-          displayText: rawCompletion.displayText,
-          position: rawCompletion.position,
-          docVersion: textDocument.version,
-        };
-      }),
+      completions: rawCompletions.map((rawCompletion) => ({
+        uuid: rawCompletion.uuid,
+        text: rawCompletion.insertText,
+        range: rawCompletion.range,
+        displayText: rawCompletion.displayText,
+        position: rawCompletion.position,
+        docVersion: textDocument.version,
+      })),
     },
     null,
   ];
 }
 
-function positionAndContentForCompleting(
-  ctx: Context,
-  telemetryData: TelemetryData,
-  textDocument: TextDocument,
-  docPosition: Position,
-  endRange = docPosition,
-  ifInserted?: ParamsType['doc']['ifInserted']
-): { position: Position; textDocument: TextDocument; lineLengthIncrease: number } {
-  const offset = textDocument.offsetAt(LocationFactory.position(docPosition.line, docPosition.character));
-  let position = textDocument.positionAt(offset);
-  let lineLengthIncrease = 0;
-
-  if (ifInserted && ifInserted?.text.length > 0) {
-    textDocument = TextDocument.withChanges(
-      textDocument,
-      [{ range: { start: docPosition, end: endRange }, text: ifInserted.text }],
-      textDocument.version
-    );
-    position = textDocument.positionAt(offset + ifInserted.text.length);
-    lineLengthIncrease = ifInserted.text.length - (endRange.character - docPosition.character);
-    telemetryData.properties.completionsActive = 'true';
-  }
-
-  return { position, textDocument, lineLengthIncrease };
-}
-
-function logCompletionLocation(ctx: Context, textDocument: TextDocument, position: Position): void {
+function logCompletionLocation(ctx: Context, textDocument: CopilotTextDocument, position: Position): void {
   const prefix = textDocument.getText({
     start: { line: Math.max(position.line - 1, 0), character: 0 },
     end: position,
@@ -277,40 +236,6 @@ function cancellationReason(resultWithTelemetry: GhostTextResult):
   }
 }
 
-async function getGhostTextWithAbortHandling(
-  requestCtx: Context,
-  textDocument: TextDocument,
-  position: Position,
-  isCycling: boolean,
-  telemetryData: TelemetryData,
-  token: CancellationToken,
-  ifInserted: ParamsType['doc']['ifInserted'],
-  promptOnly: boolean,
-  data?: unknown
-): Promise<GhostTextResult> {
-  try {
-    return await getGhostText(
-      requestCtx,
-      textDocument,
-      position,
-      isCycling,
-      telemetryData,
-      token,
-      ifInserted,
-      promptOnly,
-      data
-    );
-  } catch (e) {
-    if (isAbortError(e))
-      return {
-        type: 'canceled',
-        reason: 'aborted at unknown location',
-        telemetryData: mkCanceledResultTelemetry(telemetryData, { cancelledNetworkRequest: true }),
-      };
-    throw e;
-  }
-}
-
 const handleGetCompletions = addMethodHandlerValidation(
   Params,
   (ctx: Context, token: CancellationToken, params: ParamsType) => handleGetCompletionsHelper(ctx, token, params, false)
@@ -321,15 +246,4 @@ const handleGetCompletionsCycling = addMethodHandlerValidation(
   (ctx: Context, token: CancellationToken, params: ParamsType) => handleGetCompletionsHelper(ctx, token, params, true)
 );
 
-export {
-  Params,
-  ParamsType,
-  cancellationReason,
-  fetchGhostText,
-  getGhostTextWithAbortHandling,
-  handleGetCompletions,
-  handleGetCompletionsCycling,
-  logCompletionLocation,
-  logger,
-  positionAndContentForCompleting,
-};
+export { handleGetCompletions, handleGetCompletionsCycling, logCompletionLocation, logger };

@@ -7,7 +7,6 @@ import {
   ghostTextDisplayMeanLogProbParameter,
   ghostTextDisplayMeanAlternativeLogProbParameter,
 } from './mlConstants.ts';
-import { Logger, LogLevel } from '../logger.ts';
 import { type TelemetryData } from '../telemetry.ts';
 
 function linearInterpolation(x0: number, points: Map<number, number>): number {
@@ -42,8 +41,6 @@ function ghostTextScoreQuantile(ctx: Context, telemetryData: TelemetryData): num
 
   return ghostTextRetentionModel.quantile(ctx, values);
 }
-
-const restraintLogger = new Logger(LogLevel.INFO, 'restraint');
 
 const Logit = { link: (x: number) => Math.exp(x) / (1 + Math.exp(x)), unlink: (p: number) => Math.log(p / (1 - p)) };
 
@@ -107,4 +104,4 @@ const ghostTextRetentionModel = new LogisticRegression(
   ghostTextDisplayQuantiles
 );
 
-export { ghostTextScoreConfidence, ghostTextScoreQuantile, restraintLogger, ghostTextRetentionModel };
+export { ghostTextScoreConfidence, ghostTextScoreQuantile, ghostTextRetentionModel };

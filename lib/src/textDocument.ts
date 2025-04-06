@@ -1,32 +1,23 @@
-import { detectLanguage } from './language/languageDetection.ts';
-import { parseUri } from './util/uri.ts';
 import { TextDocument as LSPTextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
 import { Position, Range, DocumentUri } from 'vscode-languageserver-types';
 
 import { LanguageId } from './types.ts';
+import { detectLanguage } from './language/languageDetection.ts';
+import { normalizeUri } from './util/uri.ts';
 
 class LocationFactory {
-  static range(x1: number, y1: number, x2: number, y2: number): Range;
-  static range(x: Position, y: Position): Range;
-  static range(x1: number | Position, y1: number | Position, x2?: number, y2?: number): Range {
-    return x2 !== undefined && y2 !== undefined
-      ? Range.create(Position.create(x1 as number, y1 as number), Position.create(x2, y2))
-      : Range.create(x1 as Position, y1 as Position);
-  }
-
-  static position(line: number, character: number): Position {
-    return Position.create(line, character);
-  }
+  static range = Range.create.bind(Range);
+  static position = Position.create.bind(Position);
 }
 
-class TextDocument {
+class CopilotTextDocument {
   constructor(
     readonly uri: DocumentUri,
     readonly _textDocument: LSPTextDocument,
     readonly detectedLanguageId: LanguageId
   ) {}
 
-  static withChanges(textDocument: TextDocument, changes: TextDocumentContentChangeEvent[], version: number) {
+  static withChanges(textDocument: CopilotTextDocument, changes: TextDocumentContentChangeEvent[], version: number) {
     const lspDoc = LSPTextDocument.create(
       textDocument.clientUri,
       textDocument.clientLanguageId,
@@ -35,7 +26,7 @@ class TextDocument {
     );
 
     LSPTextDocument.update(lspDoc, changes, version);
-    return new TextDocument(textDocument.uri, lspDoc, textDocument.detectedLanguageId);
+    return new CopilotTextDocument(textDocument.uri, lspDoc, textDocument.detectedLanguageId);
   }
 
   static create(
@@ -44,14 +35,9 @@ class TextDocument {
     version: number,
     text: string,
     detectedLanguageId = detectLanguage({ uri, clientLanguageId })
-  ): TextDocument {
-    let normalizedUri: DocumentUri;
-    try {
-      normalizedUri = parseUri(uri, !1).toString();
-    } catch {
-      normalizedUri = uri;
-    }
-    return new TextDocument(
+  ): CopilotTextDocument {
+    const normalizedUri = normalizeUri(uri);
+    return new CopilotTextDocument(
       normalizedUri,
       LSPTextDocument.create(uri, clientLanguageId, version, text),
       detectedLanguageId
@@ -102,4 +88,4 @@ class TextDocument {
   }
 }
 
-export { LocationFactory, TextDocument };
+export { LocationFactory, CopilotTextDocument };

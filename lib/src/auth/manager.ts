@@ -1,17 +1,37 @@
-import { GitHubToken, AuthStatus, AuthRecord } from './types.ts';
-import { getBuildType } from '../config.ts';
+import type { GitHubToken, AuthStatus, AuthRecord, PendingSignIn } from './types.ts';
+// import { getBuildType } from '../config.ts';
+//
+import type { Context } from '../context.ts'; // replace with actual import path if exists
+import type { AuthPersistence } from './authPersistence.ts'; // replace with actual import path if exists
+import type { CopilotTokenManager } from './copilotTokenManager.ts'; // replace with actual import path if exists
 
-import { Context } from '../context.ts'; // replace with actual import path if exists
-import { AuthPersistence } from './authPersistence.ts'; // replace with actual import path if exists
-import { CopilotTokenManager } from './copilotTokenManager.ts'; // replace with actual import path if exists
+import { TokenResultError } from './copilotTokenManager.ts';
+import { authLogger } from './copilotToken.ts';
+import { editorVersionHeaders, getBuildType } from '../config.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { Fetcher } from '../networking.ts';
+import { TelemetryInitialization } from '../telemetry/setupTelemetryReporters.ts';
+
+function getAuthRecordFromEnv(env: Record<string, string | undefined>): AuthRecord | undefined {
+  if (env.GH_COPILOT_TOKEN && !/=/.test(env.GH_COPILOT_TOKEN)) {
+    return { user: '<environment-variable-user>', oauth_token: env.GH_COPILOT_TOKEN };
+  }
+  if (env.GITHUB_COPILOT_TOKEN) {
+    return { user: '<environment-variable-user>', oauth_token: env.GITHUB_COPILOT_TOKEN };
+  }
+  if (env.CODESPACES === 'true' && env.GITHUB_TOKEN) {
+    return { user: env.GITHUB_USER || '<codespaces-user>', oauth_token: env.GITHUB_TOKEN };
+  }
+}
 
 class AuthManager {
-  private _copilotTokenManager: CopilotTokenManager;
-  private _pendingSignIn?: Promise<AuthStatus>;
+  _copilotTokenManager: CopilotTokenManager;
   private _transientAuthRecord?:
     | AuthRecord
     // ../../../agent/src/service.ts
     | null;
+
+  pendingSignIn?: PendingSignIn;
 
   constructor(
     readonly authPersistence: AuthPersistence,
@@ -24,35 +44,19 @@ class AuthManager {
     return this._copilotTokenManager;
   }
 
-  // ../../../agent/src/methods/signInConfirm.ts
-  setPendingSignIn(promise: Promise<AuthStatus> | undefined): void {
-    this._pendingSignIn = promise;
-  }
-
-  getPendingSignIn(): Promise<AuthStatus> | undefined {
-    return this._pendingSignIn;
-  }
-
   async checkAndUpdateStatus(
     ctx: Context,
-    options?: { localChecksOnly?: boolean; forceRefresh?: boolean }
+    options?: { localChecksOnly?: boolean; forceRefresh?: boolean; githubAppId?: string; freshSignIn?: boolean }
   ): Promise<AuthStatus> {
-    let localChecksOnly = options?.localChecksOnly ?? false;
-    let authRecord: AuthRecord | undefined;
+    const localChecksOnly = options?.localChecksOnly ?? false;
+    let authRecord = getAuthRecordFromEnv(process.env);
 
-    if (process.env.CODESPACES === 'true' && process.env.GITHUB_TOKEN) {
-      authRecord = {
-        user: process.env.GITHUB_USER || 'codespace-user',
-        oauth_token: process.env.GITHUB_TOKEN,
-      };
+    if (authRecord === undefined) {
+      authRecord = await this.getAuthRecord(options?.githubAppId);
     }
 
-    if (!authRecord) {
-      authRecord = await this.getAuthRecord();
-    }
-
-    if (!authRecord) {
-      this._copilotTokenManager.resetCopilotToken(ctx);
+    if (authRecord === undefined) {
+      this._copilotTokenManager.resetToken();
       return { status: 'NotSignedIn' };
     }
 
@@ -61,44 +65,51 @@ class AuthManager {
     }
 
     if (options?.forceRefresh) {
-      this._copilotTokenManager.resetCopilotToken(ctx);
+      this._copilotTokenManager.resetToken();
     }
 
-    const checkTokenResult = await this._copilotTokenManager.checkCopilotToken(ctx);
-
-    //     return 'status' in checkTokenResult
-    //       ? { status: 'OK', user: authRecord.user }
-    //       : {
-    //         status: checkTokenResult.reason === 'HTTP401' ? 'NotSignedIn' : checkTokenResult.reason,
-    //         user: authRecord.user,
-    //       };
-    if ('status' in checkTokenResult) {
-      return { status: 'OK', user: authRecord.user };
-    }
-
-    if (checkTokenResult.reason === 'HTTP401') {
-      return { status: 'NotSignedIn', user: authRecord.user };
-    }
-    return { status: 'Other', user: authRecord.user, reason: checkTokenResult.reason };
+    return {
+      status: await this.getTokenWithSignUpLimited(ctx, authRecord, options?.freshSignIn ?? false),
+      user: authRecord.user,
+    };
   }
 
-  async getAuthRecord(): Promise<AuthRecord | undefined> {
+  async getAuthRecord(githubAppId?: string): Promise<AuthRecord | undefined> {
     // skip when set as null at ../../../agent/src/service.ts
     if (this._transientAuthRecord === null) return;
     // getPersistedAuthRecord when _transientAuthRecord is undefined
-    return this._transientAuthRecord ?? this.getPersistedAuthRecord();
+    return this._transientAuthRecord ?? this.getPersistedAuthRecord(githubAppId);
   }
 
-  async getPersistedAuthRecord(): Promise<AuthRecord | undefined> {
-    return await this.authPersistence.getAuthRecord();
+  async getTokenWithSignUpLimited(
+    ctx: Context,
+    authRecord: AuthRecord,
+    freshSignIn: boolean
+  ): Promise<'OK' | 'NotSignedIn'> {
+    try {
+      await this._copilotTokenManager.getToken();
+    } catch (e) {
+      if (e instanceof TokenResultError) {
+        if (freshSignIn && e.result.envelope?.can_signup_for_limited && (await this.signUpLimited(ctx, authRecord))) {
+          return this.getTokenWithSignUpLimited(ctx, authRecord, false);
+        }
+        if (e.result.reason === 'HTTP401') {
+          return 'NotSignedIn';
+        }
+        return e.result.reason as any; // TODO tmp workaournd
+      }
+      throw e;
+    }
+    return 'OK';
+  }
+
+  async getPersistedAuthRecord(githubAppId?: string): Promise<AuthRecord | undefined> {
+    return await this.authPersistence.getAuthRecord(githubAppId);
   }
 
   async getGitHubToken(ctx: Context): Promise<GitHubToken | undefined> {
-    if (process.env.CODESPACES === 'true' && process.env.GITHUB_TOKEN) {
-      return { token: process.env.GITHUB_TOKEN };
-    }
+    const authRecord = getAuthRecordFromEnv(process.env) ?? (await this.getAuthRecord());
 
-    const authRecord = await this.getAuthRecord();
     if (authRecord === undefined) {
       return;
     }
@@ -116,19 +127,41 @@ class AuthManager {
     return gitHubToken;
   }
 
-  async setAuthRecord(ctx: Context, authRecord: AuthRecord) {
-    await this.authPersistence.saveAuthRecord(authRecord);
-    this._copilotTokenManager.resetCopilotToken(ctx);
+  async signUpLimited(ctx: Context, authRecord: AuthRecord) {
+    const signUpLimitedUrl = ctx.get(NetworkConfiguration).getSignUpLimitedUrl();
+    try {
+      const signUpLimitedResult = await (
+        await ctx.get(Fetcher).fetch(signUpLimitedUrl, {
+          headers: { Authorization: `token ${authRecord.oauth_token}`, ...editorVersionHeaders(ctx) },
+          method: 'POST',
+          body: JSON.stringify({
+            restricted_telemetry: ctx.get(TelemetryInitialization).isEnabled ? 'enabled' : 'disabled',
+            public_code_suggestions: 'enabled',
+          }),
+        })
+      ).json();
+      return (signUpLimitedResult as any)?.subscribed || false;
+    } catch (error) {
+      authLogger.exception(ctx, error, 'signUpLimited failed');
+      return false;
+    }
   }
 
-  async setTransientAuthRecord(ctx: Context, authRecord?: AuthRecord | null): Promise<void> {
+  async setAuthRecord(ctx: Context, authRecord: AuthRecord) {
+    await this.authPersistence.saveAuthRecord(authRecord);
+    this._copilotTokenManager.resetToken();
+  }
+
+  setTransientAuthRecord(ctx: Context, authRecord?: AuthRecord | null, resetToken = true): void {
     this._transientAuthRecord = authRecord;
-    this._copilotTokenManager.resetCopilotToken(ctx);
+    if (resetToken) {
+      this._copilotTokenManager.resetToken();
+    }
   }
 
   async deleteAuthRecord(ctx: Context) {
     await this.authPersistence.deleteAuthRecord();
-    this._copilotTokenManager.resetCopilotToken(ctx);
+    this._copilotTokenManager.resetToken();
   }
 }
 

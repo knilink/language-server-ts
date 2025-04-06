@@ -9,7 +9,7 @@ import { Logger, LogLevel } from '../logger.ts';
 import { GitConfigData, GitConfigLoader } from './config.ts';
 import { basename, dirname, joinPath, resolveFilePath } from '../util/uri.ts';
 
-const logger = new Logger(LogLevel.INFO, 'repository');
+const logger = new Logger('repository');
 const esc = '\\\\';
 const comment = '(?:[#;].*)';
 const stringChar = `(?:[^"${esc}]|${esc}.)`;
@@ -213,8 +213,8 @@ class GitParsingConfigLoader extends GitConfigLoader {
     try {
       return await ctx.get(FileSystem).readFileString(configFile);
     } catch (e) {
-      if (warnIfNotExists || (e as NodeJS.ErrnoException).code !== 'ENOENT') {
-        logger.warn(ctx, `Failed to load git config from ${configFile.toString()}: ${e}`);
+      if (warnIfNotExists || !(e instanceof Error) || (e as NodeJS.ErrnoException).code !== 'ENOENT') {
+        logger.warn(ctx, `Failed to load git config from ${configFile.toString()}:`, e);
       }
     }
   }

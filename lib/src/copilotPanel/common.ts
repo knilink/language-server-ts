@@ -1,6 +1,9 @@
-import { Position } from 'vscode-languageserver-types';
-import { Context } from '../context.ts';
-import { TextDocument, LocationFactory } from '../textDocument.ts';
+import type { Position } from 'vscode-languageserver-types';
+import type { Context } from '../context.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
+
+import { LocationFactory } from '../textDocument.ts';
+import type {} from '../util/uri.ts';
 
 // import { } '../lib/src/util/uri.ts';
 
@@ -13,7 +16,11 @@ function completionTypeToString(type: number): string {
   }
 }
 
-function completionContextForDocument(ctx: Context, document: TextDocument, position: Position): CompletionContext {
+function completionContextForDocument(
+  ctx: Context,
+  document: CopilotTextDocument,
+  position: Position
+): CompletionContext {
   let returnPosition = position;
   const line = document.lineAt(position.line);
 
@@ -39,26 +46,6 @@ class CompletionContext {
     this.completionType = 2;
     this.position = LocationFactory.position(position.line, position.character);
     this.completionType = completionType;
-  }
-
-  static fromJSONParse(
-    ctx: Context,
-    contextObj: {
-      position: Position;
-      completionType: number;
-      appendToCompletion?: string;
-      indentation?: string | null;
-    }
-  ): CompletionContext {
-    const position = LocationFactory.position(contextObj.position.line, contextObj.position.character);
-    const context = new CompletionContext(ctx, position, contextObj.completionType);
-    if (contextObj.appendToCompletion !== undefined) {
-      context.appendToCompletion = contextObj.appendToCompletion;
-    }
-    if (contextObj.indentation !== undefined) {
-      context.indentation = contextObj.indentation;
-    }
-    return context;
   }
 }
 

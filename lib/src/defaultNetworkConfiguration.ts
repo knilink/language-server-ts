@@ -3,7 +3,7 @@ import assert from 'assert';
 import { Context } from './context.ts';
 import { NetworkConfiguration } from './networkConfiguration.ts';
 
-import { CopilotTokenNotifier } from './auth/copilotTokenNotifier.ts';
+import { onCopilotToken } from './auth/copilotTokenNotifier.ts';
 import { isProduction, getConfig, ConfigKey, type ConfigKeysByType } from './config.ts';
 import { NotificationSender } from './notificationSender.ts';
 import { CopilotTokenManager } from './auth/copilotTokenManager.ts';
@@ -16,8 +16,8 @@ const DotComAuthority = 'github.com';
 const DotComUrl = `https://${DotComAuthority}`;
 const CAPIDotComUrl = 'https://api.githubcopilot.com';
 const TelemetryDotComUrl = 'https://copilot-telemetry.githubusercontent.com/telemetry';
+const ExperimentationDotComUrl = 'https://copilot-telemetry.githubusercontent.com/telemetry';
 const OpenAIProxyUrl = 'https://copilot-proxy.githubusercontent.com';
-const OriginTrackerUrl = 'https://origin-tracker.githubusercontent.com';
 
 class DefaultNetworkConfiguration extends NetworkConfiguration {
   isEnterprise?: boolean;
@@ -35,6 +35,8 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
   telemetryUrl?: string;
   completionsUrl?: string;
   originTrackerUrl?: string;
+  signUpLimitedUrl?: string;
+  experimentationUrl?: string;
 
   constructor(
     ctx: Context,
@@ -43,7 +45,7 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
   ) {
     super();
     this.recalculateUrlDefaults(url);
-    ctx.get(CopilotTokenNotifier).on('onCopilotToken', (token: CopilotToken) => this.onCopilotToken(ctx, token));
+    onCopilotToken(ctx, (token) => this.onCopilotToken(ctx, token));
   }
 
   onCopilotToken(ctx: Context, token: CopilotToken): void {
@@ -105,6 +107,11 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     return this.deviceFlowCompletionUrl;
   }
 
+  getSignUpLimitedUrl(): string {
+    assert(this.signUpLimitedUrl);
+    return this.signUpLimitedUrl;
+  }
+
   getUserInfoUrl(): string {
     assert(this.userInfoUrl);
     return this.userInfoUrl;
@@ -115,8 +122,8 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     const url = this.urlOrConfigOverride(
       ctx,
       this.capiUrl,
-      ConfigKey.DebugOverrideCapiUrl,
-      ConfigKey.DebugTestOverrideCapiUrl
+      [ConfigKey.DebugOverrideCapiUrl, ConfigKey.DebugOverrideCapiUrlLegacy],
+      [ConfigKey.DebugTestOverrideCapiUrl, ConfigKey.DebugTestOverrideCapiUrlLegacy]
     );
     return this.join(url, path);
   }
@@ -133,13 +140,18 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     return this.getCAPIUrl(ctx, '/embeddings');
   }
 
-  getTelemetryUrl(): string {
+  getTelemetryUrl(path: string): string {
     assert(this.telemetryUrl);
-    return this.telemetryUrl;
+    return this.join(this.telemetryUrl, path);
   }
 
   setTelemetryUrlForTesting(url: string): void {
     this.telemetryUrl = url;
+  }
+
+  getExperimentationUrl(path?: string) {
+    assert(this.experimentationUrl);
+    return this.join(this.experimentationUrl, path);
   }
 
   getCompletionsUrl(ctx: Context, path: string): string {
@@ -147,8 +159,8 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     const url = this.urlOrConfigOverride(
       ctx,
       this.completionsUrl,
-      ConfigKey.DebugOverrideProxyUrl,
-      ConfigKey.DebugTestOverrideProxyUrl
+      [ConfigKey.DebugOverrideProxyUrl, ConfigKey.DebugOverrideProxyUrlLegacy],
+      [ConfigKey.DebugTestOverrideProxyUrl, ConfigKey.DebugTestOverrideProxyUrlLegacy]
     );
     return this.join(url, path);
   }
@@ -157,15 +169,6 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     let url = new URL(this.getCompletionsUrl(ctx, 'v0/retrieval'));
     url.search = new URLSearchParams({ repo: repoNwo, impl: serverRouteImpl }).toString();
     return url.href;
-  }
-
-  getOriginTrackingUrl(ctx: Context, path: string): string {
-    // EDITED
-    assert(this.originTrackerUrl);
-    const url = isProduction(ctx)
-      ? this.originTrackerUrl
-      : this.urlOrConfigOverride(ctx, this.originTrackerUrl, ConfigKey.DebugSnippyOverrideUrl);
-    return this.join(url, path);
   }
 
   updateBaseUrl(ctx: Context, newUrl: string = DotComUrl): void {
@@ -181,9 +184,23 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
       assert(this.baseUrlObject);
       this.recalculateUrlDefaults(newUrl);
       if (oldUrl.href !== this.baseUrlObject.href) {
-        ctx.get(CopilotTokenManager).resetCopilotToken(ctx);
+        ctx.get(CopilotTokenManager).resetToken();
       }
     });
+  }
+
+  updateBaseUrlFromTokenEndpoint(ctx: Context, tokenUrl: string): void {
+    try {
+      let endpoint = new URL(tokenUrl);
+
+      if (endpoint.hostname.startsWith('api.')) {
+        this.updateBaseUrl(ctx, `https://${endpoint.hostname.substring(4)}`);
+      } else {
+        this.updateBaseUrl(ctx);
+      }
+    } catch {
+      this.updateBaseUrl(ctx);
+    }
   }
 
   updateServiceEndpoints(
@@ -191,11 +208,13 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     endpoints: { api: string; proxy: string; 'origin-tracker': string; telemetry: string }
   ): void {
     if (this.isPermittedUrl(ctx, endpoints.api)) this.capiUrl = endpoints.api;
+
     if (this.isPermittedUrl(ctx, endpoints.proxy)) this.completionsUrl = endpoints.proxy;
-    if (this.isPermittedUrl(ctx, endpoints['origin-tracker'])) this.originTrackerUrl = endpoints['origin-tracker'];
+
     if (this.isPermittedUrl(ctx, endpoints.telemetry)) {
       this.withTelemetryReInitialization(ctx, () => {
         this.telemetryUrl = this.join(endpoints.telemetry, 'telemetry');
+        this.experimentationUrl = this.join(endpoints.telemetry, 'telemetry');
       });
     }
   }
@@ -222,12 +241,15 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     this.deviceFlowStartUrl = this.join(this.baseUrlObject.href, '/login/device/code');
     this.deviceFlowCompletionUrl = this.join(this.baseUrlObject.href, '/login/oauth/access_token');
     this.userInfoUrl = this.join(apiUrl.href, '/user');
+    this.signUpLimitedUrl = this.join(apiUrl.href, '/copilot_internal/subscribe_limited_user');
     this.capiUrl = this.isEnterprise ? this.prefixWith('copilot-api.', this.baseUrlObject).href : CAPIDotComUrl;
     this.telemetryUrl = this.isEnterprise
       ? this.join(this.prefixWith('copilot-telemetry-service.', this.baseUrlObject).href, '/telemetry')
       : TelemetryDotComUrl;
+    this.experimentationUrl = this.isEnterprise
+      ? this.join(this.prefixWith('copilot-telemetry-service.', this.baseUrlObject).href, '/telemetry')
+      : ExperimentationDotComUrl;
     this.completionsUrl = OpenAIProxyUrl;
-    this.originTrackerUrl = OriginTrackerUrl;
   }
 
   parseUrls(url: string): { base: URL; api: URL } {
@@ -271,31 +293,29 @@ class DefaultNetworkConfiguration extends NetworkConfiguration {
     return new URL(`${url.protocol}//${prefix}${url.host}`);
   }
 
-  private urlOrConfigOverride(
+  urlOrConfigOverride(
     ctx: Context,
     url: string,
-    overrideKey: Exclude<ConfigKeysByType<string | undefined>, undefined>,
-    testOverrideKey?: Exclude<ConfigKeysByType<string | undefined>, undefined>
+    overrideKeys: Exclude<ConfigKeysByType<string | undefined>, undefined>[],
+    testOverrideKeys?: Exclude<ConfigKeysByType<string | undefined>, undefined>[]
   ): string {
-    if (testOverrideKey && isRunningInTest(ctx)) {
-      const testOverride = getConfig(ctx, testOverrideKey);
-      // EDITED
-      if (testOverride && testOverride.length) {
-        return testOverride;
+    if (testOverrideKeys && isRunningInTest(ctx)) {
+      for (const overrideKey of testOverrideKeys) {
+        const override = getConfig(ctx, overrideKey);
+        if (override) {
+          return override;
+        }
       }
       return url;
     }
-    const override = getConfig(ctx, overrideKey);
-    return override || url;
+    for (const overrideKey of overrideKeys) {
+      const override = getConfig(ctx, overrideKey);
+      if (override) {
+        return override;
+      }
+    }
+    return url;
   }
 }
 
-export {
-  DotComAuthority,
-  DotComUrl,
-  CAPIDotComUrl,
-  TelemetryDotComUrl,
-  OpenAIProxyUrl,
-  OriginTrackerUrl,
-  DefaultNetworkConfiguration,
-};
+export { DefaultNetworkConfiguration };

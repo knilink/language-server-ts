@@ -1,30 +1,27 @@
+import type { Connection } from 'vscode-languageserver/node.js';
+import type { Context } from '../../lib/src/context.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import type { CopilotTextDocument } from '../../lib/src/textDocument.ts';
+
 import { EventEmitter } from 'node:events';
 import * as path from 'node:path';
-import { type Connection, ProtocolRequestType } from 'vscode-languageserver/node.js';
-import { type URI } from 'vscode-uri';
-
-import { Context } from '../../lib/src/context.ts';
-import { Service } from './service.ts';
-import { Features } from '../../lib/src/experiments/features.ts';
+import { DidChangeWatchedFilesNotification, ProtocolRequestType } from 'vscode-languageserver/node.js';
 import { CopilotCapabilitiesProvider } from './editorFeatures/capabilities.ts';
-import { knownFileExtensions } from '../../lib/src/language/languages.ts';
-import { telemetryException } from '../../lib/src/telemetry.ts';
+import { Service } from './service.ts';
 import { FileReader } from '../../lib/src/fileReader.ts';
-import { TextDocument } from '../../lib/src/textDocument.ts';
-import { WatchedFilesError } from '../../lib/src/workspaceWatcher.ts';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { knownFileExtensions } from '../../lib/src/language/languages.ts';
 
 const didChangeWatchedFilesEvent = 'didChangeWatchedFiles';
 
 type Info = {
   uri: DocumentUri;
-  document?: TextDocument;
+  document?: CopilotTextDocument;
   isRestricted: boolean;
   isUnknownFileExtension: boolean;
 };
 
 type WatchedFilesResponse = {
-  watchedFiles: TextDocument[];
+  watchedFiles: CopilotTextDocument[];
   contentRestrictedFiles: { uri: string }[];
   unknownFileExtensions: { uri: string }[];
 };
@@ -67,10 +64,11 @@ class LspFileWatcher {
   }
 
   init() {
-    const capabilitiesProvider = this.ctx.get(CopilotCapabilitiesProvider);
-    if (capabilitiesProvider.getCapabilities().watchedFiles) {
-      this.connection.onNotification('workspace/didChangeWatchedFiles', (event) => {
-        this.didChangeWatchedFilesHandler(event);
+    if (this.ctx.get(CopilotCapabilitiesProvider).getCapabilities().watchedFiles) {
+      this.connection.onNotification(DidChangeWatchedFilesNotification.type, (event) => {
+        if ('workspaceUri' in event && typeof event.workspaceUri == 'string') {
+          this.didChangeWatchedFilesHandler(event);
+        }
       });
     }
   }
@@ -78,7 +76,7 @@ class LspFileWatcher {
   async getWatchedFiles(
     // ./workspaceWatcher/agentWatcher.ts
     params: GetWatchedFilesParams
-  ): Promise<WatchedFilesResponse | WatchedFilesError> {
+  ): Promise<WatchedFilesResponse> {
     if (!this.ctx.get(CopilotCapabilitiesProvider).getCapabilities().watchedFiles) return EmptyWatchedFilesResponse;
 
     const files = (await this.connection.sendRequest(LspFileWatcher.requestType, params)).files;
@@ -87,16 +85,6 @@ class LspFileWatcher {
       contentRestrictedFiles: [],
       unknownFileExtensions: [],
     };
-    const features = this.ctx.get(Features);
-    const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
-    const threshold = await features.ideChatProjectContextFileCountThreshold(telemetryDataWithExp);
-    if (files.length > threshold) {
-      let error = new WatchedFilesError(
-        `File count exceeded indexing threshold: ${files.length} files in workspace, threshold is ${threshold}.`
-      );
-      telemetryException(this.ctx, error, 'LspFileWatcher.getWatchedFiles');
-      return error;
-    }
 
     for (const uri of files) {
       const extension = path.extname(uri).toLowerCase();

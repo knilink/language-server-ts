@@ -13,7 +13,7 @@ import type { RuntimeLogsSchema, RuntimeLogsSkillId } from './RuntimeLogsSkill.t
 import type { BuildLogsSchema, BuildLogsSkillId } from './BuildLogsSkill.ts';
 import type { TestContextSchema, TestContextSkillId } from './TestContextSkill.ts';
 import type { TestFailuresSchema, TestFailuresSkillId } from './TestFailuresSkill.ts';
-import type { ProjectContextSnippetSchema, ProjectContextSkillId } from './ProjectContextSkill.ts';
+import type { ProjectContextSnippetType, ProjectContextSkillId } from './ProjectContextSkill.ts';
 import type { ReferencesSkillId } from './ReferencesSkill.ts';
 
 type SkillMap = {
@@ -27,7 +27,7 @@ type SkillMap = {
   [BuildLogsSkillId]: Static<typeof BuildLogsSchema>;
   [TestContextSkillId]: Static<typeof TestContextSchema>;
   [TestFailuresSkillId]: Static<typeof TestFailuresSchema>;
-  [ProjectContextSkillId]: Static<typeof ProjectContextSnippetSchema>[];
+  [ProjectContextSkillId]: ProjectContextSnippetType[];
   [ReferencesSkillId]: Static<typeof ReferenceSchema>[];
 };
 

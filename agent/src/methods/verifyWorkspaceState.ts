@@ -1,6 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { URI } from 'vscode-uri';
-import { type CancellationToken } from '../cancellation.ts';
 import { type Context } from '../../../lib/src/context.ts';
 
 import { TextDocumentManager } from '../../../lib/src/textDocumentManager.ts';
@@ -10,7 +9,6 @@ const Params = Type.Object({});
 
 async function handleVerifyWorkspaceStateChecked(
   ctx: Context,
-  token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<[Awaited<ReturnType<TextDocumentManager['getWorkspaceFolders']>>, null]> {
   return [

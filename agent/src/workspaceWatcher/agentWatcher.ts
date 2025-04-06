@@ -1,15 +1,17 @@
+import type { CopilotTextDocument } from '../../../lib/src/textDocument.ts';
+
 import { LspFileWatcher } from '../lspFileWatcher.ts';
-import { WatchedFilesError, WorkspaceWatcher } from '../../../lib/src/workspaceWatcher.ts';
-import { TextDocument } from '../../../lib/src/textDocument.ts';
+import { WorkspaceWatcher } from '../../../lib/src/workspaceWatcher.ts';
 
 class AgentWorkspaceWatcher extends WorkspaceWatcher {
-  async getWatchedFiles(): Promise<TextDocument[] | WatchedFilesError> {
-    const files = await this.ctx.get(LspFileWatcher).getWatchedFiles({
-      workspaceUri: this.workspaceFolder.uri,
-      excludeGitignoredFiles: true,
-      excludeIDEIgnoredFiles: true,
-    });
-    return files instanceof WatchedFilesError ? files : files.watchedFiles;
+  async getWatchedFiles(): Promise<CopilotTextDocument[]> {
+    return (
+      await this.ctx.get(LspFileWatcher).getWatchedFiles({
+        workspaceUri: this.workspaceFolder.uri,
+        excludeGitignoredFiles: true,
+        excludeIDEIgnoredFiles: true,
+      })
+    ).watchedFiles;
   }
 
   startWatching(): void {

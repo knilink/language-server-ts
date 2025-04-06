@@ -4,6 +4,7 @@ import { TraitProvider } from './snippetProviders/trait.ts';
 import { SnippetProvider } from './snippetProviders/snippetProvider.ts';
 import { PathSnippetProvider } from './snippetProviders/path.ts';
 import { WorkerProxy, workerProxy } from './workerProxy.ts';
+import { CodeSnippetProvider } from './snippetProviders/codeSnippet.ts';
 import { LanguageSnippetProvider } from './snippetProviders/language.ts';
 import {
   ProviderTimeoutError,
@@ -40,12 +41,18 @@ function providersPerformance(results: PromiseResult[]) {
     if (isResolvedResult(result)) {
       runtimes[result.value.providerType] = Math.round(result.value.runtime);
       timeouts[result.value.providerType] = false;
-    } else if (result.reason.error instanceof ProviderTimeoutError) {
+    } else if (isProviderTimeout(result.reason)) {
       timeouts[result.reason.providerType] = true;
       runtimes[result.reason.providerType] = 0;
     }
   });
   return { runtimes, timeouts };
+}
+
+function isProviderTimeout(reason: unknown) {
+  return (
+    reason !== null && typeof reason == 'object' && 'error' in reason && reason.error instanceof ProviderTimeoutError
+  );
 }
 
 async function allSettledBackup(promises: Promise<SnippetsResult>[]): Promise<(ResolvedResult | RejectedResult)[]> {
@@ -71,7 +78,18 @@ const defaultProviders: (new (workerProxy: WorkerProxy) => SnippetProvider)[] = 
   SimilarFilesProvider,
   TooltipSignatureSnippetProvider,
   TraitProvider,
+  CodeSnippetProvider,
 ];
+
+class ProviderError extends Error {
+  constructor(
+    // ./snippetProviders/snippetProvider.ts
+    readonly providerType: string,
+    readonly error: unknown
+  ) {
+    super();
+  }
+}
 
 class SnippetOrchestrator {
   private providers: SnippetProvider[];
@@ -95,12 +113,4 @@ class SnippetOrchestrator {
   }
 }
 
-export {
-  SnippetOrchestrator,
-  TIMEOUT_MS,
-  providersSnippets,
-  providersErrors,
-  providersPerformance,
-  isResolvedResult,
-  isRejectedResult,
-};
+export { ProviderError, SnippetOrchestrator, TIMEOUT_MS, providersErrors, providersPerformance, providersSnippets };

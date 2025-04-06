@@ -1,11 +1,13 @@
-import { ConversationReference } from '../../types.ts';
+import type { ConversationReference } from '../../types.ts';
+import type { TurnContext } from '../turnContext.ts';
+import type { CopilotTextDocument } from '../../textDocument.ts';
+import type { CurrentEditor } from '../skills/CurrentEditorSkill.ts';
+
 import { GitHubRepositoryApi } from '../gitHubRepositoryApi.ts';
 import { extractRepoInfo } from '../repositoryInfo.ts';
-import { CurrentEditorSkillId, CurrentEditor } from '../skills/CurrentEditorSkill.ts';
+import { CurrentEditorSkillId } from '../skills/CurrentEditorSkill.ts';
 import { isEmptyRange } from '../skills/ElidableDocument.ts';
 import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
-import { TurnContext } from '../turnContext.ts';
-import { TextDocument } from '../../textDocument.ts';
 
 type OutgoingReference = ConversationReference.OutgoingReference;
 
@@ -47,7 +49,7 @@ async function addFileReferences(turnContext: TurnContext, references: OutgoingR
 async function gitMetadataToReference(turnContext: TurnContext): Promise<OutgoingReference | undefined> {
   const maybeRepoInfo = await extractRepoInfo(turnContext);
   if (maybeRepoInfo) {
-    const repoApi = await turnContext.ctx.get(GitHubRepositoryApi);
+    const repoApi = turnContext.ctx.get(GitHubRepositoryApi);
     const owner = maybeRepoInfo.repoInfo.owner;
     const repo = maybeRepoInfo.repoInfo.repo;
     if (await repoApi.isAvailable(owner, repo))
@@ -79,7 +81,7 @@ async function currentEditorToSelectionReference(turnContext: TurnContext) {
 }
 async function extractSelection(
   currentEditor: CurrentEditor,
-  doc: TextDocument
+  doc: CopilotTextDocument
 ): Promise<OutgoingReference | undefined> {
   if (currentEditor.selection && !isEmptyRange(currentEditor.selection)) {
     let selection = doc.getText(currentEditor.selection);

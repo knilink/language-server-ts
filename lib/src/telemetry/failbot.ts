@@ -24,7 +24,7 @@ type ExceptionDetail = {
 
 // ../../../agent/src/methods/telemetryTrack.ts
 type Payload = {
-  app: 'copilot-client' | 'copilot-intellij' | 'copilot-vim' | 'copilot-vs';
+  app: 'copilot-intellij' | 'copilot-vim' | 'copilot-vs' | 'copilot-xcode' | 'copilot-eclipse' | 'copilot-client';
   rollup_id: 'auto' | string; // sha256
   platform: 'node' | string; // ../../../agent/src/methods/telemetryTrack.ts
   release?: string;
@@ -34,7 +34,9 @@ type Payload = {
     | 'CopilotLanguageServer'
     | 'CopilotIntelliJ'
     | 'CopilotVim'
-    | 'CopilotVS';
+    | 'CopilotVS'
+    | 'CopilotXcode'
+    | 'CopilotEclipse';
   context: {
     '#editor': string;
     '#editor_version': string;
@@ -53,7 +55,7 @@ type Payload = {
   exception_detail?: ExceptionDetail[];
   sensitive_context: {};
   transaction?: string;
-  created?: string; // ISOString
+  created_at?: string; // ISOString
 };
 
 const frameRegexp = /^(\s+at)?(.*?)(@|\s\(|\s)([^(\n]+?)(:\d+)?(:\d+)?(\)?)$/;
@@ -70,7 +72,7 @@ function buildExceptionDetail(error: Error): ExceptionDetail {
       const match = line.match(frameRegexp);
       if (match) {
         const [, , functionName, , filePath, lineNumber, columnNumber] = match;
-        const filename = filePath?.trim() || '';
+        const filename = (filePath?.trim() ?? '').replace(/^\.\/dist\//, '/github-copilot/dist/');
         const frame: StacktraceFrame = {
           filename,
           function: functionName?.trim().replace(/^[^.]{1,2}(\.|$)/, '_$1') || '',
@@ -153,7 +155,7 @@ function buildPayload(ctx: Context, redactedError: unknown) {
     if (detail.stacktrace && detail.stacktrace.length > 0) {
       rollup.push(`${detail.type}: ${(exception as any).code ?? ''}`);
       let stacktrace = [...detail.stacktrace].reverse();
-      for (let frame of stacktrace) if (frame.filename?.startsWith('./dist/')) return payload;
+      for (let frame of stacktrace) if (frame.filename?.startsWith('/github-copilot/')) return payload;
       for (let frame of stacktrace)
         if (frame.in_app) {
           rollup.push(`${frame.filename?.replace(/^\.\//, '')}:${frame.lineno}:${frame.colno}`);

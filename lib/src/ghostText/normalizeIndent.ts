@@ -35,7 +35,14 @@ function normalizeIndentCharacter<T extends { displayText: string; completionTex
 
     if (isEmptyLine) {
       const re = (txt: string): string => {
-        const spacesAtStart = txt.length - txt.trimStart().length;
+        if (txt === '') {
+          return txt;
+        }
+
+        let firstLine = txt.split(`\n`)[0];
+
+        const spacesAtStart = firstLine.length - firstLine.trimStart().length;
+
         const remainder = spacesAtStart % indentSize;
         if (remainder !== 0 && spacesAtStart > 0) {
           const toReplace = ' '.repeat(remainder);

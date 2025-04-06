@@ -1,24 +1,27 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Position } from 'vscode-languageserver-types';
+import type { Position } from 'vscode-languageserver-types';
+import type { Context } from '../context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { APIChoice } from '../openai/openai.ts';
+import type { TelemetryWithExp } from '../telemetry.ts';
+import type { CopilotTextDocument } from '../textDocument.ts';
 
-import { Context } from '../context.ts';
-import { CancellationToken } from '../../../agent/src/cancellation.ts';
-import { extractRepoInfoInBackground } from '../prompt/repository.ts';
-import { TelemetryData, TelemetryWithExp, telemetrizePromptLength, telemetry } from '../telemetry.ts';
 import { completionTypeToString } from './common.ts';
-import { Features } from '../experiments/features.ts';
-import { extractPrompt, trimLastLine } from '../prompt/prompt.ts';
-import { LocationFactory, TextDocument } from '../textDocument.ts';
-import { BlockModeConfig } from '../config.ts';
-import { promptLibProxy } from '../prompt/promptLibProxy.ts';
-import { contextIndentation, parsingBlockFinished, getNodeStart } from '../prompt/parseBlock.ts';
-import { getEngineRequestInfo } from '../openai/config.ts';
-import { StatusReporter } from '../progress.ts';
-import { OpenAIFetcher } from '../openai/fetch.ts';
-import { APIChoice, cleanupIndentChoices } from '../openai/openai.ts';
 import { asyncIterableMapFilter } from '../common/iterableHelpers.ts';
-import { postProcessChoice } from '../suggestions/suggestions.ts';
-import { Logger, LogLevel } from '../logger.ts';
+import { BlockModeConfig } from '../config.ts';
+import { Features } from '../experiments/features.ts';
+import { Logger } from '../logger.ts';
+import { getEngineRequestInfo } from '../openai/config.ts';
+import { OpenAIFetcher } from '../openai/fetch.ts';
+import { cleanupIndentChoices } from '../openai/openai.ts';
+import { StatusReporter } from '../progress.ts';
+import { contextIndentation, getNodeStart, parsingBlockFinished } from '../prompt/parseBlock.ts';
+import { promptLibProxy } from '../prompt/promptLibProxy.ts';
+import { extractPrompt, trimLastLine } from '../prompt/prompt.ts';
+import { extractRepoInfoInBackground } from '../prompt/repository.ts';
+import { postProcessChoiceInContext } from '../suggestions/suggestions.ts';
+import { TelemetryData, telemetrizePromptLength, telemetry } from '../telemetry.ts';
+import { LocationFactory } from '../textDocument.ts';
+import { v4 as uuidv4 } from 'uuid';
 import { SSEProcessor } from '../openai/stream.ts';
 
 type Solution = unknown;
@@ -29,14 +32,14 @@ type SolutionsStream =
   | { status: 'FinishedWithError'; error: string };
 
 interface ISolutionHandler {
-  onSolution(solution: Solution): void;
-  onFinishedNormally(): void;
-  onFinishedWithError(error: string): void;
+  onSolution(solution: Solution): Promise<void>;
+  onFinishedNormally(): Promise<void>;
+  onFinishedWithError(error: string): Promise<void>;
 }
 
-const solutionsLogger = new Logger(LogLevel.INFO, 'solutions');
+const solutionsLogger = new Logger('solutions');
 
-async function* trimChoices(choices: AsyncIterable<APIChoice>): AsyncIterable<APIChoice> {
+async function* trimChoices(choices: AsyncIterable<APIChoice>): AsyncGenerator<APIChoice> {
   for await (let choice of choices) {
     const choiceCopy = { ...choice };
     choiceCopy.completionText = choiceCopy.completionText?.trimEnd();
@@ -68,8 +71,18 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
     .updateExPValuesAndAssignments({ uri: document.uri, languageId: document.languageId }, tempTelemetry);
 
   const promptResponse = await extractPrompt(ctx, document, position, solutionManager.savedTelemetryData);
-  if (promptResponse.type === 'copilotNotAvailable') return { status: 'FinishedNormally' };
-  if (promptResponse.type === 'contextTooShort') return { status: 'FinishedWithError', error: 'Context too short' };
+  if (promptResponse.type === 'copilotContentExclusion') {
+    return { status: 'FinishedNormally' };
+  }
+  if (promptResponse.type === 'contextTooShort') {
+    return { status: 'FinishedWithError', error: 'Context too short' };
+  }
+  if (promptResponse.type === 'promptCancelled') {
+    return { status: 'FinishedWithError', error: 'Prompt cancelled' };
+  }
+  if (promptResponse.type === 'promptError') {
+    return { status: 'FinishedWithError', error: 'Prompt error' };
+  }
 
   const { prompt, trailingWs } = promptResponse;
 
@@ -112,7 +125,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
     postOptions.stop = [`\n\n`, `\r\n\r\n`];
   }
 
-  const engineInfo = await getEngineRequestInfo(ctx, document.uri, solutionManager.savedTelemetryData);
+  const engineInfo = await getEngineRequestInfo(ctx, solutionManager.savedTelemetryData);
   const completionParams: OpenAIFetcher.CompletionParams = {
     prompt,
     languageId: document.languageId,
@@ -148,14 +161,12 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
         : async () => undefined;
   }
 
-  ctx.get(StatusReporter).setProgress();
   const telemetryData = solutionManager.savedTelemetryData;
   const res = await ctx
     .get(OpenAIFetcher)
     .fetchAndStreamCompletions(ctx, completionParams, telemetryData.extendedBy(), finishedCb, cancellationToken);
 
   if (res.type === 'failed' || res.type === 'canceled') {
-    ctx.get(StatusReporter).removeProgress();
     return { status: 'FinishedWithError', error: `${res.type}: ${res.reason}` };
   }
 
@@ -167,7 +178,7 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
   }
 
   choices = asyncIterableMapFilter(choices, async (choice: APIChoice) =>
-    postProcessChoice(ctx, document, position, choice, solutionsLogger)
+    postProcessChoiceInContext(ctx, document, position, choice, false, solutionsLogger)
   );
 
   const solutions = asyncIterableMapFilter(choices, async (apiChoice: APIChoice) => {
@@ -198,10 +209,11 @@ async function launchSolutions(ctx: Context, solutionManager: SolutionManager): 
       requestId: apiChoice.requestId,
       choiceIndex: apiChoice.choiceIndex,
       telemetryData: solutionTelemetryData,
+      copilotAnnotations: apiChoice.copilotAnnotations,
     };
   });
 
-  return generateSolutionsStream(ctx.get(StatusReporter), cancellationToken, solutions[Symbol.asyncIterator]());
+  return generateSolutionsStream(cancellationToken, solutions[Symbol.asyncIterator]());
 }
 
 async function reportSolutions(
@@ -211,14 +223,15 @@ async function reportSolutions(
   const nextSolution = await nextSolutionPromise;
   switch (nextSolution.status) {
     case 'Solution':
-      solutionHandler.onSolution(nextSolution.solution);
+      await solutionHandler.onSolution(nextSolution.solution);
       await reportSolutions(nextSolution.next, solutionHandler);
       break;
     case 'FinishedNormally':
-      solutionHandler.onFinishedNormally();
+      await solutionHandler.onFinishedNormally();
       break;
     case 'FinishedWithError':
-      solutionHandler.onFinishedWithError(nextSolution.error);
+      await solutionHandler.onFinishedWithError(nextSolution.error);
+      break;
   }
 }
 
@@ -227,38 +240,29 @@ async function runSolutions(
   solutionManager: SolutionManager,
   solutionHandler: ISolutionHandler
 ): Promise<void> {
-  const nextSolution = launchSolutions(ctx, solutionManager);
-  await reportSolutions(nextSolution, solutionHandler);
+  return ctx.get(StatusReporter).withProgress(async () => {
+    const nextSolution = launchSolutions(ctx, solutionManager);
+    return await reportSolutions(nextSolution, solutionHandler);
+  });
 }
 
 async function generateSolutionsStream(
-  statusReporter: StatusReporter,
   cancellationToken: CancellationToken,
   solutions: AsyncIterator<Solution>
 ): Promise<SolutionsStream> {
   if (cancellationToken.isCancellationRequested) {
-    statusReporter.removeProgress();
     return { status: 'FinishedWithError', error: 'Cancelled' };
   }
-
   const nextResult = await solutions.next();
-
-  if (nextResult.done) {
-    statusReporter.removeProgress();
-    return { status: 'FinishedNormally' };
-  }
-
-  return {
-    status: 'Solution',
-    solution: nextResult.value,
-    next: generateSolutionsStream(statusReporter, cancellationToken, solutions),
-  };
+  return nextResult.done === true
+    ? { status: 'FinishedNormally' }
+    : { status: 'Solution', solution: nextResult.value, next: generateSolutionsStream(cancellationToken, solutions) };
 }
 
 class SolutionManager {
-  private _savedTelemetryData: TelemetryWithExp | undefined;
+  _savedTelemetryData: TelemetryWithExp | undefined;
   constructor(
-    public textDocument: TextDocument,
+    public textDocument: CopilotTextDocument,
     public startPosition: Position,
     public completionContext: any,
     public cancellationToken: CancellationToken,

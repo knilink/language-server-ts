@@ -1,8 +1,10 @@
-import { MessageType, NotificationType, ConnectionError } from 'vscode-languageserver/node.js';
+import { LogLevel } from '../../../lib/src/logger.ts';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { Context } from '../../../lib/src/context.ts';
-import { format, verboseLogging, LogLevel, LogTarget } from '../../../lib/src/logger.ts';
+import { ConnectionError, MessageType, NotificationType } from '../../../node_modules/vscode-languageserver/node.js';
 import { Service } from '../service.ts';
+import { LogTarget } from '../../../lib/src/logger.ts';
+import { formatLogMessage, verboseLogging } from '../../../lib/src/logging/util.ts';
 
 const LogLevelMessageType = new Map<LogLevel, MessageType>([
   [LogLevel.DEBUG, MessageType.Log],
@@ -12,11 +14,11 @@ const LogLevelMessageType = new Map<LogLevel, MessageType>([
 ]);
 
 class NotificationLogger extends LogTarget {
-  logIt(ctx: Context, level: LogLevel, metadataStr: string, ...extra: unknown[]) {
-    const notification = {
-      type: LogLevelMessageType.get(level),
-      message: [metadataStr, format(extra)].join(' '),
-    };
+  logIt(ctx: Context, level: LogLevel, category: string, ...extra: unknown[]) {
+    if (level == LogLevel.DEBUG && !verboseLogging(ctx) && category !== 'console') {
+      return;
+    }
+    const notification = { type: LogLevelMessageType.get(level), message: formatLogMessage(category, ...extra) };
 
     const sender = ctx.get(Service).connection;
     try {
@@ -25,10 +27,6 @@ class NotificationLogger extends LogTarget {
       if (e instanceof ConnectionError) return;
       throw e;
     }
-  }
-
-  shouldLog(ctx: Context, level: number): boolean {
-    return verboseLogging(ctx) || level < LogLevel.DEBUG;
   }
 }
 

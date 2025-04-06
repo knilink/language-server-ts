@@ -1,13 +1,15 @@
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
+import type { SkillId, WorkDoneToken } from '../../../lib/src/types.ts';
+import type { ITurnProcessor } from './turnProcessorFactory.ts';
+
+import * as timers from 'timers/promises';
+import { AgentSkillResolver } from './skillResolver.ts';
+import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
+import { Conversations } from '../../../lib/src/conversation/conversations.ts';
+import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
 import { Type } from '@sinclair/typebox';
 import { v4 as uuidv4 } from 'uuid';
-import { type CancellationToken } from '../cancellation.ts';
-
-import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
-import { conversationLogger } from '../../../lib/src/conversation/logger.ts';
-import { Conversations } from '../../../lib/src/conversation/conversations.ts';
-import { AgentSkillResolver } from './skillResolver.ts';
-import { TurnContext } from '../../../lib/src/conversation/turnContext.ts';
-import { SkillId, WorkDoneToken } from '../../../lib/src/types.ts';
 
 import { Reference } from '../../../lib/src/conversation/schema.ts';
 
@@ -42,7 +44,7 @@ class SyntheticTurns {
   }
 }
 
-class SyntheticTurnProcessor {
+class SyntheticTurnProcessor implements ITurnProcessor {
   readonly conversationProgress: ConversationProgress;
 
   constructor(readonly turnContext: TurnContext) {
@@ -105,9 +107,8 @@ class SyntheticTurnProcessor {
   async processSyntheticChunks(syntheticTurn: SyntheticTurn, cancelationToken: CancellationToken): Promise<void> {
     for (const chunk of syntheticTurn.chunks) {
       if (!cancelationToken.isCancellationRequested) {
-        await this.conversationProgress.report(this.turnContext.conversation, this.turnContext.turn, {
-          reply: chunk,
-        });
+        await this.conversationProgress.report(this.turnContext.conversation, this.turnContext.turn, { reply: chunk });
+        await timers.setTimeout(1);
       }
     }
   }

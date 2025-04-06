@@ -1,22 +1,28 @@
 import { Context } from '../context.ts';
 import { Features } from './features.ts';
 import { CopilotRelatedPluginVersionPrefix, Filter, FilterHeaders } from './filters.ts';
-import { getConfig, ConfigKey, EditorAndPluginInfo, EditorSession } from '../config.ts';
-import { Logger, LogLevel } from '../logger.ts';
+import { BuildInfo, ConfigKey, EditorAndPluginInfo, EditorSession, getBuildType, getConfig } from '../config.ts';
+import { Logger } from '../logger.ts';
 import { telemetryExpProblem } from '../telemetry.ts';
 
 function setupExperimentationService(ctx: Context): void {
   const features = ctx.get(Features);
 
   features.registerStaticFilters(createAllFilters(ctx));
-  features.registerDynamicFilter('X-Copilot-OverrideEngine', () => getConfig(ctx, ConfigKey.DebugOverrideEngine));
+  features.registerDynamicFilter(
+    'X-Copilot-OverrideEngine',
+    () => getConfig(ctx, ConfigKey.DebugOverrideEngine) || getConfig(ctx, ConfigKey.DebugOverrideEngineLegacy)
+  );
   features.registerDynamicFilter(
     'X-VSCode-ExtensionName',
     () => ctx.get(EditorAndPluginInfo).getEditorPluginInfo().name
   );
   features.registerDynamicFilter('X-VSCode-ExtensionVersion', () =>
-    trimVersionSuffix(ctx.get(EditorAndPluginInfo).getEditorPluginInfo().version)
+    trimVersionSuffix(
+      ctx.get(BuildInfo).isProduction() ? ctx.get(EditorAndPluginInfo).getEditorPluginInfo().version : '1.999.0'
+    )
   );
+  features.registerDynamicFilter('X-VSCode-ExtensionRelease', () => getPluginRelease(ctx));
   features.registerDynamicFilter('X-VSCode-Build', () => ctx.get(EditorAndPluginInfo).getEditorInfo().name);
   features.registerDynamicFilter('X-VSCode-AppVersion', () =>
     trimVersionSuffix(ctx.get(EditorAndPluginInfo).getEditorInfo().version)
@@ -38,7 +44,15 @@ function setupExperimentationService(ctx: Context): void {
   });
 }
 
-function getTargetPopulation(ctx: Context) {
+function getPluginRelease(ctx: Context): 'nightly' | 'stable' {
+  let editorPluginInfo = ctx.get(EditorAndPluginInfo).getEditorPluginInfo();
+  return (editorPluginInfo.name === 'copilot' && getBuildType(ctx) === 'nightly') ||
+    (editorPluginInfo.name === 'copilot-intellij' && editorPluginInfo.version.endsWith('nightly'))
+    ? 'nightly'
+    : 'stable';
+}
+
+function getTargetPopulation(ctx: Context): 'insider' | 'public' {
   let editorPluginInfo = ctx.get(EditorAndPluginInfo).getEditorPluginInfo();
   return editorPluginInfo.name == 'copilot-intellij' && editorPluginInfo.version.endsWith('nightly')
     ? 'insider'
@@ -58,6 +72,6 @@ function trimVersionSuffix(version: string): string {
   return version.split('-')[0];
 }
 
-const logger = new Logger(LogLevel.INFO, 'exp');
+const logger = new Logger('exp');
 
 export { setupExperimentationService, createAllFilters, createDefaultFilters, trimVersionSuffix, logger };

@@ -14,30 +14,21 @@ class AuthPersistence {
     readonly persistenceManager: PersistenceManager
   ) {}
 
-  async getAuthRecord(): Promise<AuthRecord | undefined> {
-    let authRecord = await this.loadAuthRecord();
-    return authRecord || (await this.legacyAuthRecordMaybe());
-  }
+  async getAuthRecord(githubAppId?: string): Promise<AuthRecord | undefined> {
+    let authRecord = await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx, githubAppId));
 
-  async loadAuthRecord(): Promise<AuthRecord | undefined> {
-    let authRecord: AuthRecord | undefined = await this.loadExperimentalJetBrainsAuthRecord();
-
-    authRecord ??= (await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx))) as AuthRecord;
-
-    return authRecord;
-  }
-
-  async loadExperimentalJetBrainsAuthRecord(): Promise<AuthRecord | undefined> {
-    let experimentalAppId = this.ctx.get(GitHubAppInfo).experimentalJetBrainsAppId();
-    let authRecord = await this.persistenceManager.read(AUTH_FILE, this.authRecordKey(this.ctx, experimentalAppId));
-    if (authRecord) {
-      this.ctx.get(GitHubAppInfo).githubAppId = experimentalAppId;
-      return authRecord as AuthRecord;
+    if (!githubAppId && !authRecord) {
+      authRecord = await this.persistenceManager.read(
+        AUTH_FILE,
+        this.authRecordKey(this.ctx, this.ctx.get(GitHubAppInfo).fallbackAppId())
+      );
     }
+
+    return (authRecord || (await this.legacyAuthRecordMaybe())) as AuthRecord | undefined;
   }
 
   async legacyAuthRecordMaybe(): Promise<AuthRecord | undefined> {
-    let legacyAuthRecord = await this.persistenceManager.read(LEGACY_AUTH_FILE, this.legacyAuthRecordKey(this.ctx));
+    const legacyAuthRecord = await this.persistenceManager.read(LEGACY_AUTH_FILE, this.legacyAuthRecordKey(this.ctx));
     if (legacyAuthRecord) {
       const fallbackAppId = this.ctx.get(GitHubAppInfo).fallbackAppId();
       return { ...legacyAuthRecord, githubAppId: fallbackAppId } as AuthRecord;
@@ -46,7 +37,7 @@ class AuthPersistence {
 
   async saveAuthRecord(authRecord: AuthRecord): Promise<void> {
     const effectiveAppId = this.ctx.get(GitHubAppInfo).findAppIdToAuthenticate();
-    await this.persistenceManager.update(AUTH_FILE, this.authRecordKey(this.ctx), authRecord);
+    await this.persistenceManager.update(AUTH_FILE, this.authRecordKey(this.ctx, authRecord.githubAppId), authRecord);
     const fallbackAppId = this.ctx.get(GitHubAppInfo).fallbackAppId();
     if (effectiveAppId === fallbackAppId) {
       await this.persistenceManager.delete(LEGACY_AUTH_FILE, this.legacyAuthRecordKey(this.ctx));
@@ -60,7 +51,7 @@ class AuthPersistence {
       if (authRecord.githubAppId === fallbackAppId) {
         await this.persistenceManager.delete(LEGACY_AUTH_FILE, this.legacyAuthRecordKey(this.ctx));
       }
-      await this.persistenceManager.delete(AUTH_FILE, this.authRecordKey(this.ctx));
+      await this.persistenceManager.delete(AUTH_FILE, this.authRecordKey(this.ctx, fallbackAppId));
     }
   }
 

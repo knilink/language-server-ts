@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
 
-import { type CancellationToken } from '../cancellation.ts';
 import { AbstractCommand } from './abstract.ts';
 import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { postInsertionTasks } from '../../../lib/src/postInsertion.ts';
@@ -18,7 +18,7 @@ class DidAcceptPanelCompletionItemCommand extends AbstractCommand {
     const completion = this.ctx.get(CopilotCompletionCache).get(uuid);
 
     if (completion) {
-      await postInsertionTasks(
+      postInsertionTasks(
         this.ctx,
         completion.triggerCategory,
         completion.insertText, //
@@ -26,7 +26,8 @@ class DidAcceptPanelCompletionItemCommand extends AbstractCommand {
         completion.uri,
         completion.telemetry,
         { compType: 'full' },
-        completion.range.start
+        completion.range.start,
+        completion.copilotAnnotations
       );
       return true;
     } else {

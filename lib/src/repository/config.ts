@@ -1,11 +1,11 @@
 import { execFile } from 'child_process';
 import type { URI } from 'vscode-uri';
 import type { Context } from '../context.ts';
-import { Logger, LogLevel } from '../logger.ts';
+import { Logger } from '../logger.ts';
 import { getFsPath } from '../util/uri.ts';
 import { DocumentUri } from 'vscode-languageserver-types';
 
-const logger = new Logger(LogLevel.INFO, 'repository');
+const logger = new Logger('repository');
 
 class GitConfigData {
   private data: Record<string, string[]> = {};
@@ -80,7 +80,7 @@ class GitCLIConfigLoader extends GitConfigLoader {
     try {
       return await this.runCommand(cwd, cmd, args);
     } catch (err) {
-      logger.info(ctx, `Failed to run command '${cmd}' in ${cwd}: ${err}`);
+      logger.info(ctx, `Failed to run command '${cmd}' in ${cwd}:`, err);
       return;
     }
   }
@@ -104,7 +104,7 @@ class GitCLIConfigLoader extends GitConfigLoader {
     const config = new GitConfigData();
     for (const item of output.split('\0')) {
       if (item) {
-        const key = item.split('\\n', 1)[0];
+        const key = item.split('\n', 1)[0];
         const value = item.slice(key.length + 1);
         config.add(key, value);
       }

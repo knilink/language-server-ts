@@ -1,41 +1,42 @@
-import { EventEmitter } from 'node:events';
-import {
-  NotebookDocuments,
-  TextDocumentContentChangeEvent as LspEvent,
+import type { DocumentUri, WorkspaceFolder } from 'vscode-languageserver-types';
+import type {
   WorkspaceFoldersChangeEvent,
   TextDocuments,
   WorkspaceFolder as LSPWorkspaceFolder,
   NotificationHandler,
   NotebookCell,
-} from 'vscode-languageserver';
-// import { Disposable } from 'vscode-jsonrpc';
+  Disposable,
+} from 'vscode-languageserver/node.js';
+import type { Context } from '../../lib/src/context.ts';
+import type { FileSystem } from '../../lib/src/fileSystem.ts';
+import type { INotebook } from '../../lib/src/textDocumentManager.ts';
 
-import { Context } from '../../lib/src/context.ts';
-import { TextDocument } from '../../lib/src/textDocument.ts';
+import { EventEmitter } from 'node:events';
+import { NotebookDocuments, TextDocumentContentChangeEvent as LspEvent } from 'vscode-languageserver/node.js';
 import { Service } from './service.ts';
-import { FileSystem } from '../../lib/src/fileSystem.ts';
-import { Logger, LogLevel } from '../../lib/src/logger.ts';
-import { INotebook, TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
-// import { Document } from '../../prompt/src/types';
-import { DocumentUri, WorkspaceFolder } from 'vscode-languageserver-types';
-import { DidFocusTextDocumentNotification } from '../../types/src/index.ts';
+import { Logger } from '../../lib/src/logger.ts';
+import { TextDocumentManager } from '../../lib/src/textDocumentManager.ts';
+import { CopilotTextDocument } from '../../lib/src/textDocument.ts';
+import { normalizeUri } from '../../lib/src/util/uri.ts';
+import { DidFocusTextDocumentNotification } from '../../types/src/didFocusTextDocument.ts';
+import type {} from '../../types/src/index.ts';
 
-const configLogger = new Logger(LogLevel.DEBUG, 'AgentTextDocumentConfiguration');
+const configLogger = new Logger('AgentTextDocumentConfiguration');
 
 class AgentTextDocumentsConfiguration {
   readonly emitter = new EventEmitter<{ change: [TextDocumentManager.DidChangeTextDocumentParams] }>();
 
   constructor(readonly ctx: Context) {}
 
-  create(uri: string, languageId: string, version: number, content: string): TextDocument {
+  create(uri: string, languageId: string, version: number, content: string): CopilotTextDocument {
     try {
-      return TextDocument.create(uri, languageId, version, content);
+      return CopilotTextDocument.create(uri, languageId, version, content);
     } catch (e) {
       throw (configLogger.exception(this.ctx, e, '.create'), e);
     }
   }
 
-  update(document: TextDocument, changes: LspEvent[], version: number): TextDocument {
+  update(document: CopilotTextDocument, changes: LspEvent[], version: number): CopilotTextDocument {
     try {
       const updates = [];
       for (let change of changes)
@@ -50,7 +51,7 @@ class AgentTextDocumentsConfiguration {
         }
       let event = { document: document, contentChanges: updates };
       this.emitter.emit('change', event);
-      return TextDocument.withChanges(document, changes, version);
+      return CopilotTextDocument.withChanges(document, changes, version);
     } catch (e) {
       throw (configLogger.exception(this.ctx, e, '.update'), e);
     }
@@ -58,17 +59,18 @@ class AgentTextDocumentsConfiguration {
 }
 
 class AgentTextDocumentManager extends TextDocumentManager {
+  readonly _documents = new Map();
   readonly workspaceFolders: WorkspaceFolder[] = [];
   readonly _textDocumentConfiguration = new AgentTextDocumentsConfiguration(this.ctx);
-  readonly _textDocumentListener = new TextDocuments(this._textDocumentConfiguration);
-  readonly _notebookDocuments = new NotebookDocuments(this._textDocumentListener);
+  readonly _notebookDocuments = new NotebookDocuments(this._textDocumentConfiguration);
 
   constructor(ctx: Context) {
     super(ctx);
   }
 
-  // EDITED
-  onDidChangeTextDocument(listener: NotificationHandler<TextDocumentManager.DidChangeTextDocumentParams>) {
+  // EDITED this.onDidChangeTextDocument = (listener, thisArgs, disposables) =>
+  // caller should just bind listener with its `this` itself
+  onDidChangeTextDocument(listener: NotificationHandler<TextDocumentManager.DidChangeTextDocumentParams>): Disposable {
     this._textDocumentConfiguration.emitter.on('change', listener);
     return {
       dispose: () => {
@@ -78,17 +80,14 @@ class AgentTextDocumentManager extends TextDocumentManager {
   }
 
   // EDITED this.onDidFocusTextDocument = (listener, thisArgs, disposables)
-  onDidFocusTextDocument(listener: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams>) {
+  // caller should just bind listener with its `this` itself
+  onDidFocusTextDocument(
+    listener: NotificationHandler<TextDocumentManager.DidFocusTextDocumentParams | undefined>
+  ): Disposable {
     return this.connection.onNotification(DidFocusTextDocumentNotification.type, (event) => {
-      let document = 'textDocument' in event ? event.textDocument : event;
-      listener({ document });
+      const document = ('textDocument' in event ? event.textDocument : event) ?? {};
+      listener('uri' in document ? { document } : undefined);
     });
-  }
-
-  onDidChangeCursor(listener: NotificationHandler<unknown>) {
-    return {
-      dispose: () => {},
-    };
   }
 
   get connection() {
@@ -96,25 +95,32 @@ class AgentTextDocumentManager extends TextDocumentManager {
   }
 
   init(workspaceFolders: WorkspaceFolder[]) {
-    this._textDocumentListener.listen(this.connection);
+    this.connection.onDidOpenTextDocument((event) => {
+      let td = event.textDocument;
+      let document = this._textDocumentConfiguration.create(td.uri, td.languageId, td.version, td.text);
+      this._documents.set(normalizeUri(td.uri), document);
+    });
+
     this.connection.onDidChangeTextDocument((event) => {
       const td = event.textDocument;
       const changes = event.contentChanges;
       const { version: version } = td;
       if (version == null)
         throw new Error(`Received document change event for ${td.uri} without valid version identifier`);
-      const that: any = this._textDocumentListener;
-      // MARK private _syncedDocuments
-      let syncedDocument = that._syncedDocuments.get(td.uri);
+      const uri = normalizeUri(td.uri);
+      let syncedDocument = this._documents.get(uri);
 
       if (syncedDocument !== undefined) {
         syncedDocument = this._textDocumentConfiguration.update(syncedDocument, changes, version);
-        // MARK private _syncedDocuments
-        that._syncedDocuments.set(td.uri, syncedDocument);
-        // MARK private _onDidChangeContent
-        that._onDidChangeContent.fire(Object.freeze({ document: syncedDocument }));
+        this._documents.set(uri, syncedDocument);
       }
     });
+
+    this.connection.onDidCloseTextDocument((event) => {
+      let uri = normalizeUri(event.textDocument.uri);
+      this._documents.delete(uri);
+    });
+
     this._notebookDocuments.listen(this.connection);
     this.workspaceFolders.length = 0;
     this.workspaceFolders.push(...workspaceFolders);
@@ -134,21 +140,17 @@ class AgentTextDocumentManager extends TextDocumentManager {
     this.workspaceFolders.push(container);
   }
   getOpenTextDocuments() {
-    return this._textDocumentListener.all();
+    return [...this._documents.values()];
   }
-  async openTextDocument(uri: DocumentUri): Promise<TextDocument | undefined> {
-    try {
-      if ((await this.ctx.get(FileSystem).stat(uri)).size > 5 * 1024 * 1024) return;
-    } catch {
-      return;
-    }
-    const text = await this.ctx.get(FileSystem).readFileString(uri);
-    return TextDocument.create(uri, 'UNKNOWN', 0, text);
+
+  getOpenTextDocument(docId: { uri: DocumentUri }) {
+    return this._documents.get(normalizeUri(docId.uri));
   }
+
   getWorkspaceFolders(): WorkspaceFolder[] {
     return this.workspaceFolders;
   }
-  findNotebook(doc: TextDocument): INotebook | undefined {
+  findNotebook(doc: CopilotTextDocument): INotebook | undefined {
     let notebook = this._notebookDocuments.findNotebookDocumentForCell(doc.uri);
     if (notebook)
       return {

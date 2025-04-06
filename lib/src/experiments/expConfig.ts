@@ -6,53 +6,56 @@ class ExpConfig {
   constructor(
     public variables: Partial<{
       maxpromptcompletionTokens: number;
-      // idechatgpt4maxtokens: number;
-      // idechatgpt4maxrequesttokens: number;
-      // idechatexpmodelfamily: ChatModelFamily;
-      idechatexpmodelids: string;
-      idechatenableprojectmetadata: boolean;
-      // idechatmetapromptversion: string;
-      // idechatintentmodel: string;
-      idechatenableprojectcontext: boolean;
-      // idechatintentthresholdpercent: number;
-      idechatprojectcontextfilecountthreshold: number;
-      // idechatintenttokenizer: string;
-      // idechatenableinline: boolean;
-      // idechatenableprojectcontext: boolean;
-      idechatenableextensibilityplatform: boolean;
-      idechatmaxrequesttokens: number;
-      copilotdebouncems: number;
-      copilotdebouncepredict: boolean;
-      copilotcontextualfilterenable: boolean;
-      copilotcontextualfilterenabletree: boolean;
-      copilotcontextualfilteracceptthreshold: number;
-      copilotcontextualfilterexplorationtraffic: number;
       copilotdisablelogprob: boolean;
       copilotoverrideblockmode: BlockMode;
-      copilotoverridefastcancellation: boolean;
       copilotoverridednumghostcompletions: number;
       copilotdropcompletionreasons: string;
       copilotcustomengine: string;
-      copilotlms: number;
-      copilotlbeot: boolean;
+      copilotcustomenginetargetengine: unknown;
       CopilotSuffixPercent: number;
       copilotsuffixmatchthreshold: number;
-      copilotnumberofsnippets: number;
-      // copilotneighboringtabs: Lowercase<CopilotNeighboringTabs>;
       copilotcppheaders: boolean;
+      copilotrelatedfilesvscodecsharp: boolean;
+      copilotrelatedfilesvscodetypescript: boolean;
+      copilotcppIncludeTraits: string;
+      copilotcppMsvcCompilerArgumentFilter: unknown;
+      copilotcppClangCompilerArgumentFilter: unknown;
+      copilotcppGccCompilerArgumentFilter: unknown;
+      copilotcppCompilerArgumentDirectAskMap: unknown;
       copilotrelatedfilesvscode: boolean;
-      // copilotcachereferencetokens: boolean;
+      copilotexcludeopentabfilescsharp: boolean;
+      copilotexcludeopentabfilescpp: boolean;
+      copilotexcludeopentabfilestypescript: boolean;
+      copilotfallbacktoopentabfiles: boolean;
+      copilotcontextproviders: string;
+      copilotincludeneighboringfiles: boolean;
       copilotpromptorderlistpreset: 'default';
       copilotpromptprioritypreset: 'office-exp';
+      copilotpromptcomponents: boolean;
+      idechatmaxrequesttokens: number;
+      idechatexpmodelids: string;
+      idechatenableprojectmetadata: boolean;
+      idechatenableprojectcontext: boolean;
+      ideenablecopilotedits: boolean;
+      idechatprojectcontextfilecountthreshold: number;
+      copilotdisabledebounce: boolean;
+      copilotdebouncethreshold: number;
+      copilottriggercompletionafteraccept: unknown;
+      copilotasynccompletions: boolean;
+      copilotspeculativerequests: boolean;
+      copilotcppcodesnippetsFeatureNames: unknown;
+      copilotcppcodesnippetsTimeBudgetFactor: unknown;
+      copilotcppcodesnippetsMaxDistanceToCaret: unknown;
+      copilotprogressivereveal: boolean;
+      copilotdisablecontextualfilter: boolean;
+      copilotvscodedebouncethreshold: unknown;
+      ////////////////////////////////////////////////////////////////////////////////
+
       copilotbycallbuckets: number;
       copilottimeperiodsizeinh: number;
-
-      copilotsnippetswindowsizeforsimilarfiles: number;
-      copilotsimilarfilesnippetthreshold: number;
-      maxsnippetspersimilarfile: number;
-      maxtopsnippetsfromsimilarfiles: number;
-      maxsimilarfilesize: number;
-      maxsimilarfilescount: number;
+      // ./similarFileOptionsProvider.ts
+      copilotsubsetmatching: boolean;
+      // ./similarFileOptionsProviderCpp.ts
       copilotmaxsimilarfilesize: number;
     }>,
     public assignmentContext: string,

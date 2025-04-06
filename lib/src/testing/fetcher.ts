@@ -1,7 +1,11 @@
+import type { AbortController } from '@adobe/helix-fetch';
+
+import { RootCertificateReader } from '../network/certificateReaders.ts';
 import { Response, Fetcher } from '../networking.ts';
 
 function createFakeResponse(statusCode: number, response?: string, headers: Record<string, string> = {}): Response {
   const fakeHeaders = new FakeHeaders();
+  fakeHeaders.set('x-github-request-id', '1');
   for (const [key, value] of Object.entries(headers)) {
     fakeHeaders.set(key, value);
   }
@@ -11,7 +15,7 @@ function createFakeResponse(statusCode: number, response?: string, headers: Reco
     'status text',
     fakeHeaders,
     async () => response ?? '',
-    async () => null! // MARK IDK
+    () => null! // MARK IDK
   );
 }
 
@@ -26,8 +30,19 @@ function createFakeJsonResponse(statusCode: number, response?: unknown, headers?
   return createFakeResponse(statusCode, text, Object.assign({ 'content-type': 'application/json' }, headers));
 }
 
+class TestCertificateReader extends RootCertificateReader {
+  constructor(readonly certificates: string[]) {
+    super();
+  }
+  async getAllRootCAs() {
+    return this.certificates;
+  }
+}
+const createTestCertificateReader = (certificates: string[]) => new TestCertificateReader(certificates);
+
 abstract class FakeFetcher extends Fetcher {
   readonly name = 'FakeFetcher';
+  proxySettings?: never;
 
   disconnectAll(): Promise<void> {
     throw new Error('Method not implemented.');
@@ -38,8 +53,14 @@ abstract class FakeFetcher extends Fetcher {
   }
 }
 
+class NoFetchFetcher extends FakeFetcher {
+  fetch(url: unknown, options: unknown): Promise<never> {
+    throw new Error('NoFetchFetcher does not support fetching');
+  }
+}
+
 class FakeHeaders {
-  private headers = new Map<string, string>();
+  headers = new Map<string, string>();
 
   append(name: string, value: string): void {
     this.headers.set(name.toLowerCase(), value);
@@ -77,6 +98,11 @@ class FakeHeaders {
   [Symbol.iterator](): IterableIterator<[string, string]> {
     return this.headers.entries();
   }
+
+  // EDITED, to be compatible with helix Headers
+  raw(): Record<string, string> {
+    return Object.fromEntries(this.entries());
+  }
 }
 
 class FakeAbortController {
@@ -87,4 +113,4 @@ class FakeAbortController {
   }
 }
 
-export { FakeFetcher, FakeHeaders, createFakeJsonResponse, createFakeResponse };
+export { FakeFetcher, NoFetchFetcher, createFakeJsonResponse, createFakeResponse, createTestCertificateReader };

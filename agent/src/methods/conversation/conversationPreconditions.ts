@@ -1,7 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 import { type Context } from '../../../../lib/src/context.ts';
-import { type CancellationToken } from '../../cancellation.ts';
 
 import { PreconditionsCheck } from '../../../../lib/src/conversation/preconditions.ts';
 import { TestingOptions } from '../testingOptions.ts';
@@ -15,7 +14,7 @@ const Params = Type.Object({
 
 async function handleConversationPreconditionsChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<[Awaited<ReturnType<PreconditionsCheck['check']>>, null]> {
   const forceCheck = params.forceCheck ?? false;

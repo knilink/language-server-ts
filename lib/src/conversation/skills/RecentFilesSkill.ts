@@ -1,17 +1,18 @@
 import type { Skill } from '../../types.ts';
-import { Type, type Static } from '@sinclair/typebox';
-import { type TurnContext } from '../turnContext.ts';
+import type { Static } from '@sinclair/typebox';
+import type { TurnContext } from '../turnContext.ts';
+import type { CopilotTextDocument } from '../../textDocument.ts';
 
-import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
-
-import { DocumentSchema } from '../schema.ts';
-import { weighElidableList } from '../prompt/elidableList.ts';
-import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { ElidableDocument } from './ElidableDocument.ts';
 import { ModelConfigurationProvider } from '../modelConfigurations.ts';
 import { getSupportedModelFamiliesForPrompt } from '../modelMetadata.ts';
-import { ElidableDocument } from './ElidableDocument.ts';
+import { SingleStepReportingSkill } from '../prompt/conversationSkill.ts';
+import { weighElidableList } from '../prompt/elidableList.ts';
+import { DocumentSchema } from '../schema.ts';
+import { FileReader, statusFromTextDocumentResult } from '../../fileReader.ts';
+import { Type } from '@sinclair/typebox';
 import { ElidableText } from '../../../../prompt/src/elidableText/elidableText.ts';
-import { TextDocument } from '../../textDocument.ts';
+import type {} from '../../../../prompt/src/elidableText/index.ts';
 
 const RecentFilesSchema = Type.Object({ files: Type.Array(DocumentSchema) });
 type RecentFiles = Static<typeof RecentFilesSchema>;
@@ -36,10 +37,10 @@ class RecentFilesSkillProcessor implements Skill.ISkillProcessor<RecentFiles> {
     }
   }
 
-  async getDocuments(skill: RecentFiles): Promise<[TextDocument, Document][]> {
+  async getDocuments(skill: RecentFiles): Promise<[CopilotTextDocument, Document][]> {
     const files = await this.filterIncludedDocs(this.sortFiles(skill.files));
     const fileReader = this.turnContext.ctx.get(FileReader);
-    const documents: [TextDocument, Document][] = [];
+    const documents: [CopilotTextDocument, Document][] = [];
 
     for (let file of files) {
       const documentResult = await fileReader.readFile(file.uri);
@@ -81,7 +82,7 @@ class RecentFilesSkillProcessor implements Skill.ISkillProcessor<RecentFiles> {
     return files.filter((d) => !this.turnContext.isFileIncluded(d.uri));
   }
 
-  async toElidableDocs(documents: Array<[TextDocument, Document]>): Promise<Array<ElidableText>> {
+  async toElidableDocs(documents: Array<[CopilotTextDocument, Document]>): Promise<Array<ElidableText>> {
     const fileReader = this.turnContext.ctx.get(FileReader);
     return await Promise.all(
       documents.map(async (document) => {

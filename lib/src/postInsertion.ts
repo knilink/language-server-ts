@@ -1,22 +1,24 @@
-import { type URI } from 'vscode-uri';
+import { Unknown, TelemetryStore } from './types.ts';
+import type { TelemetryProperties } from './types.ts';
 import type { Prompt } from '../../prompt/src/types.ts';
+import type { TelemetryWithExp } from './telemetry.ts';
+import type { Context } from './context.ts';
+import type { DocumentUri, Position } from 'vscode-languageserver-types';
+import type { SuggestionStatus } from './suggestions/partialSuggestions.ts';
 
-import { Context } from './context.ts';
-import { TextDocumentManager } from './textDocumentManager.ts';
-import { extractPrompt } from './prompt/prompt.ts';
-import { contextIndentationFromText, indentationBlockFinished } from './prompt/parseBlock.ts';
-import { telemetryRejected, telemetryAccepted } from './ghostText/telemetry.ts';
-import { telemetry, type TelemetryData, type TelemetryWithExp } from './telemetry.ts';
-import { computeCompCharLen, computeCompletionText, SuggestionStatus } from './suggestions/partialSuggestions.ts';
-import { isRunningInTest } from './testing/runtimeMode.ts';
-import { PromiseQueue } from './util/promiseQueue.ts';
-import { PostInsertionNotifier } from './postInsertionNotifier.ts';
-import { lexEditDistance, editDistance } from './suggestions/editDistance.ts';
 import { ChangeTracker } from './changeTracker.ts';
-import { Logger, LogLevel } from './logger.ts';
-import { TelemetryProperties, TelemetryStore } from './types.ts';
-import { Position } from 'vscode-languageserver-types';
-import { DocumentUri } from 'vscode-languageserver-types';
+import { CitationManager } from './citationManager.ts';
+import { telemetryAccepted, telemetryRejected } from './ghostText/telemetry.ts';
+import { Logger } from './logger.ts';
+import { PostInsertionNotifier } from './postInsertionNotifier.ts';
+import { contextIndentationFromText, indentationBlockFinished } from './prompt/parseBlock.ts';
+import { extractPrompt } from './prompt/prompt.ts';
+import { editDistance, lexEditDistance } from './suggestions/editDistance.ts';
+import { computeCompCharLen, computeCompletionText } from './suggestions/partialSuggestions.ts';
+import { telemetry, telemetryCatch } from './telemetry.ts';
+import { isRunningInTest } from './testing/runtimeMode.ts';
+import { TextDocumentManager } from './textDocumentManager.ts';
+import { PromiseQueue } from './util/promiseQueue.ts';
 
 type CaptureCodeResult = {
   prompt: Omit<Prompt, 'prefixTokens' | 'suffixTokens'>;
@@ -30,7 +32,7 @@ type Timeout = {
   captureRejection: boolean;
 };
 
-const postInsertionLogger = new Logger(LogLevel.INFO, 'postInsertion');
+const postInsertionLogger = new Logger('postInsertion');
 const captureTimeouts: Timeout[] = [
   { seconds: 15, captureCode: false, captureRejection: false },
   { seconds: 30, captureCode: true, captureRejection: true },
@@ -113,43 +115,59 @@ function postRejectionTasks(
   const positionTracker = new ChangeTracker(ctx, uri, insertionOffset - 1);
   const suffixTracker = new ChangeTracker(ctx, uri, insertionOffset);
 
-  for (const t of captureTimeouts.filter((t) => t.captureRejection)) {
-    positionTracker.push(async () => {
-      postInsertionLogger.debug(ctx, `Original offset: ${insertionOffset}, Tracked offset: ${positionTracker.offset}`);
-      const { completionTelemetryData } = completions[0];
-      const { prompt, capturedCode, terminationOffset } = await captureCode(
-        ctx,
-        uri,
-        completionTelemetryData,
-        positionTracker.offset + 1,
-        suffixTracker.offset
-      );
-      const promptTelemetry: TelemetryProperties = prompt.isFimEnabled
-        ? {
-            hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
-            hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
-          }
-        : { hypotheticalPromptJson: JSON.stringify(prompt.prefix) };
-      const customTelemetryData = completionTelemetryData.extendedBy(
-        { ...promptTelemetry, capturedCodeJson: JSON.stringify(capturedCode) },
-        {
-          timeout: t.seconds,
-          insertionOffset,
-          trackedOffset: positionTracker.offset,
-          terminationOffsetInCapturedCode: terminationOffset,
-        }
-      );
-      postInsertionLogger.debug(
-        ctx,
-        `${insertionCategory}.capturedAfterRejected choiceIndex: ${completionTelemetryData.properties.choiceIndex}`,
-        customTelemetryData
-      );
-      telemetry(ctx, insertionCategory + `.capturedAfterRejected`, customTelemetryData, TelemetryStore.RESTRICTED);
-    }, t.seconds * 1000);
-  }
+  const checkInCode = async (t: Timeout) => {
+    postInsertionLogger.debug(ctx, `Original offset: ${insertionOffset}, Tracked offset: ${positionTracker.offset}`);
+    const { completionTelemetryData } = completions[0];
+
+    const { prompt, capturedCode, terminationOffset } = await captureCode(
+      ctx,
+      uri,
+      completionTelemetryData,
+      positionTracker.offset + 1,
+      suffixTracker.offset
+    );
+
+    let promptTelemetry;
+
+    if (prompt.isFimEnabled) {
+      promptTelemetry = {
+        hypotheticalPromptPrefixJson: JSON.stringify(prompt.prefix),
+        hypotheticalPromptSuffixJson: JSON.stringify(prompt.suffix),
+      };
+    } else {
+      promptTelemetry = { hypotheticalPromptJson: JSON.stringify(prompt.prefix) };
+    }
+
+    const customTelemetryData = completionTelemetryData.extendedBy(
+      { ...promptTelemetry, capturedCodeJson: JSON.stringify(capturedCode) },
+      {
+        timeout: t.seconds,
+        insertionOffset,
+        trackedOffset: positionTracker.offset,
+        terminationOffsetInCapturedCode: terminationOffset,
+      }
+    );
+
+    postInsertionLogger.debug(
+      ctx,
+      `${insertionCategory}.capturedAfterRejected choiceIndex: ${completionTelemetryData.properties.choiceIndex}`,
+      customTelemetryData
+    );
+
+    telemetry(ctx, insertionCategory + '.capturedAfterRejected', customTelemetryData, 1);
+  };
+
+  captureTimeouts
+    .filter((t) => t.captureRejection)
+    .map((t) =>
+      positionTracker.push(
+        telemetryCatch(ctx, () => checkInCode(t), 'postRejectionTasks'),
+        t.seconds * 1000
+      )
+    );
 }
 
-async function postInsertionTasks(
+function postInsertionTasks(
   ctx: Context,
   insertionCategory: string,
   completionText: string,
@@ -158,8 +176,9 @@ async function postInsertionTasks(
   telemetryData: TelemetryWithExp,
   suggestionStatus: SuggestionStatus,
   // Position ./ghostText/last.ts
-  start: Position
-): Promise<void> {
+  start: Position,
+  copilotAnnotations?: { ip_code_citations?: Unknown.Annotation[] }
+): void {
   const telemetryDataWithStatus = telemetryData.extendedBy(
     { compType: suggestionStatus.compType },
     { compCharLen: computeCompCharLen(suggestionStatus, completionText) }
@@ -169,6 +188,7 @@ async function postInsertionTasks(
     `${insertionCategory}.accepted choiceIndex: ${telemetryDataWithStatus.properties.choiceIndex}`
   );
   telemetryAccepted(ctx, insertionCategory, telemetryDataWithStatus);
+  const fullCompletionText = completionText;
   completionText = computeCompletionText(completionText, suggestionStatus);
 
   const trimmedCompletion = completionText.trim();
@@ -197,7 +217,12 @@ async function postInsertionTasks(
     });
     ctx.get(PromiseQueue).register(check);
   } else {
-    captureTimeouts.forEach((timeout) => tracker.push(() => stillInCodeCheck(timeout), timeout.seconds * 1000));
+    captureTimeouts.map((timeout) =>
+      tracker.push(
+        telemetryCatch(ctx, () => stillInCodeCheck(timeout), 'postInsertionTasks'),
+        timeout.seconds * 1000
+      )
+    );
   }
 
   ctx.get(PostInsertionNotifier).emit('onPostInsertion', {
@@ -209,6 +234,77 @@ async function postInsertionTasks(
     telemetryData,
     start,
   });
+
+  telemetryCatch(ctx, citationCheck, 'post insertion citation check')(
+    ctx,
+    uri,
+    fullCompletionText,
+    completionText,
+    insertionOffset,
+    copilotAnnotations
+  );
+}
+
+async function citationCheck(
+  ctx: Context,
+  uri: DocumentUri,
+  fullCompletionText: string,
+  insertedText: string,
+  insertionOffset: number,
+  copilotAnnotations?: { ip_code_citations?: Unknown.Annotation[] }
+): Promise<void> {
+  if (!copilotAnnotations?.ip_code_citations?.length) {
+    return;
+  }
+  const doc = await ctx.get(TextDocumentManager).getTextDocument({ uri });
+  if (doc) {
+    const found = find(doc.getText(), insertedText, stillInCodeNearMargin, insertionOffset);
+
+    if (found.stillInCodeHeuristic) {
+      insertionOffset = found.foundOffset;
+    }
+  }
+  for (const citation of copilotAnnotations.ip_code_citations) {
+    const citationStart = computeCitationStart(fullCompletionText.length, insertedText.length, citation.start_offset);
+    if (citationStart === undefined) {
+      postInsertionLogger.info(
+        ctx,
+        `Full completion for ${uri} contains a reference matching public code, but the partially inserted text did not include the match.`
+      );
+      continue;
+    }
+    const offsetStart = insertionOffset + citationStart;
+    const start = doc?.positionAt(offsetStart);
+
+    const offsetEnd =
+      insertionOffset + computeCitationEnd(fullCompletionText.length, insertedText.length, citation.stop_offset);
+
+    const end = doc?.positionAt(offsetEnd);
+    const text = start && end ? doc?.getText({ start, end }) : '<unknown>';
+    await ctx.get(CitationManager).handleIPCodeCitation(ctx, {
+      inDocumentUri: uri,
+      offsetStart,
+      offsetEnd,
+      version: doc?.version,
+      location: start && end ? { start, end } : undefined,
+      matchingText: text,
+      details: citation.details.citations,
+    });
+  }
+}
+
+function computeCitationStart(
+  completionLength: number,
+  insertedLength: number,
+  citationStartOffset: number
+): number | undefined {
+  if (!(insertedLength < completionLength && citationStartOffset > insertedLength)) {
+    return citationStartOffset;
+  }
+}
+
+function computeCitationEnd(completionLength: number, insertedLength: number, citationStopOffset: number): number {
+  return insertedLength < completionLength ? Math.min(citationStopOffset, insertedLength) : citationStopOffset;
 }
 
 // type FindResult = {

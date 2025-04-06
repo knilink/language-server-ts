@@ -1,6 +1,6 @@
-import { type SkillId, Skill } from '../types.ts';
-import { type Context } from '../context.ts';
-import { type Reference } from './schema.ts';
+import type { SkillId } from '../types.ts';
+import type { Context } from '../context.ts';
+import type { Reference } from './schema.ts';
 
 import { getPromptTemplates } from './promptTemplates.ts';
 import { LRUCacheMap } from '../common/cache.ts';
@@ -48,7 +48,8 @@ class Conversations {
     turn: Turn,
     references?: Reference[],
     workspaceFolder?: string,
-    ignoreSkills?: SkillId[]
+    ignoreSkills?: SkillId[],
+    confirmationResponse?: Turn['confirmationResponse']
   ): Promise<Turn> {
     let conversation = this.getHolder(conversationId).conversation;
 
@@ -60,6 +61,11 @@ class Conversations {
 
     if (ignoreSkills && ignoreSkills.length > 0) {
       turn.ignoredSkills = ignoreSkills.map((skillId) => ({ skillId }));
+    }
+
+    if (confirmationResponse) {
+      turn.agent = { agentSlug: confirmationResponse.agentSlug };
+      turn.confirmationResponse = confirmationResponse;
     }
 
     await this.determineAndApplyAgent(conversation, turn);

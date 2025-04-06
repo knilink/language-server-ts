@@ -1,21 +1,23 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../../cancellation.ts';
-import { type Context } from '../../../../lib/src/context.ts';
-import { type TextDocument } from '../../../../lib/src/textDocument.ts';
-import { type TelemetryMeasurements } from '../../../../lib/src/types.ts';
+import type { Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../../lib/src/context.ts';
+import type { CopilotTextDocument } from '../../../../lib/src/textDocument.ts';
+import type { TelemetryMeasurements } from '../../../../lib/src/types.ts';
 
+import { TestingOptions } from '../testingOptions.ts';
+import { ensureAuthenticated } from '../../auth/authDecorator.ts';
+import { ErrorCode } from '../../rpc.ts';
+import { addMethodHandlerValidation } from '../../schemaValidation.ts';
 import { getTextDocumentChecked } from '../../textDocument.ts';
+import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
+import { ConversationSourceSchema, DocumentSchema } from '../../../../lib/src/conversation/schema.ts';
 import {
   conversationSourceToUiKind,
   createTelemetryWithExpWithId,
-  telemetryUserAction,
   telemetryPrefixForUiKind,
+  telemetryUserAction,
 } from '../../../../lib/src/conversation/telemetry.ts';
-import { Conversations } from '../../../../lib/src/conversation/conversations.ts';
-import { DocumentSchema, ConversationSourceSchema } from '../../../../lib/src/conversation/schema.ts';
-import { TestingOptions } from '../testingOptions.ts';
-import { ensureAuthenticated } from '../../auth/authDecorator.ts';
-import { addMethodHandlerValidation } from '../../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const SourceSchema = Type.Union([Type.Literal('keyboard'), Type.Literal('toolbar')]);
 
@@ -36,11 +38,11 @@ async function handleConversationCodeCopyChecked(
   token: CancellationToken,
   params: Static<typeof Params>
 ): Promise<['OK', null] | [null, { code: number; message: string }]> {
-  let textDocument: TextDocument | undefined;
+  let textDocument: CopilotTextDocument | undefined;
 
   if (params.doc) {
     const result = await getTextDocumentChecked(ctx, params.doc.uri);
-    if (result.status === 'notfound') return [null, { code: -32602, message: result.message }];
+    if (result.status === 'notfound') return [null, { code: ErrorCode.InvalidParams, message: result.message }];
     if (result.status === 'valid') textDocument = result.document;
   }
 

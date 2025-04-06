@@ -79,8 +79,7 @@ function collectNodeSection(): DiagnosticSection {
 async function collectFeatureFlagsSection(ctx: Context): Promise<DiagnosticSection> {
   const items: Record<string, unknown> = {};
   try {
-    const tokenManager = ctx.get(CopilotTokenManager);
-    const token = await tokenManager.getCopilotToken(ctx);
+    const token = await ctx.get(CopilotTokenManager).getToken();
     items['Send Restricted Telemetry'] = token.getTokenValue('rt') === '1' ? 'enabled' : 'disabled';
     items.Chat = token.envelope?.chat_enabled ? 'enabled' : undefined;
     items['Content exclusion'] = token.envelope?.copilotignore_enabled ? 'enabled' : 'unavailable';

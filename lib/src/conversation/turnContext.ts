@@ -1,19 +1,17 @@
-import { Range, DocumentUri } from 'vscode-languageserver-types';
+import type { Range, DocumentUri } from 'vscode-languageserver-types';
+import type { TextDocumentResultStatus } from '../fileReader.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { SkillId } from '../types.ts';
+import type { Context } from '../context.ts';
+import type { Conversation, Turn } from './conversation.ts';
+import type { SkillMap } from './skills/skillMap.ts';
 
-import { type TextDocumentResultStatus } from '../fileReader.ts';
-import { type CancellationToken } from '../../../agent/src/cancellation.ts';
-
-import { SkillId } from '../types.ts';
-import { Context } from '../context.ts';
-import { Conversation, Turn } from './conversation.ts';
-
+import { ConversationProgress } from './conversationProgress.ts';
+import { Conversations } from './conversations.ts';
+import { ConversationDumper } from './dump.ts';
 import { conversationLogger } from './logger.ts';
 import { ConversationSkillRegistry } from './prompt/conversationSkill.ts';
-import { Conversations } from './conversations.ts';
-import { ConversationProgress } from './conversationProgress.ts';
-import { ConversationDumper } from './dump.ts';
 import { Steps } from './steps.ts';
-import { SkillMap } from './skills/skillMap.ts';
 
 // unknown ./prompt/fromSkills.ts
 type CollectorId = 'unknown' | string;

@@ -1,20 +1,16 @@
-import { PassThrough } from 'node:stream';
-import { STATUS_CODES } from 'node:http';
-import {
-  ProtocolRequestType,
-  ProgressType,
-  WorkDoneProgressBegin,
-  WorkDoneProgressReport,
-  WorkDoneProgressEnd,
-} from 'vscode-languageserver/node.js';
+import type { WorkDoneProgressBegin, WorkDoneProgressReport, WorkDoneProgressEnd } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { Context } from '../../../lib/src/context.ts';
-import { BuildInfo } from '../../../lib/src/config.ts';
+import { randomUUID } from 'crypto';
+import { STATUS_CODES } from 'http';
+import { PassThrough } from 'stream';
+import { inspect } from 'util';
+import { CancellationTokenSource, ProgressType, ProtocolRequestType } from 'vscode-languageserver/node.js';
 import { Service } from '../service.ts';
-// @ts-ignore
-import { AbortError, Headers } from '@adobe/helix-fetch';
-import { CancellationTokenSource } from '../cancellation.ts';
+import { BuildInfo } from '../../../lib/src/config.ts';
 import { Fetcher, Response } from '../../../lib/src/networking.ts';
+import { AbortController, AbortError, AbortSignal, Headers } from '@adobe/helix-fetch';
+import type {} from '../cancellation.ts';
 
 type FetchRequestParams = {
   url: string;
@@ -46,6 +42,7 @@ const FetchDisconnectAllRequestType = new ProtocolRequestType('copilot/fetchDisc
 
 function consumeStream(stream: NodeJS.ReadableStream): Promise<string> {
   return new Promise((resolve, reject) => {
+    // EDITED
     const output: Buffer[] = [];
     stream.on('error', reject);
     stream.on('end', () => {
@@ -162,8 +159,14 @@ class EditorFetcher extends Fetcher {
           .then(resolve)
           .catch((error: unknown) => {
             let message = 'EditorFetcher request failed';
-            const errorMessage = (error as Error).message;
-            if (errorMessage) message += `: ${errorMessage}`;
+            if (error && typeof error == 'object' && 'message' in error) {
+              message += `: ${String(error.message)}`;
+            }
+
+            if (error && typeof error == 'object' && 'data' in error) {
+              message += `: ${inspect(error.data)}`;
+            }
+
             reject(new EditorFetcherError(message));
           })
           .finally(() => {
@@ -184,9 +187,11 @@ class EditorFetcher extends Fetcher {
       STATUS_CODES[result.status] ?? '',
       new Headers(headers),
       async () => consumeStream(bodyStream),
-      async () => bodyStream
+      () => bodyStream
     );
   }
 }
 
-export { FetchRequestType, FetchCancelRequestType, FetchDisconnectAllRequestType, EditorFetcherError, EditorFetcher };
+export { EditorFetcher, EditorFetcherError };
+
+export type { FetchRequestType, FetchCancelRequestType, FetchDisconnectAllRequestType };

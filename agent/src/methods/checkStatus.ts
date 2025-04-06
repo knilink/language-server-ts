@@ -1,6 +1,5 @@
 import { Type } from '@sinclair/typebox';
 
-import { type CancellationToken } from '../cancellation.ts';
 import { type Context } from '../../../lib/src/context.ts';
 import { type AuthStatus } from '../../../lib/src/auth/types.ts';
 
@@ -22,7 +21,7 @@ const Params = Type.Object({
 
 async function handleCheckStatusChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: { options?: any }
 ): Promise<[AuthStatus, null]> {
   return [await ctx.get(AuthManager).checkAndUpdateStatus(ctx, params.options), null];

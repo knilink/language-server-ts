@@ -1,9 +1,7 @@
-import { DocumentUri } from 'vscode-languageserver-types';
-
-import { TextDocument } from '../../textDocument.ts';
-
-import { LanguageId, OpenDocument } from '../../../../prompt/src/lib.ts';
-import { TextDocumentManager } from '../../textDocumentManager.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import type { CopilotTextDocument } from '../../textDocument.ts';
+import type { LanguageId, OpenDocument } from '../../../../prompt/src/lib.ts';
+import type { TextDocumentManager } from '../../textDocumentManager.ts';
 
 import { NeighborSource, considerNeighborFile } from './neighborFiles.ts';
 import { sortByAccessTimes } from '../../documentTracker.ts';
@@ -16,7 +14,7 @@ class OpenTabFiles {
   }
 
   async truncateDocs(
-    docs: TextDocument[],
+    docs: CopilotTextDocument[],
     uri: DocumentUri,
     languageId: LanguageId,
     maxNumNeighborFiles: number
@@ -34,7 +32,7 @@ class OpenTabFiles {
       ) {
         openFiles.set(doc.uri.toString(), {
           uri: doc.uri.toString(),
-          relativePath: await this.docManager.getRelativePath(doc),
+          relativePath: this.docManager.getRelativePath(doc),
           source: doc.getText(),
         });
         totalLen += doc.getText().length;

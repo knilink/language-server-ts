@@ -1,88 +1,87 @@
-import { Context } from '../../../lib/src/context.ts';
-import { activateExtensibilityPlatformFeature } from '../../../lib/src/conversation/extensibility/extensibilityPlatformFeature.ts';
+import type { Context } from '../../../lib/src/context.ts';
+
+import { AgentConversationInspector } from './conversationInspector.ts';
+import { AgentConversationProgress } from './conversationProgress.ts';
+import { PreconditionsNotifier } from './preconditionsNotifier.ts';
+import { AgentSkillResolver } from './skillResolver.ts';
+import { SyntheticTurns } from './syntheticTurnProcessor.ts';
+import { TurnProcessorFactory } from './turnProcessorFactory.ts';
+import { ConversationInspector } from '../../../lib/src/conversation/conversationInspector.ts';
+import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
 import { Conversations } from '../../../lib/src/conversation/conversations.ts';
 import { ConversationDumper } from '../../../lib/src/conversation/dump.ts';
-import { ConversationPromptEngine } from '../../../lib/src/conversation/prompt/conversationPromptEngine.ts';
+import { activateExtensibilityPlatformFeature } from '../../../lib/src/conversation/extensibility/extensibilityPlatformFeature.ts';
 import {
-  ModelConfigurationProvider,
   DefaultModelConfigurationProvider,
+  ModelConfigurationProvider,
 } from '../../../lib/src/conversation/modelConfigurations.ts';
-import { SyntheticTurns } from './syntheticTurnProcessor.ts';
-import { ConversationProgress } from '../../../lib/src/conversation/conversationProgress.ts';
-import { PreconditionsCheck } from '../../../lib/src/conversation/preconditions.ts';
-import { PreconditionsNotifier } from './preconditionsNotifier.ts';
-import { HeaderContributors } from '../../../lib/src/headerContributors.ts';
 import {
   CapiModelMetadataProvider,
   ExpModelMetadataProvider,
   ModelMetadataProvider,
 } from '../../../lib/src/conversation/modelMetadata.ts';
-import { TurnProcessorFactory } from './turnProcessorFactory.ts';
-import { BlackbirdIndexingStatus } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/indexingStatus.ts';
-import { ConversationInspector } from '../../../lib/src/conversation/conversationInspector.ts';
-import { ChunkingProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/ChunkingProvider.ts';
-import { RankingProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/RankingProvider.ts';
-import { ScoringProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/ScoringProvider.ts';
+import { PreconditionsCheck } from '../../../lib/src/conversation/preconditions.ts';
+import { ConversationPromptEngine } from '../../../lib/src/conversation/prompt/conversationPromptEngine.ts';
 import { ConversationSkillRegistry } from '../../../lib/src/conversation/prompt/conversationSkill.ts';
-import { AgentConversationProgress } from './conversationProgress.ts';
-import { CapiVersionHeaderContributor } from '../../../lib/src/conversation/capiVersionHeaderContributor.ts';
-import { AgentConversationInspector } from './conversationInspector.ts';
+import {
+  BuildLogsSchema,
+  BuildLogsSkill,
+  BuildLogsSkillId,
+} from '../../../lib/src/conversation/skills/BuildLogsSkill.ts';
+import {
+  CurrentEditorSchema,
+  CurrentEditorSkill,
+  CurrentEditorSkillId,
+} from '../../../lib/src/conversation/skills/CurrentEditorSkill.ts';
+import {
+  GitMetadataSchema,
+  GitMetadataSkill,
+  GitMetadataSkillId,
+} from '../../../lib/src/conversation/skills/GitMetadataSkill.ts';
+import {
+  ProblemsInActiveDocumentSchema,
+  ProblemsInActiveDocumentSkill,
+  ProblemsInActiveDocumentSkillId,
+} from '../../../lib/src/conversation/skills/ProblemInActiveDocumentSkill.ts';
 import {
   ProjectContextSkill,
   ProjectContextSkillResolver,
 } from '../../../lib/src/conversation/skills/ProjectContextSkill.ts';
 import {
-  ProjectMetadataSkill,
-  ProjectMetadataSkillId,
-  ProjectMetadataSchema,
-} from '../../../lib/src/conversation/skills/ProjectMetadataSkill.ts';
-import { AgentSkillResolver } from './skillResolver.ts';
-import {
+  ProjectLabelsSchema,
   ProjectLabelsSkill,
   ProjectLabelsSkillId,
-  ProjectLabelsSchema,
 } from '../../../lib/src/conversation/skills/ProjectLabelsSkill.ts';
 import {
-  CurrentEditorSkill,
-  CurrentEditorSkillId,
-  CurrentEditorSchema,
-} from '../../../lib/src/conversation/skills/CurrentEditorSkill.ts';
-import { ReferencesSkill } from '../../../lib/src/conversation/skills/ReferencesSkill.ts';
+  ProjectMetadataSchema,
+  ProjectMetadataSkill,
+  ProjectMetadataSkillId,
+} from '../../../lib/src/conversation/skills/ProjectMetadataSkill.ts';
 import {
+  RecentFilesSchema,
   RecentFilesSkill,
   RecentFilesSkillId,
-  RecentFilesSchema,
 } from '../../../lib/src/conversation/skills/RecentFilesSkill.ts';
+import { ReferencesSkill } from '../../../lib/src/conversation/skills/ReferencesSkill.ts';
 import {
-  GitMetadataSkill,
-  GitMetadataSkillId,
-  GitMetadataSchema,
-} from '../../../lib/src/conversation/skills/GitMetadataSkill.ts';
-import {
-  ProblemsInActiveDocumentSkill,
-  ProblemsInActiveDocumentSkillId,
-  ProblemsInActiveDocumentSchema,
-} from '../../../lib/src/conversation/skills/ProblemInActiveDocumentSkill.ts';
-import {
+  RuntimeLogsSchema,
   RuntimeLogsSkill,
   RuntimeLogsSkillId,
-  RuntimeLogsSchema,
 } from '../../../lib/src/conversation/skills/RuntimeLogsSkill.ts';
 import {
-  BuildLogsSkill,
-  BuildLogsSkillId,
-  BuildLogsSchema,
-} from '../../../lib/src/conversation/skills/BuildLogsSkill.ts';
-import {
+  TestContextSchema,
   TestContextSkill,
   TestContextSkillId,
-  TestContextSchema,
 } from '../../../lib/src/conversation/skills/TestContextSkill.ts';
 import {
+  TestFailuresSchema,
   TestFailuresSkill,
   TestFailuresSkillId,
-  TestFailuresSchema,
 } from '../../../lib/src/conversation/skills/TestFailuresSkill.ts';
+import { BlackbirdIndexingStatus } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/indexingStatus.ts';
+import { ChunkingProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/ChunkingProvider.ts';
+import { RankingProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/RankingProvider.ts';
+import { ScoringProvider } from '../../../lib/src/conversation/skills/projectContextSnippetProviders/localSnippets/ScoringProvider.ts';
 
 function activateConversationFeature(ctx: Context): void {
   registerContextDependencies(ctx);
@@ -99,14 +98,11 @@ function registerContextDependencies(ctx: Context): void {
   ctx.set(ConversationProgress, new AgentConversationProgress(ctx));
   ctx.set(PreconditionsCheck, new PreconditionsCheck(ctx));
   ctx.set(PreconditionsNotifier, new PreconditionsNotifier(ctx));
-
-  ctx.get(HeaderContributors).add(new CapiVersionHeaderContributor(ctx));
-
   ctx.set(ModelMetadataProvider, new ExpModelMetadataProvider(ctx, new CapiModelMetadataProvider(ctx)));
   ctx.set(TurnProcessorFactory, new TurnProcessorFactory());
   ctx.set(BlackbirdIndexingStatus, new BlackbirdIndexingStatus());
   ctx.set(ConversationInspector, new AgentConversationInspector(ctx));
-  ctx.set(ChunkingProvider, new ChunkingProvider());
+  ctx.set(ChunkingProvider, new ChunkingProvider(ctx));
   ctx.set(RankingProvider, new RankingProvider());
   ctx.set(ScoringProvider, new ScoringProvider());
 }

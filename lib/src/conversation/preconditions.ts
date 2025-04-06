@@ -2,11 +2,10 @@ import { EventEmitter } from 'node:events';
 
 import { type Context } from '../context.ts';
 import { URLReachability } from '../reachability.ts';
+import { onCopilotToken } from '../auth/copilotTokenNotifier.ts';
 import { AuthManager } from '../auth/manager.ts';
 import { GitHubAppInfo } from '../config.ts';
 import { CopilotTokenManager } from '../auth/copilotTokenManager.ts';
-import { CopilotTokenNotifier } from '../auth/copilotTokenNotifier.ts';
-import { Features } from '../experiments/features.ts';
 
 type PreconditionResult = { type: string; status: 'ok' | 'failed'; details?: URLReachability[]; githubAppId?: string };
 
@@ -23,12 +22,12 @@ class TokenPreconditionCheck {
 
     return authRecord && authRecord.githubAppId && authRecord.githubAppId !== fallbackAppId
       ? { type: 'token', status: 'ok' }
-      : { type: 'token', status: 'failed', githubAppId: appInfo.experimentalJetBrainsAppId() };
+      : { type: 'token', status: 'failed', githubAppId: appInfo.githubAppId };
   }
 }
 class ChatEnabledPreconditionCheck {
   async check(ctx: Context): Promise<PreconditionResult> {
-    const copilotToken = await ctx.get(CopilotTokenManager).getCopilotToken(ctx);
+    const copilotToken = await ctx.get(CopilotTokenManager).getToken();
     return {
       type: 'chat_enabled',
       status: copilotToken.envelope.chat_enabled ? 'ok' : 'failed',
@@ -46,7 +45,7 @@ class PreconditionsCheck {
     readonly ctx: Context,
     readonly checks = PRECONDITION_CHECKS
   ) {
-    this.ctx.get(CopilotTokenNotifier).on('onCopilotToken', async () => {
+    onCopilotToken(this.ctx, async () => {
       await this.check();
     });
   }
@@ -66,14 +65,7 @@ class PreconditionsCheck {
   async requestChecks() {
     let results: PreconditionResult[] = [];
     if (this.checks.length > 0) {
-      const features = this.ctx.get(Features);
-      const telemetryDataWithExp = await features.updateExPValuesAndAssignments();
-      const extensibilityEnabled = features.ideChatEnableExtensibilityPlatform(telemetryDataWithExp);
-      results = await Promise.all(
-        this.checks
-          .filter((c) => (c instanceof TokenPreconditionCheck ? extensibilityEnabled : true))
-          .map((check) => check.check(this.ctx))
-      );
+      results = await Promise.all(this.checks.map((check) => check.check(this.ctx)));
     }
     const status: 'ok' | 'failed' = results.every((p) => p.status === 'ok') ? 'ok' : 'failed';
     const result = { results: results, status: status };

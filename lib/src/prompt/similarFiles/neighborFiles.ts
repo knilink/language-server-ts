@@ -1,7 +1,7 @@
-import { DocumentUri } from 'vscode-languageserver-types';
-import { type CancellationToken } from '../../../../agent/src/cancellation.ts';
-import { Context } from '../../../../lib/src/context.ts';
-import { LanguageId } from '../../types.ts';
+import type { DocumentUri } from 'vscode-languageserver-types';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../../lib/src/context.ts';
+import type { LanguageId } from '../../types.ts';
 
 import { normalizeLanguageId } from '../../../../prompt/src/lib.ts';
 import { OpenTabFiles } from './openTabFiles.ts';
@@ -28,6 +28,10 @@ class NeighborSource {
   static readonly MAX_NEIGHBOR_FILES = 20;
   static readonly MAX_NEIGHBOR_AGGREGATE_LENGTH = 200_000;
   static readonly EXCLUDED_NEIGHBORS = ['node_modules', 'dist', 'site-packages'];
+
+  static defaultEmptyResult(): NeighborSource.Result {
+    return { docs: new Map(), neighborSource: new Map(), traits: [] };
+  }
 
   static reset(): void {
     NeighborSource.instance = undefined;

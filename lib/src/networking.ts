@@ -1,11 +1,11 @@
 import * as util from 'node:util';
-import * as http from 'node:http';
-import { Readable } from 'node:stream';
-import { Context } from './context.ts';
-import { CancellationToken } from '../../agent/src/cancellation.ts'; // MARK
+import type { Readable } from 'node:stream';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { AbortSignal, Headers } from '@adobe/helix-fetch';
+import type { Context } from './context.ts';
+import type { AbortController } from '@adobe/helix-fetch';
 
 import { telemetry, TelemetryData } from './telemetry.ts';
-// @ts-ignore
 import { FetchError, AbortError } from '@adobe/helix-fetch';
 import { HeaderContributors } from './headerContributors.ts';
 import { editorVersionHeaders, EditorSession } from './config.ts';
@@ -62,18 +62,22 @@ function isAbortError(e: any) {
 }
 
 function isNetworkError(e: any, checkCause = true) {
-  if (checkCause && e.cause) {
-    e = e.cause;
+  if (!(e instanceof Error)) {
+    return false;
   }
+
+  if (checkCause && 'cause' in e && isNetworkError(e.cause, false)) {
+    return true;
+  }
+
   return (
-    // (e instanceof Error && networkErrorCodes_fDe.has(e.code))
     e instanceof FetchError ||
-    (e instanceof Error && e.name === 'EditorFetcherError') ||
-    (e instanceof Error && e.name === 'FetchError') ||
+    e.name === 'EditorFetcherError' ||
+    e.name === 'FetchError' ||
     e instanceof JsonParseError ||
     e instanceof FetchResponseError ||
-    e?.message?.startsWith('net::') ||
-    (e instanceof Error && networkErrorCodes.has((e as any).code))
+    (e?.message?.startsWith('net::') ?? false) ||
+    networkErrorCodes.has((e as any).code ?? '')
   );
 }
 
@@ -124,12 +128,7 @@ async function postRequest(
   try {
     return await fetcher.fetch(url, request);
   } catch (reason: any) {
-    if (
-      reason.code !== 'ECONNRESET' &&
-      reason.code !== 'ETIMEDOUT' &&
-      reason.code !== 'ERR_HTTP2_INVALID_SESSION' &&
-      reason.message !== 'ERR_HTTP2_GOAWAY_SESSION'
-    ) {
+    if (isInterruptedNetworkError(reason)) {
       throw reason;
     }
   }
@@ -139,22 +138,20 @@ async function postRequest(
   return fetcher.fetch(url, request);
 }
 
-namespace Fetcher {
-  export type ProxySetting = {
-    // ./diagnostics.ts
-    host: string;
-    // ./diagnostics.ts
-    port: number;
-    // ./network/proxySockets.ts
-    // optional ./network/proxy.ts
-    proxyAuth?: string; // base64
-    // ./network/proxySockets.ts
-    // optional ./network/proxy.ts
-    kerberosServicePrincipal?: string;
-    ca?: readonly string[];
-    // ./network/helix.ts
-    connectionTimeoutInMs?: number;
-  };
+function isInterruptedNetworkError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if (error.message === 'ERR_HTTP2_GOAWAY_SESSION') {
+    return true;
+  }
+
+  if ('code' in error) {
+    return error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ERR_HTTP2_INVALID_SESSION';
+  }
+
+  return false;
 }
 
 abstract class Fetcher {
@@ -181,6 +178,24 @@ abstract class Fetcher {
   get rejectUnauthorized(): boolean | undefined {
     return this._rejectUnauthorized;
   }
+}
+
+namespace Fetcher {
+  export type ProxySetting = {
+    // ./diagnostics.ts
+    host: string;
+    // ./diagnostics.ts
+    port: number;
+    // ./network/proxySockets.ts
+    // optional ./network/proxy.ts
+    proxyAuth?: string; // base64
+    // ./network/proxySockets.ts
+    // optional ./network/proxy.ts
+    kerberosServicePrincipal?: string;
+    ca?: readonly string[];
+    // ./network/helix.ts
+    connectionTimeoutInMs?: number;
+  };
 }
 
 class HttpTimeoutError extends Error {
@@ -214,12 +229,15 @@ class FetchResponseError extends Error {
 }
 
 class Response {
+  readonly ok: boolean;
+  readonly clientError: boolean;
+
   constructor(
     readonly status: number,
     readonly statusText: string,
     // ./network/helix.ts
     // Iterable ../../agent/src/methods/testing/fetch.ts
-    readonly headers: Pick<Headers, 'get'> & Iterable<[string, string]>, // MARK fuck this
+    readonly headers: Headers,
     readonly getText: () => Promise<string>,
     // TODO:
     // ./openai/fetch.ts body.destory()
@@ -227,20 +245,17 @@ class Response {
     // NodeJS.ReadableStream ./network/helix.ts
     // EditorFetcher -> node:stream.PassThrough -> ReadableBase.destroy -> NodeJS.ReadableStream
     // HelixFetcher -> NodeJS.ReadableStream
-    readonly getBody: () => Promise<Readable>,
-    readonly getJson?: () => Promise<unknown>
+    readonly getBody: () => Readable
   ) {
     this.ok = this.status >= 200 && this.status < 300;
+    this.clientError = this.status >= 400 && this.status < 500;
   }
-
-  readonly ok: boolean;
 
   async text(): Promise<string> {
     return this.getText();
   }
 
   async json(): Promise<unknown> {
-    if (this.getJson) return this.getJson();
     const text = await this.text();
     const contentType = this.headers.get('content-type');
     if (!contentType || !contentType.includes('json')) {
@@ -270,7 +285,7 @@ class Response {
   }
 
   // Readable.destory() ./conversation/openai/fetch.ts
-  async body(): Promise<Readable> {
+  body(): Readable {
     return this.getBody();
   }
 }

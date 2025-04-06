@@ -7,8 +7,6 @@ import {
   getPrompt,
 } from '../../../prompt/src/lib.ts';
 
-('use strict');
-
 const workerFuns = ['isEmptyBlockStart', 'isBlockBodyFinished', 'getNodeStart'];
 const directFuns = ['isSupportedLanguageId', 'getBlockCloseToken', 'getPrompt'];
 const allFuns = [...workerFuns, ...directFuns];

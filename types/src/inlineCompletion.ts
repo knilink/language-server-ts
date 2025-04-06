@@ -1,10 +1,15 @@
-import { ProtocolRequestType, ProtocolNotificationType } from 'vscode-languageserver-protocol';
+import {
+  ProtocolRequestType,
+  ProtocolNotificationType,
+  InlineCompletionTriggerKind as Foo,
+} from 'vscode-languageserver-protocol';
 import { OptionalVersionedTextDocumentIdentifierSchema, PositionSchema, RangeSchema } from './core.ts';
 import { Type, type Static } from '@sinclair/typebox';
 
+// MARK InlineCompletionTriggerKind in 'vscode-languageserver-protocol' is Invoked = 0, Automatic = 1
 enum InlineCompletionTriggerKind {
-  Invoked = 'Invoked',
-  Automatic = 'Automatic',
+  Invoked = 1,
+  Automatic = 2,
 }
 
 const InlineCompletionTriggerKindSchema = Type.Enum(InlineCompletionTriggerKind);
@@ -16,7 +21,7 @@ const CopilotInlineCompletionContextSchema = Type.Object({
   ),
 });
 
-const CopilotInlineCompletionParams = Type.Object({
+const CopilotInlineCompletionSchema = Type.Object({
   textDocument: OptionalVersionedTextDocumentIdentifierSchema,
   position: PositionSchema,
   formattingOptions: Type.Optional(
@@ -26,11 +31,11 @@ const CopilotInlineCompletionParams = Type.Object({
   data: Type.Optional(Type.Unknown()),
 });
 
-type CopilotInlineCompletionParamsType = Static<typeof CopilotInlineCompletionParams>;
+type CopilotInlineCompletionSchemaType = Static<typeof CopilotInlineCompletionSchema>;
 
 namespace CopilotInlineCompletionRequest {
   export const method = 'textDocument/inlineCompletion';
-  export const type = new ProtocolRequestType<CopilotInlineCompletionParamsType, unknown, unknown, unknown, unknown>(
+  export const type = new ProtocolRequestType<CopilotInlineCompletionSchemaType, unknown, unknown, unknown, unknown>(
     method
   );
 }
@@ -61,9 +66,9 @@ namespace DidPartiallyAcceptCompletionNotification {
 }
 
 export {
-  CopilotInlineCompletionParams,
-  CopilotInlineCompletionParamsType,
   CopilotInlineCompletionRequest,
+  CopilotInlineCompletionSchema,
+  CopilotInlineCompletionSchemaType,
   DidPartiallyAcceptCompletionNotification,
   DidPartiallyAcceptCompletionParams,
   DidPartiallyAcceptCompletionParamsType,

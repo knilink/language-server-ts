@@ -1,7 +1,8 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { Context } from '../../../lib/src/context.ts';
+import { Type } from '@sinclair/typebox';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
 import { AgentInstallationManager } from '../installationManager.ts';
 

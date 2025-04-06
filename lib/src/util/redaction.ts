@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 import { Replacement } from '../types.ts';
 
-type AdobeError = SystemError | FetchError;
+type HelixError = SystemError | FetchError;
 
 function redactPaths(input: string): string {
   return input
@@ -26,31 +26,6 @@ function redactMessage(input: string): string {
 function escapeForRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
-const knownErrorLiterals = new Set([
-  'Maximum call stack size exceeded',
-  'Set maximum size exceeded',
-  'Invalid arguments',
-]);
-
-const knownErrorPatterns = [
-  /^[\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}.]+ is not a function[ \w]*$/u,
-  /^Cannot read properties of undefined \(reading '[\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]+'\)$/u,
-];
-
-const relativePathSuffix = '[\\\\/]?([^:)]*)(?=:\\d)';
-
-const homedirRegExp = new RegExp(
-  '(?<=^|[\\s|("\'`]|file://)' + escapeForRegExp(os.homedir()) + '(?=$|[\\\\/:"\'`])',
-  'gi'
-);
-
-const pathSepRegExp = new RegExp(escapeForRegExp(path.sep), 'g');
-
-const rootDirRegExp = new RegExp(
-  escapeForRegExp(__dirname.replace(/[\\/]lib[\\/]src[\\/]util$|[\\/]dist$/, '')) + relativePathSuffix,
-  'gi'
-);
 
 function redactHomeDir(input: string): string {
   return input.replace(homedirRegExp, '~');
@@ -89,17 +64,17 @@ function cloneError(
     error.stack = `${error}`;
     for (const frame of stackFrames) {
       if (rootDirRegExp.test(frame)) {
-        error.stack += `\n${redactPaths(
+        error.stack += `\n  ${redactPaths(
           frame.replace(rootDirRegExp, (_: string, relative: string) => './' + relative.replace(pathSepRegExp, '/'))
         )}`;
       } else if (/[ (]node:|[ (]wasm:\/\/wasm\/| \(<anonymous>\)$/.test(frame)) {
-        error.stack += `\n${redactPaths(frame)}`;
+        error.stack += `\n  ${redactPaths(frame)}`;
       } else {
         let found = false;
         for (const { prefix, path: dir } of replacements) {
           const dirRegExp = new RegExp(`${escapeForRegExp(dir.replace(/[\\/]$/, ''))}\\b`, 'gi');
           if (dirRegExp.test(frame)) {
-            error.stack += `\n${redactPaths(
+            error.stack += `\n  ${redactPaths(
               frame.replace(
                 dirRegExp,
                 (_: string, relative: string) => `${prefix}${relative.replace(pathSepRegExp, '/')}`
@@ -110,7 +85,7 @@ function cloneError(
           }
         }
         if (found) continue;
-        error.stack += allowUnknownPaths ? `\n${redactHomeDir(frame)}` : '\n    at [redacted]:0:0';
+        error.stack += allowUnknownPaths ? `\n    ${redactHomeDir(frame)}` : '\n        at [redacted]:0:0';
       }
     }
   } else if (allowUnknownPaths && originalStack) {
@@ -124,7 +99,7 @@ function cloneError(
   return error;
 }
 
-function errorMessageWithoutPath(error: AdobeError): string {
+function errorMessageWithoutPath(error: HelixError): string {
   let message = error.message;
   if ('path' in error && typeof error.path === 'string' && error.path.length > 0) {
     message = message.replaceAll(error.path, '<path>');
@@ -140,19 +115,47 @@ function prepareErrorForRestrictedTelemetry(original: any, replacements?: Replac
 }
 
 function redactError(original: any, replacements?: Replacement[], telemetryOptIn: boolean = false): Error {
-  function prepareMessage(e: AdobeError) {
+  function prepareMessage(e: HelixError) {
     if (telemetryOptIn) return redactMessage(errorMessageWithoutPath(e));
     let message = '[redacted]';
-    if (typeof e.syscall === 'string' && e.code !== undefined) {
-      message = `${redactPaths(e.syscall)} ${e.code} ${message}`;
-    } else if (e instanceof FetchError && e.erroredSysCall && e.code !== undefined) {
-      message = `${e.erroredSysCall} ${e.code} ${message}`;
-    } else if (e.code !== void 0) {
-      message = `${e.code} ${message}`;
+    if (typeof e.code === 'string') {
+      message = e.code + ' ' + message;
     }
+
+    if ('syscall' in e && typeof e.syscall === 'string') {
+      message = redactPaths(e.syscall) + ' ' + message;
+    } else if (e instanceof FetchError && e.erroredSysCall) {
+      message = e.erroredSysCall + ' ' + message;
+    }
+
     return message;
   }
   return cloneError(original, prepareMessage, false, replacements);
 }
+
+const knownErrorLiterals = new Set([
+  'Maximum call stack size exceeded',
+  'Set maximum size exceeded',
+  'Invalid arguments',
+]);
+
+const knownErrorPatterns = [
+  /^[\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}.]+ is not a function[ \w]*$/u,
+  /^Cannot read properties of undefined \(reading '[\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]+'\)$/u,
+];
+
+const homedirRegExp = new RegExp(
+  '(?<=^|[\\s|("\'`]|file://)' + escapeForRegExp(os.homedir()) + '(?=$|[\\\\/:"\'`])',
+  'gi'
+);
+
+const relativePathSuffix = '[\\\\/]?([^:)]*)(?=:\\d)';
+
+const pathSepRegExp = new RegExp(escapeForRegExp(path.sep), 'g');
+
+const rootDirRegExp = new RegExp(
+  escapeForRegExp(__dirname.replace(/[\\/]lib[\\/]src[\\/]util$|[\\/]dist$/, '')) + relativePathSuffix,
+  'gi'
+);
 
 export { prepareErrorForRestrictedTelemetry, redactMessage, redactError };

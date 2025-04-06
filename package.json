@@ -7,7 +7,8 @@
     "build": "rollup -c",
     "watch": "rollup -c --watch",
     "test": "vitest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit"
   },
   "lint-staged": {
     "*.ts": "prettier --write",
@@ -60,6 +61,7 @@
     "eslint": "^9.9.1",
     "husky": "^9.1.5",
     "lint-staged": "^15.2.10",
+    "patch-package": "^8.0.0",
     "prettier": "^3.3.3",
     "rollup": "^4.19.0",
     "rollup-plugin-dts": "^6.1.1",
@@ -67,9 +69,9 @@
     "ts-node": "^10.9.2",
     "tslib": "^2.6.3",
     "tslint": "^6.1.3",
-    "tsx": "^4.19.0",
-    "typescript": "^5.5.4",
-    "vitest": "^2.0.4"
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   },
   "dependencies": {
     "@adobe/helix-fetch": "github:devm33/helix-fetch#1088e599270f36632703f138d88c2100cbe468db",
@@ -80,7 +82,7 @@
     "@roamhq/mac-ca": "^1.0.7",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-json": "^6.1.0",
-    "@sinclair/typebox": "^0.32.35",
+    "@sinclair/typebox": "^0.34.31",
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^10.0.0",
     "crypto-js": "^4.2.0",
@@ -97,9 +99,9 @@
     "source-map-support": "^0.5.21",
     "uuid": "^10.0.0",
     "vscode-languageserver": "^9.0.1",
-    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageserver-textdocument": "^1.0.12",
     "vscode-languageserver-types": "^3.17.5",
-    "vscode-uri": "^3.0.8",
+    "vscode-uri": "^3.1.0",
     "web-tree-sitter": "^0.20.8",
     "windows-ca-certs": "^0.1.0",
     "ws": "^8.18.0",

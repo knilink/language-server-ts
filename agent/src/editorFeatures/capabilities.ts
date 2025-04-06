@@ -1,19 +1,13 @@
-type CopilotCapabilitiesParamType = {
-  fetch?: boolean;
-  redirectedTelemetry?: boolean;
-  token?: boolean;
-  related?: boolean;
-  watchedFiles?: boolean;
-};
+import { CopilotCapabilitiesType } from '../../../types/src/index.ts';
 
 class CopilotCapabilitiesProvider {
-  private capabilities: CopilotCapabilitiesParamType = {};
+  private capabilities: CopilotCapabilitiesType = {};
 
-  setCapabilities(capabilities: CopilotCapabilitiesParamType): void {
+  setCapabilities(capabilities: CopilotCapabilitiesType): void {
     this.capabilities = capabilities;
   }
 
-  getCapabilities(): CopilotCapabilitiesParamType {
+  getCapabilities(): CopilotCapabilitiesType {
     return this.capabilities;
   }
 }

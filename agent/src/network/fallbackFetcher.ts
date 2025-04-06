@@ -1,8 +1,8 @@
 import { Context } from '../../../lib/src/context.ts';
 import { isAbortError, Fetcher, Request, Response } from '../../../lib/src/networking.ts';
-import { Logger, LogLevel } from '../../../lib/src/logger.ts';
+import { Logger } from '../../../lib/src/logger.ts';
 
-const logger = new Logger(LogLevel.INFO, 'fetcher');
+const logger = new Logger('fetcher');
 const expRoot = 'https://default.exp-tas.com/';
 
 class FallbackFetcher extends Fetcher {

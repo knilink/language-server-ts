@@ -1,5 +1,4 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
 import { type Completion } from '../../../lib/src/types.ts';
 import { type SuggestionStatus } from '../../../lib/src/suggestions/partialSuggestions.ts';
 
@@ -17,7 +16,7 @@ const Params = Type.Object({
 
 async function notifyAcceptedChecked(
   ctx: Context,
-  token: CancellationToken,
+  token: unknown,
   params: Static<typeof Params>
 ): Promise<['OK', null]> {
   const cache = ctx.get(CopilotCompletionCache);
@@ -36,7 +35,8 @@ async function notifyAcceptedChecked(
       completion.uri,
       completion.telemetry,
       suggestionStatus,
-      completion.range.start
+      completion.range.start,
+      completion.copilotAnnotations
     );
   }
 

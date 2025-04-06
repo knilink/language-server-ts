@@ -1,11 +1,13 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type Context } from '../../../lib/src/context.ts';
-import { type CancellationToken } from '../cancellation.ts';
-import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
-import { postRejectionTasks } from '../../../lib/src/postInsertion.ts';
-import { LastGhostText } from '../../../lib/src/ghostText/last.ts';
+import type { Static } from '@sinclair/typebox';
+import type { Context } from '../../../lib/src/context.ts';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+
 import { TestingOptions } from './testingOptions.ts';
+import { CopilotCompletionCache } from '../copilotCompletionCache.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { LastGhostText } from '../../../lib/src/ghostText/last.ts';
+import { postRejectionTasks } from '../../../lib/src/postInsertion.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({
   uuids: Type.Array(Type.String()),

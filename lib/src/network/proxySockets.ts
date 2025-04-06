@@ -4,11 +4,11 @@ import { type Fetcher } from '../networking.ts';
 
 import { Context } from '../context.ts';
 import { telemetry } from '../telemetry.ts';
-import { Logger, LogLevel } from '../logger.ts';
+import { Logger } from '../logger.ts';
 import { LRUCacheMap } from '../common/cache.ts';
 
 const PROXY_AUTHORIZATION_REQUIRED = 407;
-const logger = new Logger(LogLevel.DEBUG, 'proxySocketFactory');
+const logger = new Logger('proxySocketFactory');
 
 function getProxySocketFactory(ctx: Context) {
   return new KerberosProxySocketFactory(ctx, new TunnelingProxySocketFactory(ctx));

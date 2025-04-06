@@ -1,13 +1,12 @@
-import assert from 'node:assert';
+import type { AuthRecord } from './types.ts';
 import { type Context } from '../context.ts';
 
-import { telemetryNewGitHubLogin, telemetryGitHubLoginSuccess, telemetryGitHubLoginFailed } from '../telemetry/auth.ts';
-import { editorVersionHeaders } from '../config.ts';
-import { Fetcher, isNetworkError, type Request } from '../networking.ts';
-import { NetworkConfiguration } from '../networkConfiguration.ts';
-import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
 import { CopilotAuthError } from './error.ts';
-import { AuthRecord } from './types.ts';
+import { editorVersionHeaders } from '../config.ts';
+import { UserErrorNotifier } from '../error/userErrorNotifier.ts';
+import { NetworkConfiguration } from '../networkConfiguration.ts';
+import { Fetcher, isNetworkError, type Request } from '../networking.ts';
+import { telemetryGitHubLoginSuccess, telemetryNewGitHubLogin } from '../telemetry/auth.ts';
 
 // ../../../agent/src/methods/signInInitiate.ts
 type DeviceFlow = {
@@ -60,26 +59,19 @@ async function requestDeviceFlowStage2(
     },
     timeout: 30_000,
   };
-  const r = await ctx.get(Fetcher).fetch(ctx.get(NetworkConfiguration).getDeviceFlowCompletionUrl(), request);
-  // EDITED
-  const data: any = await r.json();
-  const access_token = data?.access_token;
-  if (typeof access_token === 'string') return { access_token };
-  return {};
+
+  return (await (
+    await ctx.get(Fetcher).fetch(ctx.get(NetworkConfiguration).getDeviceFlowCompletionUrl(), request)
+  ).json()) as any;
 }
 
 async function requestUserInfo(ctx: Context, accessToken: string): Promise<{ login: string }> {
   telemetryGitHubLoginSuccess(ctx, 'deviceFlow');
-  const fetcher = ctx.get(Fetcher);
-  const userInfoUrl = ctx.get(NetworkConfiguration).getUserInfoUrl();
-  const r = await fetcher.fetch(userInfoUrl, {
-    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-  });
-  // EDITED
-  const data: any = await r.json();
-  const login = data?.login;
-  assert(typeof login === 'string'); // login required by AuthRecord
-  return { login };
+  return (await (
+    await ctx.get(Fetcher).fetch(ctx.get(NetworkConfiguration).getUserInfoUrl(), {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    })
+  ).json()) as any;
 }
 
 export class GitHubDeviceFlow {
@@ -87,7 +79,6 @@ export class GitHubDeviceFlow {
     try {
       return await this.getTokenUnguarded(ctx, clientId);
     } catch (error) {
-      telemetryGitHubLoginFailed(ctx);
       ctx.get(UserErrorNotifier).notifyUser(ctx, error);
       throw error;
     }
@@ -95,22 +86,20 @@ export class GitHubDeviceFlow {
 
   async getTokenUnguarded(ctx: Context, clientId: string): Promise<DeviceFlow & { waitForAuth: Promise<AuthRecord> }> {
     const stage1 = await requestDeviceFlowStage1(ctx, clientId);
-    const stage2Promise = new Promise<AuthRecord>(async (resolve, reject) => {
+    const stage2Promise = (async (): Promise<AuthRecord> => {
       let expiresIn = stage1.expires_in;
-      let accessToken: string | undefined;
+      let accessToken;
       while (expiresIn > 0) {
-        const stage2 = await requestDeviceFlowStage2(ctx, stage1.device_code, clientId);
+        let stage2 = await requestDeviceFlowStage2(ctx, stage1.device_code, clientId);
         expiresIn -= stage1.interval;
         await new Promise((resolve) => setTimeout(resolve, 1000 * stage1.interval));
         accessToken = stage2.access_token;
         if (accessToken) {
-          let userInfo = await requestUserInfo(ctx, accessToken);
-          resolve({ user: userInfo.login, oauth_token: accessToken });
-          return;
+          return { user: (await requestUserInfo(ctx, accessToken)).login, oauth_token: accessToken };
         }
       }
-      reject(new CopilotAuthError('Timed out waiting for login to complete'));
-    });
+      throw new CopilotAuthError('Timed out waiting for login to complete');
+    })();
 
     return { ...stage1, waitForAuth: stage2Promise };
   }

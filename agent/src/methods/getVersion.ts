@@ -1,9 +1,10 @@
-import { Type, type Static } from '@sinclair/typebox';
-import { type CancellationToken } from '../cancellation.ts';
+import type { Static } from '@sinclair/typebox';
+import type { CancellationToken } from 'vscode-languageserver/node.js';
+import type { Context } from '../../../lib/src/context.ts';
 
-import { Context } from '../../../lib/src/context.ts';
 import { BuildInfo, getBuildType } from '../../../lib/src/config.ts';
 import { addMethodHandlerValidation } from '../schemaValidation.ts';
+import { Type } from '@sinclair/typebox';
 
 const Params = Type.Object({});
 
